@@ -811,7 +811,7 @@
           <input name="profile_lock_minutes" type="number" inputmode="numeric" min="1" max="720" step="1">
           <span class="muted small" data-locked="profile_lock_minutes" hidden></span>
         </label>
-        <label class="wide"><span>Recopier les sauvegardes dans <button type="button" class="tip" data-tip="Un dossier déjà créé sur un autre disque de cet ordinateur ou une clé USB, pour survivre à une panne du disque principal. Refusés : dossiers synchronisés (OneDrive, Dropbox…) et partages réseau, d'où les bases quitteraient la machine. Une première copie part dès l'enregistrement, puis chaque heure." aria-label="Plus d'infos">?</button></span>
+        <label class="wide"><span>Recopier les sauvegardes dans <button type="button" class="tip" data-tip="Un dossier déjà créé sur un autre disque de cet ordinateur ou une clé USB, pour survivre à une panne du disque principal. Refusés : dossiers synchronisés (OneDrive, Dropbox…) et partages réseau, d'où les bases quitteraient la machine (un NAS se règle dans le fichier .env, BACKUP_COPY_DIR). Une première copie part dès l'enregistrement, puis chaque heure." aria-label="Plus d'infos">?</button></span>
           <input name="backup_copy_dir" maxlength="400" autocomplete="off" spellcheck="false" placeholder="D:\Patrimoine-sauvegardes">
           <span class="muted small" data-locked="backup_copy_dir" hidden></span>
         </label>

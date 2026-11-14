@@ -205,7 +205,7 @@ def check_copy_dir(value: str, *, strict: bool = True, must_exist: bool = True) 
     # \\serveur\partage contacterait ce serveur (et lui présenterait l'identité de la session).
     network = RuntimeError(
         "Le dossier de copie est sur le réseau : les bases quitteraient l'ordinateur. "
-        "Choisir un disque branché sur cette machine"
+        "Choisir un disque branché sur cette machine ; un NAS se règle dans .env (BACKUP_COPY_DIR)"
     )
     if strict and is_network_path(path):
         raise network
