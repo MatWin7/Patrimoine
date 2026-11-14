@@ -296,9 +296,14 @@ def _linux_mount_is_remote(path: Path, mounts: str = "/proc/self/mounts") -> boo
         options = fields[3] if len(fields) > 3 else ""
         if path.is_relative_to(point) and len(point) >= len(best):
             best = point
-            # WSL 2 : drvfs en 9p, le chemin Windows est dans les options (path=C:\ ou
-            # path=\\serveur\partage) ; WSL 1 : dans la source.
-            unc = src.startswith(("\\134\\134", "//")) or "path=\\134\\134" in options
+            # WSL 2 : drvfs en 9p, source « C:\134 » (\ échappé) et options « path=C:\; » (non
+            # échappé, relevé sur un vrai WSL le 2026-11-14) ; un partage donne \134\134serveur
+            # en source et path=\\serveur dans les options.
+            unc = (
+                src.startswith(("\\134\\134", "//"))
+                or "path=\\\\" in options
+                or "path=\\134\\134" in options
+            )
             # FUSE (fuse.*) : presque toujours distant (gvfs, kio, rclone, sshfs…) ; refusé par
             # prudence. fuseblk (NTFS, exFAT d'un disque branché) reste local.
             remote = kind in NETWORK_FILESYSTEMS or kind.startswith("fuse.") or unc

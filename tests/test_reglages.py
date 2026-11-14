@@ -215,8 +215,10 @@ def test_dossier_devenu_reseau_refuse_a_l_usage(tmp_path, monkeypatch):
 
 MOUNTS = """\
 /dev/sdc / ext4 rw,relatime 0 0
-drvfs /mnt/c 9p rw,noatime,aname=drvfs;path=C:\\134;uid=1000 0 0
-drvfs /mnt/nas 9p rw,noatime,aname=drvfs;path=\\134\\134serveur\\134partage;uid=1000 0 0
+C:\\134 /mnt/c 9p rw,noatime,aname=drvfs;path=C:\\;uid=1000;gid=1000;symlinkroot=/mnt/ 0 0
+D:\\134 /mnt/d 9p rw,noatime,aname=drvfs;path=D:\\;uid=1000;gid=1000;symlinkroot=/mnt/ 0 0
+\\134\\134serveur\\134partage /mnt/nas 9p rw,aname=drvfs;path=\\\\serveur\\partage;uid=1000 0 0
+drvfs /mnt/nas2 9p rw,noatime,aname=drvfs;path=\\134\\134serveur\\134partage;uid=1000 0 0
 //serveur/partage /mnt/smb cifs rw,vers=3.0 0 0
 serveur:/export /mnt/nfs nfs4 rw 0 0
 distant: /home/moi/rclone fuse.rclone rw 0 0
@@ -231,7 +233,9 @@ gvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0
     [
         ("/home/moi/Patrimoine", False),
         ("/mnt/c/Users/Moi/Sauvegardes", False),  # disque C: vu de WSL
+        ("/mnt/d/Patrimoine-sauvegardes", False),  # disque D: (format relevé sur un vrai WSL)
         ("/mnt/nas/Patrimoine", True),  # partage Windows monté par drvfs
+        ("/mnt/nas2/Patrimoine", True),
         ("/mnt/smb/Patrimoine", True),
         ("/mnt/nfs", True),
         ("/home/moi/rclone/x", True),
