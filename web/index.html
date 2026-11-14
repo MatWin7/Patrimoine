@@ -104,6 +104,9 @@
   </div>
 
   <p id="demo-banner" class="demo-banner" hidden>Profil Démo : toutes les données sont fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button></p>
+  <!-- Avis de mise à jour (D-129) : question posée une fois, puis bandeau quand une version sort. -->
+  <p id="update-ask" class="demo-banner" hidden>Prévenir quand une nouvelle version de Patrimoine sort ? <button type="button" class="tip" data-tip="Une fois par jour au plus, l'app demande à GitHub le numéro de la dernière version publiée. Rien d'autre ne part : ni montant, ni compte, ni version ; GitHub voit l'adresse IP, comme pour toute page web. Rien n'est téléchargé ni installé : tu choisis de télécharger. Modifiable dans Gérer." aria-label="Plus d'infos">?</button> <button type="button" class="link-plain" data-updates="yes">Oui</button> <button type="button" class="link-plain" data-updates="no">Non</button></p>
+  <p id="update-banner" class="demo-banner" hidden>Patrimoine <span id="update-latest"></span> est disponible (version actuelle <span id="update-current"></span>). <a id="update-link" class="link-plain" target="_blank" rel="noopener noreferrer">Voir la version</a> <button type="button" id="update-later" class="link-plain">Plus tard</button></p>
   <p class="current-page" id="current-page" aria-hidden="true"></p>
   <nav class="tabs" id="tabs" aria-label="Pages">
     <a href="#apercu" data-tab="apercu">Vue d'ensemble</a>
@@ -779,6 +782,17 @@
         <p class="muted small">Il devient un nouveau profil, sans rien remplacer. <button type="button" class="tip" data-tip="Le fichier vient de « Exporter » sur un autre ordinateur ou une ancienne copie. L'app vérifie qu'il s'agit bien d'une de ses bases avant de l'accepter, puis la met à jour si elle est ancienne." aria-label="Plus d'infos">?</button></p>
         <p id="profile-restore-error" class="ko small" role="alert" hidden></p>
       </details>
+    </section>
+    <section class="card half" data-card="mises-a-jour">
+      <div class="card-head">
+        <h2>Mises à jour <button type="button" class="tip" data-tip="L'app demande à GitHub, une fois par jour au plus, le numéro de la dernière version publiée, sans rien envoyer d'autre. Elle prévient seulement : télécharger et dézipper la nouvelle version reste ton geste, les données restent dans leur dossier. Réglage commun à tous les profils de cet ordinateur." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <label class="check"><input id="updates-enabled" type="checkbox"> Prévenir quand une nouvelle version sort</label>
+      <p id="updates-state" class="muted small"></p>
+      <div class="updates-actions">
+        <button type="button" id="updates-check">Vérifier maintenant</button>
+        <a id="updates-releases" class="link-plain" target="_blank" rel="noopener noreferrer">Toutes les versions</a>
+      </div>
     </section>
     <section class="card" data-card="alerte-de-variation">
       <div class="card-head"><h2>Alerte de variation</h2></div>

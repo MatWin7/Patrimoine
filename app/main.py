@@ -42,6 +42,7 @@ from app import (
     repository,
     tax,
     tickers,
+    updates,
     valuations,
 )
 from app import recurring as dca
@@ -117,6 +118,7 @@ from app.schemas import (
     SplitIn,
     TargetsIn,
     TradeIn,
+    UpdatesIn,
     ValuationIn,
     WatchlistIn,
     WatchlistItemIn,
@@ -327,6 +329,27 @@ def health(request: Request) -> dict:
         version = db.schema_version(conn)
     conn.close()
     return {**base, "schema_version": version}
+
+
+# --- Avis de mise à jour (D-129) ---------------------------------------------------------------
+# Réglage de la machine, pas d'un profil. GET vérifie une fois par jour au plus, et seulement
+# si l'utilisateur l'a accepté : avant sa réponse à la question du premier lancement, aucun appel.
+
+
+@app.get("/api/updates")
+def updates_status(client: HttpClient) -> dict:
+    return updates.status(updates.check(client, date.today()))
+
+
+@app.put("/api/updates")
+def updates_choice(body: UpdatesIn) -> dict:
+    return updates.status(updates.set_enabled(body.enabled))
+
+
+@app.post("/api/updates/check")
+def updates_check_now(client: HttpClient) -> dict:
+    """Clic sur « Vérifier maintenant » : passe outre la limite d'une fois par jour."""
+    return updates.status(updates.check(client, date.today(), force=True))
 
 
 @app.post("/api/window/focus")

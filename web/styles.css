@@ -678,6 +678,10 @@ dialog.tutorial #tutorial-text { margin: 0 0 var(--s-4); }
 .tutorial-tour dd { margin: 0; color: var(--text-2, var(--text)); }
 button.link-plain { justify-self: start; border: none; background: none; padding: 0; color: var(--accent); }
 button.link-plain:hover { background: none; text-decoration: underline; }
+a.link-plain { color: var(--accent); text-decoration: none; }
+a.link-plain:hover { text-decoration: underline; }
+.demo-banner a.link-plain { margin-left: var(--s-2); }
+.updates-actions { display: flex; gap: var(--s-4); align-items: center; flex-wrap: wrap; }
 
 .card[hidden] { display: none; }
 .start-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }

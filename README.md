@@ -69,7 +69,10 @@ Seulement des demandes publiques, sans montant ni quantité :
   titre trouvé) ;
 - taux de change de la BCE (Frankfurter) ;
 - indice des prix Eurostat, pour la courbe de l'inflation ;
-- taux de dépôt et d'emprunt publics d'Aave, si vous suivez une ligne Aave (une fois par jour).
+- taux de dépôt et d'emprunt publics d'Aave, si vous suivez une ligne Aave (une fois par jour) ;
+- si vous l'acceptez (question au premier lancement, modifiable dans Gérer), le numéro de la
+  dernière version de Patrimoine publiée sur GitHub, une fois par jour. L'app prévient seulement :
+  elle ne télécharge ni n'installe rien.
 
 Ces services voient votre adresse IP et le ticker demandé, comme pour toute visite de leur site.
 L'app n'écoute que sur `127.0.0.1` : elle n'est pas joignable depuis un autre appareil.
@@ -82,8 +85,8 @@ envoie sa propre télémétrie selon le réglage « Diagnostics » de Windows, e
 Prérequis : [uv](https://docs.astral.sh/uv/) (installe Python 3.12 tout seul).
 
 ```bash
-git clone https://github.com/MatWin7/patrimoine.git
-cd patrimoine
+git clone https://github.com/MatWin7/Patrimoine.git
+cd Patrimoine
 uv sync                   # environnement et dépendances dans .venv
 uv run python -m app      # fenêtre sous Windows et macOS, navigateur sous Linux ; --navigateur pour forcer le navigateur
 ```

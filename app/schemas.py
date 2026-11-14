@@ -12,6 +12,7 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     Field,
+    StrictBool,
     StringConstraints,
     field_validator,
     model_validator,
@@ -30,6 +31,12 @@ CoingeckoId = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=T
 # Catégorie personnelle (D-061) : texte libre court ; vide = aucune (la classe sert alors).
 Blank = BeforeValidator(lambda v: (v.strip() or None) if isinstance(v, str) else v)
 Category = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+
+class UpdatesIn(BaseModel):
+    """Réponse à « Prévenir des nouvelles versions ? » (D-129)."""
+
+    enabled: StrictBool
 
 
 class OrderIn(BaseModel):

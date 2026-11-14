@@ -24,6 +24,12 @@ la page de la release sur GitHub.
   installer Python ni ouvrir de console. Les données restent dans leur dossier, d'une version à
   l'autre ; messages dans un journal, erreur de démarrage montrée à l'écran (D-126).
 
+- Avis de mise à jour : au premier lancement, Patrimoine demande s'il doit prévenir quand une
+  nouvelle version sort. Si oui, il demande à GitHub le numéro de la dernière version une fois par
+  jour, sans rien envoyer d'autre, et affiche un bandeau avec le lien vers la page de
+  téléchargement. Rien n'est installé tout seul. Carte « Mises à jour » dans Gérer : changer
+  d'avis, vérifier maintenant (D-129).
+
 ### Publication
 
 - Code ouvert sous licence GNU GPL v3 ou ultérieure ; `Patrimoine.exe` livré avec sa licence et
