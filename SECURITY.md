@@ -18,7 +18,10 @@ libre, sans délai garanti.
 - Lecture seule : aucun ordre, virement ni appel en écriture vers une banque, un courtier ou une
   plateforme.
 - Aucun montant, aucune quantité, aucune adresse de portefeuille envoyés sur le réseau ; seules
-  sorties : cours, taux et indices publics (voir le README).
+  sorties : cours, taux et indices publics, et, si vous l'acceptez, le numéro de la dernière
+  version publiée (voir le README).
+- L'app ne se met jamais à jour toute seule : elle prévient qu'une version existe, vous la
+  téléchargez et vérifiez son empreinte vous-même.
 - Serveur lié à `127.0.0.1`, qui ne répond qu'aux noms `localhost` et `127.0.0.1` ; l'API refuse
   les requêtes venues d'un autre site ; politique de sécurité du contenu (CSP) stricte.
 

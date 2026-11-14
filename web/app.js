@@ -3790,6 +3790,80 @@ $("refresh-prices").addEventListener("click", async () => {
 
 checkHealth();
 setInterval(checkHealth, 60000);
+
+// --- Avis de mise à jour (D-129) -----------------------------------------------------------
+// Le serveur demande à GitHub le numéro de la dernière version, une fois par jour au plus et
+// seulement si l'utilisateur l'a accepté ; la page ne contacte jamais GitHub elle-même. « Plus
+// tard » masque cette version-là dans ce navigateur, la suivante s'affichera.
+const UPDATE_KEY = PREF + "mise-a-jour";
+const updatePref = loadPref(UPDATE_KEY, { later: null });
+
+function frenchDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("fr-FR");
+}
+
+function renderUpdates(data) {
+  const page = data.newer && data.url?.startsWith(`${data.releases}/tag/`) ? data.url : null;
+  $("update-ask").hidden = data.enabled !== null;
+  $("update-banner").hidden = !(data.enabled === true && page && updatePref.later !== data.latest);
+  if (page) {
+    $("update-latest").textContent = data.latest;
+    $("update-current").textContent = data.current;
+    $("update-link").href = page;
+  }
+  $("updates-enabled").checked = data.enabled === true;
+  $("updates-releases").href = data.releases;
+  const when = data.checked ? ` (vérifié le ${frenchDate(data.checked)})` : "";
+  const state = $("updates-state");
+  if (page) {
+    const link = Object.assign(document.createElement("a"), {
+      href: page, target: "_blank", rel: "noopener noreferrer", className: "link-plain",
+      textContent: "Voir la version",
+    });
+    state.replaceChildren(`Version ${data.latest} disponible, tu as la ${data.current}${when}. `, link);
+  } else if (data.error) {
+    state.textContent = `Vérification impossible : ${data.error}${when}.`;
+  } else if (data.checked) {
+    state.textContent = data.latest
+      ? `À jour, version ${data.current}${when}.`
+      : `Aucune version publiée pour l'instant${when}.`;
+  } else {
+    state.textContent = data.enabled ? "Pas encore vérifié." : "Aucune demande envoyée à GitHub.";
+  }
+}
+
+async function chooseUpdates(enabled) {
+  try {
+    await api("/api/updates", { method: "PUT", body: JSON.stringify({ enabled }) });
+    // Oui : la vérification du jour part tout de suite (GET), sans attendre le prochain lancement.
+    renderUpdates(await api("/api/updates"));
+  } catch (err) {
+    showMessage(err.message, true);
+    api("/api/updates").then(renderUpdates).catch(() => {}); // case remise sur l'état réel
+  }
+}
+
+document.querySelectorAll("[data-updates]").forEach((button) => {
+  button.addEventListener("click", () => chooseUpdates(button.dataset.updates === "yes"));
+});
+$("updates-enabled").addEventListener("change", (event) => chooseUpdates(event.target.checked));
+$("update-later").addEventListener("click", () => {
+  updatePref.later = $("update-latest").textContent;
+  savePref(UPDATE_KEY, updatePref);
+  $("update-banner").hidden = true;
+});
+$("updates-check").addEventListener("click", async (event) => {
+  event.target.disabled = true;
+  try {
+    renderUpdates(await api("/api/updates/check", { method: "POST" }));
+  } catch (err) {
+    showMessage(err.message, true);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+api("/api/updates").then(renderUpdates).catch(() => {}); // serveur injoignable : signalé par checkHealth
 refresh().catch((err) => showMessage(err.message, true));
 // Avant le premier affichage : la page Fiscalité les lit dès l'ouverture sur #fiscalite.
 const TAX_KEY = PREF + "fiscalite";

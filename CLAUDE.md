@@ -5,7 +5,7 @@ Tableau de bord **local** pour suivre un patrimoine financier (actions/ETF, cryp
 ## Règles non négociables
 1. **Lecture seule** : aucun ordre, virement ni appel en écriture vers une banque, un courtier ou une plateforme.
 2. **Données locales** : montants et quantités ne quittent jamais la machine (ni GitHub, ni cloud, ni télémétrie, ni logs envoyés ailleurs).
-3. **Seules requêtes sortantes** : prix publics par ticker/id, taux de change et indices publics (inflation Eurostat, D-045), taux de dépôt et d'emprunt publics d'Aave par chaîne et jeton (au plus une fois par jour, D-095), sans montant, quantité ni adresse de portefeuille.
+3. **Seules requêtes sortantes** : prix publics par ticker/id, taux de change et indices publics (inflation Eurostat, D-045), taux de dépôt et d'emprunt publics d'Aave par chaîne et jeton (au plus une fois par jour, D-095), numéro de la dernière version publiée sur GitHub (au plus une fois par jour, seulement si l'utilisateur l'a accepté, D-129), sans montant, quantité ni adresse de portefeuille.
 4. **Aucun secret dans le dépôt** : clés dans `.env` (ignoré par git), `.env.example` ne contient que les noms. Jamais d'identifiants bancaires.
 5. **Données fictives** dans les tests, exemples et fixtures. Débogage sur `data/demo.db`, jamais sur les vraies bases (dossier des données, D-119).
 6. Serveur lié à **`127.0.0.1`** uniquement, et qui ne répond qu'aux noms `localhost` et `127.0.0.1` (D-039) ; l'API refuse les requêtes venues d'un autre site, CSP stricte (D-080).
@@ -37,6 +37,7 @@ for f in web/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
 
 ## Architecture
 ```text
+app/updates.py     avis de mise à jour (D-129) : dernière release GitHub une fois par jour si accepté, choix dans data/reglages.json, rien n'est téléchargé
 app/version.py     __version__ (source lue par l'app, = pyproject.toml et uv.lock), notes d'une version tirées de CHANGELOG.md (D-121)
 app/main.py        FastAPI, API JSON sous /api/..., sert web/
 app/__main__.py    point d'entrée (options) ; app/launcher.py : verrou d'instance, port libre, navigateur, arrêt propre, sauvegarde horaire (D-118)
@@ -87,6 +88,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
 ## Modèle (résumé, détail dans app/schema.sql)
 - Dossier des données (D-119) : hors du code (`%LOCALAPPDATA%\Patrimoine`, `~/Library/Application Support/Patrimoine`, `~/.local/share/patrimoine`), ou choisi (`--choisir`, `PATRIMOINE_DATA_DIR`) ; l'ancien `data/` du code est copié et vérifié au premier lancement, jamais effacé. Ci-dessous, `data/` désigne ce dossier.
 - Fenêtre (D-125) : pywebview (WebView2 / WebKit), seulement Windows et macOS ; sous Windows réglages de la page et cookie de session dans `data/fenetre/` (jamais copié ; magasin WebKit par défaut sous macOS) ; API en `Cache-Control: no-store` ; aucun `js_api` ; SmartScreen coupé ; `POST /api/window/focus` ramène la fenêtre devant ; pas de barre de menu : bouton « Fenêtre » de la page (`web/fenetre.js`, adresse `/?fenetre`), routes fixes `/api/window/browser|folder|zoom` sans profil ni paramètre (D-127).
+- Avis de mise à jour (D-129) : question au premier lancement (bandeau), aucune requête avant la réponse ; `GET /api/updates` vérifie au plus une fois par jour (échec compris), `PUT` le choix, `POST /api/updates/check` « Vérifier maintenant » ; bandeau « Version X disponible » + lien vers la page de la release construit à partir du numéro validé ; carte « Mises à jour » dans Gérer ; réglage de la machine, pas du profil.
 - Profils (D-098) : une base par personne (`data/profils/<id>.db`, liste `data/profils.json`), choisie à chaque requête par un jeton de session (cookie HttpOnly) ; sans profils.json, base unique `data/patrimoine.db` ; `PATRIMOINE_DB` force une base unique. Une mémoire de processus qui décrit une base se range par `db.conn_key(conn)`. Code facultatif (anti-curiosité, la base n'est pas chiffrée). Gérer : renommer, exporter (son profil), restaurer (base vérifiée, nouveau profil), supprimer vers `data/corbeille/` ; profil Démo (`app.demo.fill_demo`).
 - Positions **calculées** à partir des opérations, jamais stockées.
 - Espèces **calculées** (D-062) pour PEA, AV, PER ; **saisies** pour CTO, crypto, Autre (solde du jour + opérations suivantes, D-075). Calcul D-062 : champ « Versements » du compte + opérations rejouées dans l'ordre (versements, ventes, dividendes − achats, frais, retraits) ; un achat qui les rendrait négatives compte un versement supposé. Livret : solde saisi + opérations suivantes (D-041).
