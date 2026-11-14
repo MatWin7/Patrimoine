@@ -1,0 +1,128 @@
+# Construit Patrimoine.exe sous Windows avec PyInstaller, puis le lance pour de vrai (D-126).
+# - sur une PR qui touche la recette, le lanceur ou les dépendances (Dependabot : une fois par
+#   semaine), pour voir tout de suite une dépendance qui casserait l'exécutable ;
+# - à la main (onglet Actions, « Run workflow ») ;
+# - appelé par release.yml, qui joint le dossier zippé à la release.
+# Le dossier dist/Patrimoine est gardé 7 jours comme « artefact » du passage (téléchargeable
+# depuis la page du passage). Aucune donnée réelle : les essais tournent sur un dossier vide.
+name: Patrimoine.exe
+
+on:
+  pull_request:
+    paths:
+      - "packaging/**"
+      - ".github/workflows/exe-windows.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "app/__main__.py"
+      - "app/console.py"
+      - "app/launcher.py"
+      - "app/window.py"
+      - "app/config.py"
+      - "app/datadir.py"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  UV_MANAGED_PYTHON: "1" # dernier Python 3.12 publié, comme ci.yml (D-124)
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Installer l'environnement et PyInstaller (versions figées par uv.lock)
+        run: uv sync --locked --group build
+      - name: Construire dist/Patrimoine
+        run: uv run --group build pyinstaller packaging/patrimoine.spec --noconfirm --clean
+      - name: Licences à côté de Patrimoine.exe (D-128)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tierces = Get-Content -Raw -Encoding utf8 'dist\Patrimoine\LICENCES-TIERCES.txt'
+          if (-not (Select-String -Quiet -Pattern 'GNU GENERAL PUBLIC LICENSE' -Path 'dist\Patrimoine\LICENCE.txt')) { throw 'LICENCE.txt absente' }
+          foreach ($nom in 'pywebview', 'pythonnet', 'fastapi', 'PYTHON SOFTWARE FOUNDATION LICENSE') {
+            if ($tierces -cnotmatch [regex]::Escape($nom)) { throw "Licence de $nom absente" }
+          }
+          if ($tierces -match '(?m)^- (pyinstaller|pytest|ruff) ') { throw 'Outil de construction listé' }
+
+      # Essai 1 : sans fenêtre (--sans-navigateur), le serveur répond, la page et l'API aussi.
+      - name: Lancer Patrimoine.exe et interroger le serveur
+        timeout-minutes: 5 # une boîte de dialogue qui attend un clic bloquerait sinon 20 min
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $data = Join-Path $env:RUNNER_TEMP 'donnees-essai'
+          New-Item -ItemType Directory -Force $data | Out-Null
+          $env:PATRIMOINE_DATA_DIR = $data
+          $exe = Resolve-Path 'dist\Patrimoine\Patrimoine.exe'
+          $proc = Start-Process -FilePath $exe -ArgumentList '--sans-navigateur' -NoNewWindow -PassThru
+          try {
+            $portFile = Join-Path $data 'lancement.lock.port'
+            $port = $null
+            for ($i = 0; $i -lt 120 -and -not $port; $i++) {
+              if ($proc.HasExited) { throw "Patrimoine.exe s'est arrêté (code $($proc.ExitCode))" }
+              if (Test-Path $portFile) {
+                $candidate = (Get-Content $portFile -Raw | ConvertFrom-Json).port
+                try {
+                  $health = Invoke-RestMethod "http://127.0.0.1:$candidate/api/health" -TimeoutSec 2
+                  if ($health.app -eq 'patrimoine') { $port = $candidate }
+                } catch {}
+              }
+              if (-not $port) { Start-Sleep -Milliseconds 500 }
+            }
+            if (-not $port) { throw "Le serveur n'a pas répondu en 60 s" }
+            $version = (uv run python -m app.version).Trim()
+            if ($health.version -ne $version) { throw "Version $($health.version), attendue $version" }
+            $page = Invoke-WebRequest "http://127.0.0.1:$port/" -UseBasicParsing
+            if ($page.StatusCode -ne 200 -or $page.Content -notmatch '<title>') { throw 'Page absente' }
+            foreach ($path in '/styles.css', '/app.js', '/vendor/chart.umd.js', '/api/portfolio') {
+              $res = Invoke-WebRequest "http://127.0.0.1:$port$path" -UseBasicParsing
+              if ($res.StatusCode -ne 200) { throw "$path : $($res.StatusCode)" }
+            }
+            if (-not (Test-Path (Join-Path $data 'patrimoine.db'))) { throw 'Base non créée' }
+            Write-Output "OK : Patrimoine $version répond sur le port $port"
+          } finally {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
+
+      # Essai 2 : lancement normal, la fenêtre s'ouvre avec WebView2 (packaging/essai-fenetre.ps1).
+      - name: Ouvrir la fenêtre (WebView2)
+        timeout-minutes: 5 # une boîte de dialogue qui attend un clic bloquerait sinon 20 min
+        shell: pwsh
+        run: ./packaging/essai-fenetre.ps1 -Nom fenetre
+
+      # Essai 3 : comme après un téléchargement. Windows marque chaque fichier extrait d'un zip
+      # venu d'Internet (« Mark of the Web », flux Zone.Identifier) ; .NET peut alors refuser
+      # de charger les DLL de la fenêtre (pythonnet, WebView2).
+      - name: Ouvrir la fenêtre avec des fichiers marqués « venus d'Internet »
+        timeout-minutes: 5 # une boîte de dialogue qui attend un clic bloquerait sinon 20 min
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -File dist\Patrimoine | ForEach-Object {
+            Set-Content -LiteralPath $_.FullName -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          }
+          ./packaging/essai-fenetre.ps1 -Nom telecharge
+          Get-ChildItem -Recurse -File dist\Patrimoine | ForEach-Object {
+            Remove-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue
+          }
+
+      - name: Journal de Patrimoine.exe
+        if: always()
+        shell: pwsh
+        run: Get-Content (Join-Path $env:LOCALAPPDATA 'Patrimoine\journal.txt') -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Patrimoine-windows
+          path: dist/ # le dossier Patrimoine/ et tout son contenu
+          retention-days: 7
+          if-no-files-found: error

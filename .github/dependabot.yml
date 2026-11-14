@@ -1,0 +1,30 @@
+# Mises à jour des dépendances (D-123). Les alertes de sécurité ouvrent leur PR tout de suite,
+# sans attendre ce calendrier ni le délai ci-dessous.
+version: 2
+updates:
+  # Paquets Python figés par uv.lock (FastAPI, uvicorn, httpx2, pytest, ruff...)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Une version n'est proposée qu'après 7 jours : la plupart des versions piégées
+    # (compte d'un mainteneur volé) sont repérées et retirées avant.
+    cooldown:
+      default-days: 7
+    groups:
+      python:            # une seule PR par semaine pour tous les paquets
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  # Actions de la CI (figées par empreinte SHA, D-121) : Dependabot met à jour l'empreinte
+  # et le commentaire de version.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

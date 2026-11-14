@@ -1,0 +1,8 @@
+# Fins de ligne : Linux (LF) par défaut pour tout fichier texte, même édité depuis Windows.
+* text=auto eol=lf
+# Exceptions : Windows pour le .bat.
+*.bat text eol=crlf
+*.sh text eol=lf
+# Archive d'une release (git archive, D-121) : sans les réglages de Claude Code, outils de
+# développement seulement.
+.claude/ export-ignore

@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau de bord – Patrimoine financier</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Écran de choix du profil (D-098) : seul affiché tant qu'aucun profil n'est ouvert. -->
+<section id="profile-picker" class="profile-picker" hidden aria-labelledby="picker-title">
+  <h1 id="picker-title">Qui consulte ?</h1>
+  <div id="picker-list" class="picker-list"></div>
+  <form id="picker-code" class="picker-code" hidden>
+    <label><span>Code de <span id="picker-name"></span></span>
+      <input name="code" type="password" autocomplete="current-password" required minlength="4" maxlength="64">
+    </label>
+    <p id="picker-error" class="ko small" role="alert" hidden></p>
+    <div class="picker-actions">
+      <button type="button" id="picker-back">Retour</button>
+      <button type="submit" class="primary">Ouvrir</button>
+    </div>
+  </form>
+</section>
+<main>
+  <header class="topbar">
+    <button id="menu-toggle" type="button" class="menu-toggle" aria-controls="tabs" aria-expanded="false"
+      aria-label="Ouvrir le menu des pages"><span aria-hidden="true">☰</span></button>
+    <div class="title">
+      <h1>Tableau de bord – Patrimoine financier <span id="health" class="status-dot ko" role="status" hidden><span class="visually-hidden"></span></span></h1>
+      <p class="subtitle">Suivi local, lecture seule<span id="app-version"></span> <button type="button" class="tip" data-tip="Logiciel libre (licence GNU GPL v3 ou ultérieure), fourni sans aucune garantie. Les chiffres affichés sont des estimations : ni conseil en investissement, ni conseil fiscal." aria-label="Plus d'infos">?</button></p>
+    </div>
+    <div class="topbar-actions">
+      <!-- Lignes prises en compte (D-069, D-094) : bouton sur les onglets qui suivent le filtre,
+           le choix s'ouvre en panneau par-dessus la page, sans la décaler. -->
+      <button id="filter-toggle" type="button" class="filter-toggle" popovertarget="filter-panel" hidden>Lignes : <span id="line-filter-summary">toutes</span></button>
+      <button id="refresh-prices" type="button" class="icon-button" title="Actualiser les cours" aria-label="Actualiser les cours"><span aria-hidden="true">↻</span></button>
+      <button id="tutorial-open" type="button" class="icon-button" title="Revoir le tutoriel" aria-label="Revoir le tutoriel"><span aria-hidden="true">?</span></button>
+      <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu. -->
+      <button id="window-toggle" type="button" class="icon-button" popovertarget="window-panel" title="Fenêtre" aria-label="Fenêtre" hidden><span aria-hidden="true">⋯</span></button>
+      <button id="profile-toggle" type="button" class="profile-toggle" popovertarget="profile-panel" hidden><span class="avatar" id="profile-avatar" aria-hidden="true"></span><span id="profile-name"></span></button>
+    </div>
+  </header>
+  <div id="filter-panel" class="filter-panel" popover aria-labelledby="filter-panel-title">
+    <div class="card-head">
+      <h2 id="filter-panel-title">Lignes prises en compte <button type="button" class="tip" data-tip="Un compte se retire en entier, espèces comprises ; une ligne, de ce compte seulement. Suivi par Vue d'ensemble, Performance, Visualisations, Comparaison et Projection ; Positions, Revenus, Allocation cible et Fiscalité restent complets." aria-label="Plus d'infos">?</button></h2>
+      <button type="button" class="icon" popovertarget="filter-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
+    </div>
+    <p class="muted small">Clique sur un compte ou une ligne pour le retirer.</p>
+    <div id="line-filter"></div>
+  </div>
+
+  <div id="window-panel" class="filter-panel window-panel" popover aria-labelledby="window-panel-title">
+    <div class="card-head">
+      <h2 id="window-panel-title">Fenêtre</h2>
+      <button type="button" class="icon" popovertarget="window-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
+    </div>
+    <div class="window-actions">
+      <button type="button" data-window="reload">Recharger la page</button>
+      <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
+      <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
+      <button type="button" data-window="folder">Dossier des données</button>
+    </div>
+    <p id="window-error" class="ko small" role="alert" hidden></p>
+  </div>
+
+  <div id="profile-panel" class="filter-panel profile-panel" popover aria-labelledby="profile-panel-title">
+    <div class="card-head">
+      <h2 id="profile-panel-title">Profil</h2>
+      <button type="button" class="icon" popovertarget="profile-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
+    </div>
+    <div class="profile-photo">
+      <span class="avatar" id="profile-photo-preview" aria-hidden="true"></span>
+      <label class="photo-pick">Choisir une photo<input id="profile-photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
+      <button type="button" id="profile-photo-remove" class="link" hidden>Retirer</button>
+    </div>
+    <p id="profile-photo-error" class="ko small" role="alert" hidden></p>
+    <h3 id="profile-others-title" class="profile-others-title" hidden>Changer de compte</h3>
+    <div id="profile-others" class="profile-others" hidden></div>
+    <form id="form-profile-open" class="profile-open" hidden>
+      <label>Code de <span id="profile-open-name"></span>
+        <input name="code" type="password" autocomplete="current-password" maxlength="64" required>
+      </label>
+      <p id="profile-open-error" class="ko small" role="alert" hidden></p>
+      <div class="picker-actions">
+        <button type="button" id="profile-open-cancel" class="link">Annuler</button>
+        <button type="submit" class="primary">Ouvrir</button>
+      </div>
+    </form>
+    <form id="form-profile-code" class="profile-code">
+      <h3 id="profile-code-title">Code du profil <button type="button" class="tip" data-tip="Le code évite les regards curieux dans l'app. Il ne chiffre pas les données : le fichier de la base reste lisible sur l'ordinateur. Code oublié : celui qui a installé l'app le retire dans le terminal." aria-label="Plus d'infos">?</button></h3>
+      <label id="profile-code-current">Code actuel
+        <input name="current" type="password" autocomplete="current-password" maxlength="64">
+      </label>
+      <label>Nouveau code
+        <input name="new" type="password" autocomplete="new-password" minlength="4" maxlength="64">
+      </label>
+      <p id="profile-code-error" class="ko small" role="alert" hidden></p>
+      <div class="picker-actions">
+        <button type="button" id="profile-code-remove" class="link">Retirer le code</button>
+        <button type="submit" class="primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+
+  <p id="demo-banner" class="demo-banner" hidden>Profil Démo : toutes les données sont fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button></p>
+  <p class="current-page" id="current-page" aria-hidden="true"></p>
+  <nav class="tabs" id="tabs" aria-label="Pages">
+    <a href="#apercu" data-tab="apercu">Vue d'ensemble</a>
+    <a href="#performance" data-tab="performance">Performance</a>
+    <a href="#visualisations" data-tab="visualisations">Visualisations</a>
+    <a href="#comparaison" data-tab="comparaison">Comparaison</a>
+    <a href="#projection" data-tab="projection">Projection et objectifs</a>
+    <a href="#revenus" data-tab="revenus">Revenus et frais</a>
+    <a href="#fiscalite" data-tab="fiscalite">Fiscalité</a>
+    <a href="#crypto" data-tab="crypto">Rendements crypto</a>
+    <a href="#positions" data-tab="positions">Positions et opérations</a>
+    <a href="#gerer" data-tab="gerer">Gérer <span class="tab-badge" id="recurring-badge" hidden></span></a>
+  </nav>
+
+  <!-- Messages, en haut à droite de l'écran quel que soit le défilement, et au-dessus des
+       fenêtres ouvertes (popover) : le rouge s'efface après 15 s, le vert après 5 s ; ✕ pour
+       fermer tout de suite. -->
+  <div id="toasts" popover="manual">
+  <div id="message" class="toast" role="status" hidden>
+    <span data-text></span>
+    <button type="button" class="icon" data-close-toast aria-label="Fermer le message">✕</button>
+  </div>
+  <div id="alert" class="toast warn" role="alert" hidden>
+    <span data-text></span>
+    <button type="button" class="icon" data-close-toast aria-label="Fermer l'alerte jusqu'à demain">✕</button>
+  </div>
+  </div>
+
+  <div class="page" data-page="apercu">
+    <section id="total" class="card hero">
+      <div class="hero-main">
+        <span class="label" id="total-label">Patrimoine total</span>
+        <div id="total-value" class="big">–</div>
+        <div id="prices-status" class="muted small"></div>
+      </div>
+      <dl id="kpis" class="kpis"></dl>
+    </section>
+    <section class="card" id="card-start" data-card="pour-bien-demarrer" hidden>
+      <div class="card-head">
+        <h2>Pour bien démarrer <button type="button" class="tip" data-tip="Trois étapes pour remplir l'app : un compte (l'enveloppe), un actif (la ligne détenue), une première opération (un achat). La carte disparaît quand c'est fait ; « Masquer » la cache avant. Le tutoriel se rouvre avec le « ? » en haut." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" id="start-hide" class="link-plain">Masquer</button>
+      </div>
+      <ul id="start-list" class="start-list"></ul>
+    </section>
+    <section class="card" data-card="evolution">
+      <div class="card-head">
+        <h2>Évolution <button type="button" class="tip" id="history-tip" data-tip="" aria-label="Plus d'infos" hidden>?</button></h2>
+        <span class="muted small">Valeur des titres et argent net placé, en euros</span>
+      </div>
+      <div class="chart wide-chart"><canvas id="chart-history" aria-label="Évolution de la valeur des titres et de l'argent net placé"></canvas></div>
+      <p id="history-status" class="muted small"></p>
+      <label class="inline muted small">Inflation après les données Eurostat <input id="inflation-rate" type="number" step="0.1" min="-10" max="30" inputmode="decimal" class="narrow"> % par an <button type="button" class="tip" data-tip="Sert après le dernier mois publié par Eurostat, ou partout s'il ne répond pas." aria-label="Plus d'infos">?</button></label>
+    </section>
+    <section class="card half" data-card="repartition">
+      <div class="card-head">
+        <h2>Répartition</h2>
+        <button type="button" class="icon" data-zoom="allocation" aria-label="Agrandir la répartition" title="Agrandir et voir le détail">⤢</button>
+      </div>
+      <div class="segmented group-by" id="group-by" role="group" aria-label="Regrouper par">
+        <button type="button" data-group="ligne">Ligne</button>
+        <button type="button" data-group="classe">Classe</button>
+        <button type="button" data-group="categorie">Catégorie</button>
+        <button type="button" data-group="compte">Compte</button>
+        <button type="button" data-group="devise">Devise</button>
+      </div>
+      <div class="chart"><canvas id="chart-allocation" aria-label="Répartition du patrimoine"></canvas></div>
+      <p class="muted small" id="allocation-note">Clique sur une part pour voir son détail.</p>
+    </section>
+    <section class="card half" data-card="plus-values-latentes">
+      <div class="card-head">
+        <h2>Plus/moins-values latentes</h2>
+        <button type="button" class="icon" data-zoom="gains" aria-label="Agrandir les plus et moins-values" title="Agrandir">⤢</button>
+      </div>
+      <div class="chart"><canvas id="chart-gains" aria-label="Plus-value latente par position"></canvas></div>
+      <p class="muted small" id="gains-note" hidden></p>
+    </section>
+  </div>
+
+  <div class="page" data-page="performance" hidden>
+    <section class="card" id="perf-card" data-card="performance">
+      <div class="card-head">
+        <h2>Performance</h2>
+        <span class="muted small">Gain et performance par période, achats et ventes neutralisés</span>
+      </div>
+      <div class="perf-controls">
+        <div class="segmented" role="group" aria-label="Découpage">
+          <button type="button" data-period="day">Jour</button>
+          <button type="button" data-period="week">Semaine</button>
+          <button type="button" data-period="month">Mois</button>
+          <button type="button" data-period="year">Année</button>
+        </div>
+        <label class="inline">Depuis le <input id="perf-start" type="date"></label>
+        <label class="inline">Jusqu'au <input id="perf-end" type="date"></label>
+        <div class="presets" role="group" aria-label="Raccourcis de dates">
+          <button type="button" class="chip" data-preset="all">Depuis le début</button>
+          <button type="button" class="chip" data-preset="ytd">Cette année</button>
+          <button type="button" class="chip" data-preset="12m">12 mois</button>
+          <button type="button" class="chip" data-preset="3m">3 mois</button>
+          <button type="button" class="chip" data-preset="1m">1 mois</button>
+        </div>
+      </div>
+      <dl id="perf-kpis" class="kpis"></dl>
+      <div class="card-head perf-chart-head">
+        <div class="segmented small-seg" role="group" aria-label="Graphique">
+          <button type="button" data-perf-chart="pct">Performance %</button>
+          <button type="button" data-perf-chart="split">Apports et gains €</button>
+        </div>
+        <a id="perf-csv" class="button" href="/api/performance.csv" download>Exporter en CSV</a>
+      </div>
+      <div class="chart"><canvas id="chart-performance" aria-label="Performance de chaque période"></canvas></div>
+      <div class="table-scroll" id="perf-table">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="period"><button type="button" class="sort">Période</button></th>
+              <th class="num" data-sort="start_value"><button type="button" class="sort">Valeur début</button></th>
+              <th class="num" data-sort="flows"><button type="button" class="sort">Apports</button></th>
+              <th class="num" data-sort="end_value"><button type="button" class="sort">Valeur fin</button></th>
+              <th class="num" data-sort="gain"><button type="button" class="sort">Gain</button></th>
+              <th class="num" data-sort="performance"><button type="button" class="sort">Perf.</button></th>
+              <th class="num" data-sort="cumulative_gain"><button type="button" class="sort">Cumul €</button></th>
+              <th class="num" data-sort="cumulative_performance"><button type="button" class="sort">Cumul %</button></th>
+            </tr>
+          </thead>
+          <tbody id="perf-rows"></tbody>
+        </table>
+      </div>
+      <p id="perf-status" class="muted small"></p>
+    </section>
+  </div>
+
+  <div class="page" data-page="visualisations" hidden>
+    <section class="card" data-card="carte-du-portefeuille">
+      <div class="card-head">
+        <h2>Carte du portefeuille</h2>
+        <span class="muted small">Surface selon le poids de la ligne ; couleur au choix</span>
+      </div>
+      <div class="perf-controls">
+        <label class="inline">Regrouper par
+          <select id="treemap-group">
+            <option value="account">Compte</option>
+            <option value="class">Classe</option>
+            <option value="category">Catégorie</option>
+            <option value="">Sans regroupement</option>
+          </select>
+        </label>
+        <label class="inline">Couleur
+          <select id="treemap-color">
+            <option value="day">Variation du jour</option>
+            <option value="gain">Plus-value latente</option>
+            <option value="line">Couleur de la ligne</option>
+          </select>
+        </label>
+        <label class="inline">Surface
+          <select id="treemap-area">
+            <option value="sqrt">Adoucie (petites lignes visibles)</option>
+            <option value="value">Proportionnelle à la valeur</option>
+          </select>
+         <button type="button" class="tip" data-tip="Adoucie : une très grosse ligne n'écrase plus les petites. La valeur exacte reste dans l'infobulle du graphique." aria-label="Plus d'infos">?</button></label>
+      </div>
+      <div class="chart wide-chart treemap"><canvas id="chart-treemap" aria-label="Carte proportionnelle du portefeuille"></canvas></div>
+      <p class="muted small" id="treemap-note"></p>
+    </section>
+    <section class="card" data-card="listes-de-suivi">
+      <div class="card-head">
+        <h2>Listes de suivi</h2>
+        <span class="muted small">Performance de n'importe quel actif coté, détenu ou non</span>
+      </div>
+      <div class="perf-controls">
+        <label class="inline">Liste <select id="watch-select"></select></label>
+        <button type="button" class="chip" id="watch-new">Nouvelle liste</button>
+        <button type="button" class="chip" id="watch-rename" hidden>Renommer</button>
+        <button type="button" class="chip" id="watch-delete" hidden>Supprimer la liste</button>
+      </div>
+      <form id="form-watch-item" class="perf-controls" hidden>
+        <label class="inline">Nom <input name="label" required maxlength="100" placeholder="ex. Air Liquide"></label>
+        <label class="inline">Type <select name="kind"><option value="bourse">Bourse</option><option value="crypto">Crypto</option></select></label>
+        <label class="inline"><span id="watch-ticker-label">Ticker Yahoo</span> <input name="ticker" required maxlength="30" placeholder="ex. AI.PA, ^FCHI"></label>
+        <button type="submit">Ajouter à la liste</button>
+      </form>
+      <div class="table-scroll"><table id="watch-table">
+        <thead><tr><th class="grip" data-sort="order"><button type="button" class="sort" title="Ordre choisi (glisse ⠿ pour déplacer)" aria-label="Ordre choisi">⠿</button></th><th data-sort="label"><button type="button" class="sort">Actif</button></th><th data-sort="ticker"><button type="button" class="sort">Ticker</button></th><th class="num" data-sort="last"><button type="button" class="sort">Cours</button></th><th class="num" data-sort="1j"><button type="button" class="sort">1 jour</button></th><th class="num" data-sort="1s"><button type="button" class="sort">1 semaine</button></th><th class="num" data-sort="1m"><button type="button" class="sort">1 mois</button></th><th class="num" data-sort="ytd"><button type="button" class="sort" title="Depuis la dernière clôture de l'année précédente">Depuis janv.</button></th><th class="num" data-sort="1a"><button type="button" class="sort">1 an</button></th><th class="num" data-sort="3a"><button type="button" class="sort" title="Cumulé, pas annualisé">3 ans</button></th><th class="num" data-sort="5a"><button type="button" class="sort" title="Cumulé, pas annualisé">5 ans</button></th><th></th></tr></thead>
+        <tbody id="watch-rows"></tbody>
+      </table></div>
+      <p class="muted small" id="watch-note">Rendements en devise de cotation, sans effet de change. <button type="button" class="tip" data-tip="3 et 5 ans cumulés. Seul le ticker part vers Yahoo, une fois par jour. Crypto : id CoinGecko (bitcoin), symbole (BTC) ou ticker Yahoo (BTC-EUR), cours Yahoo depuis plusieurs années. Les rendements mois par mois sont dans la carte Calendrier." aria-label="Plus d'infos">?</button></p>
+    </section>
+    <section class="card" data-card="rendements-mensuels">
+      <div class="card-head">
+        <h2>Calendrier</h2>
+        <span class="muted small">Performance de chaque mois et de chaque année, achats neutralisés</span>
+      </div>
+      <div class="perf-controls">
+        <label class="inline">Calendrier de <select id="cal-select"></select></label>
+        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
+      </div>
+      <div class="table-fit"><table class="heatmap" id="calendar"></table></div>
+      <p class="muted small" id="cal-note"></p>
+      <p class="muted small">Plus la case est foncée, plus le mois est fort (vert) ou faible (rouge). « Année » cumule les mois.</p>
+    </section>
+  </div>
+
+  <div class="page" data-page="comparaison" hidden>
+    <section class="card" data-card="comparaison-a-un-indice-ou-a-un-livret">
+      <div class="card-head">
+        <h2>Comparaison à un indice ou à un livret</h2>
+        <span class="muted small">Le même argent, versé aux mêmes dates, placé ailleurs</span>
+      </div>
+      <div class="perf-controls">
+        <label class="inline">Comparer à <select id="bench-select"></select></label>
+        <label class="inline" id="bench-custom-label" hidden>Ticker Yahoo <input id="bench-custom" placeholder="ex. ^N225" maxlength="20"></label>
+        <label class="inline" id="bench-rate-label" hidden>Taux du livret (%/an) <input id="bench-rate" inputmode="decimal" placeholder="ex. 1,7" maxlength="6"></label>
+        <button type="button" id="bench-save" hidden>Ajouter à la liste</button>
+        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
+        <label class="inline">Depuis le <input id="bench-start" type="date"></label>
+        <label class="inline">Jusqu'au <input id="bench-end" type="date"></label>
+      </div>
+      <dl id="bench-kpis" class="kpis"></dl>
+      <div class="chart wide-chart"><canvas id="chart-benchmark" aria-label="Portefeuille comparé à un indice"></canvas></div>
+      <p id="bench-status" class="muted small"></p>
+    </section>
+  </div>
+
+  <div class="page" data-page="projection" hidden>
+    <section class="card" data-card="projection-et-objectif">
+      <div class="card-head">
+        <h2>Projection et objectif</h2>
+        <span class="muted small">Simulation à rendement constant, pas une prévision</span>
+      </div>
+      <!-- Bandeau du filtre dans la carte : l'allocation cible, elle, compte tout le patrimoine. -->
+      <form id="form-projection" class="projection-form">
+        <label>Versement mensuel (€) <input name="monthly" inputmode="decimal" value="100"></label>
+        <label>Horizon
+          <select name="years">
+            <option value="5">5 ans</option>
+            <option value="10" selected>10 ans</option>
+            <option value="15">15 ans</option>
+            <option value="20">20 ans</option>
+            <option value="25">25 ans</option>
+            <option value="30">30 ans</option>
+          </select>
+        </label>
+        <label>Objectif (€) <input name="target" inputmode="decimal" placeholder="ex. 50 000"></label>
+        <label>Prudent (%/an) <input name="r1" inputmode="decimal" value="2"></label>
+        <label>Médian (%/an) <input name="r2" inputmode="decimal" value="5"></label>
+        <label>Optimiste (%/an) <input name="r3" inputmode="decimal" value="8"></label>
+      </form>
+      <dl id="proj-kpis" class="kpis"></dl>
+      <div class="chart wide-chart"><canvas id="chart-projection" aria-label="Projection de la valeur du patrimoine"></canvas></div>
+      <p class="muted small">Départ : ta valeur actuelle, titres et espèces. <button type="button" class="tip" data-tip="Les marchés ne montent jamais à taux constant : à 8 % par an en moyenne, une année à −20 % reste courante." aria-label="Plus d'infos">?</button></p>
+    </section>
+    <section class="card" data-card="allocation-cible">
+      <div class="card-head">
+        <h2>Allocation cible</h2>
+        <span class="muted small">Affichage seulement : aucun ordre n'est passé</span>
+      </div>
+      <div class="segmented" id="target-level" role="group" aria-label="Cibles par">
+        <button type="button" data-level="ligne">Par ligne</button>
+        <button type="button" data-level="categorie">Par catégorie</button>
+      </div>
+      <form id="form-target" class="target-form">
+        <label>Prochain versement (€) <input name="contribution" inputmode="decimal" placeholder="ex. 500"></label>
+        <p class="muted small" id="target-help"></p>
+      </form>
+      <div class="table-scroll"><table id="target-table">
+        <thead><tr><th id="target-first" data-sort="label"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur</button></th><th class="num" data-sort="weight_pct"><button type="button" class="sort" title="Part dans tout le patrimoine (titres et valeurs saisies)">Poids</button></th><th class="num" data-sort="target"><button type="button" class="sort">Cible (%)</button></th><th class="num" data-sort="current_pct"><button type="button" class="sort">Part actuelle</button></th><th class="num" data-sort="target_pct"><button type="button" class="sort">Part visée</button></th><th class="num" data-sort="gap"><button type="button" class="sort" title="Montant à ajouter (+) ou en trop (−) pour être pile à la cible aujourd’hui">Manque (+) / excès (−)</button></th><th class="num" data-sort="buy"><button type="button" class="sort">À acheter</button></th></tr></thead>
+        <tbody id="target-rows"></tbody>
+      </table></div>
+      <div class="form-actions target-actions">
+        <label class="inline" id="target-add-label" hidden><span id="target-add-text">Ajouter</span> <select id="target-add"></select></label>
+        <span class="muted small" id="target-total"></span>
+        <button type="button" id="target-save">Enregistrer les cibles</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="page" data-page="revenus" hidden>
+    <section class="card" data-card="dividendes-et-coupons">
+      <div class="card-head">
+        <h2>Dividendes et coupons</h2>
+        <span class="muted small">Saisis-les dans « Gérer » (type Dividende), ou importe-les en CSV</span>
+      </div>
+      <dl id="income-kpis" class="kpis"></dl>
+      <div class="chart"><canvas id="chart-income" aria-label="Dividendes reçus par mois"></canvas></div>
+    </section>
+    <section class="card half" data-card="par-ligne">
+      <div class="card-head"><h2>Par ligne</h2><span class="muted small">Rendement = 12 derniers mois ÷ prix de revient</span></div>
+      <div class="table-scroll"><table id="income-lines-table">
+        <thead><tr><th data-sort="asset"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="total"><button type="button" class="sort">Total reçu</button></th><th class="num" data-sort="last_12m"><button type="button" class="sort">12 derniers mois</button></th><th class="num" data-sort="yield_pct"><button type="button" class="sort">Rendement sur PRU</button></th><th class="num" data-sort="withheld"><button type="button" class="sort" title="Impôt prélevé à la source par le pays de la société (ou par la banque), déjà déduit du montant reçu">Impôt retenu</button></th></tr></thead>
+        <tbody id="income-lines"></tbody>
+      </table></div>
+    </section>
+    <section class="card half" data-card="par-annee">
+      <div class="card-head"><h2>Par année</h2><span class="muted small" id="income-fees-total">Frais = courtage + droits de garde et frais saisis</span></div>
+      <div class="table-scroll"><table id="income-years-table">
+        <thead><tr><th data-sort="year"><button type="button" class="sort">Année</button></th><th class="num" data-sort="dividends"><button type="button" class="sort">Dividendes</button></th><th class="num" data-sort="fees"><button type="button" class="sort">Frais payés</button></th></tr></thead>
+        <tbody id="income-years"></tbody>
+      </table></div>
+    </section>
+    <section class="card" data-card="calendrier-dividendes">
+      <div class="card-head">
+        <h2>Calendrier des dividendes</h2>
+        <span class="muted small">12 derniers mois : quels mois chaque ligne verse</span>
+      </div>
+      <div class="table-scroll"><table id="income-calendar-table" class="heat-table">
+        <thead><tr><th data-sort="asset"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="m0"><button type="button" class="sort"></button></th><th class="num" data-sort="m1"><button type="button" class="sort"></button></th><th class="num" data-sort="m2"><button type="button" class="sort"></button></th><th class="num" data-sort="m3"><button type="button" class="sort"></button></th><th class="num" data-sort="m4"><button type="button" class="sort"></button></th><th class="num" data-sort="m5"><button type="button" class="sort"></button></th><th class="num" data-sort="m6"><button type="button" class="sort"></button></th><th class="num" data-sort="m7"><button type="button" class="sort"></button></th><th class="num" data-sort="m8"><button type="button" class="sort"></button></th><th class="num" data-sort="m9"><button type="button" class="sort"></button></th><th class="num" data-sort="m10"><button type="button" class="sort"></button></th><th class="num" data-sort="m11"><button type="button" class="sort"></button></th><th class="num" data-sort="total"><button type="button" class="sort">Total</button></th></tr></thead>
+        <tbody id="income-calendar"></tbody>
+      </table></div>
+    </section>
+    <section class="card" data-card="frais-courants-des-fonds">
+      <div class="card-head">
+        <h2>Frais courants des fonds</h2>
+        <span class="muted small">TER saisi dans « Gérer » > Actifs > Modifier</span>
+      </div>
+      <dl id="ter-kpis" class="kpis"></dl>
+      <div class="table-scroll"><table id="ter-lines-table">
+        <thead><tr><th data-sort="asset"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur</button></th><th class="num" data-sort="ter"><button type="button" class="sort">Frais courants</button></th><th class="num" data-sort="first_year"><button type="button" class="sort">Coût sur un an</button></th><th class="num" id="ter-years-head" data-sort="over_years"><button type="button" class="sort">Manque à gagner</button></th></tr></thead>
+        <tbody id="ter-lines"></tbody>
+      </table></div>
+      <p class="muted small" id="ter-note"></p>
+    </section>
+  </div>
+
+  <div class="page" data-page="fiscalite" hidden>
+    <p class="filter-banner tax-banner">Estimations selon les règles fiscales françaises connues de l'app (<span id="tax-rules"></span>) :
+      un repère pour anticiper, pas un conseil. Les lois de finances changent ces règles chaque année.</p>
+    <form id="form-tax" class="tax-form">
+      <label>Année <select name="year"></select></label>
+      <label>Taux du prélèvement forfaitaire (%) <input name="pfu" inputmode="decimal"></label>
+    </form>
+    <section class="card" data-card="pea">
+      <div class="card-head"><h2>PEA</h2>
+        <div class="segmented tax-mode" data-mode-for="pea" role="group" aria-label="Plus-values affichées">
+          <button type="button" data-mode="latentes">Latentes</button>
+          <button type="button" data-mode="realisees">Réalisées</button>
+        </div>
+        <span class="muted small">Plafond de 150 000 € de versements, 5 ans</span></div>
+      <dl id="tax-pea-kpis" class="kpis"></dl>
+      <div class="table-scroll"><table id="tax-pea-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th><th class="num" data-sort="deposits"><button type="button" class="sort">Versements</button></th><th data-sort="used_pct"><button type="button" class="sort">Plafond utilisé</button></th><th class="num" data-sort="remaining"><button type="button" class="sort">Reste à verser</button></th><th data-sort="milestone"><button type="button" class="sort">5 ans</button></th></tr></thead>
+        <tbody id="tax-pea"></tbody>
+      </table></div>
+      <div data-mode-show="pea realisees" hidden>
+        <h3 class="small-title">Ventes de l'année</h3>
+        <div class="table-scroll"><table id="tax-pea-sales-table">
+          <thead><tr><th data-sort="date"><button type="button" class="sort">Date</button></th><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="asset"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="proceeds"><button type="button" class="sort">Vendu (net de frais)</button></th><th class="num" data-sort="cost"><button type="button" class="sort">Prix de revient</button></th><th class="num" data-sort="gain_eur"><button type="button" class="sort">Plus-value</button></th></tr></thead>
+          <tbody id="tax-pea-sales"></tbody>
+        </table></div>
+      </div>
+      <details class="note"><summary>Règles de calcul</summary><p class="muted small" id="tax-pea-note"></p></details>
+    </section>
+    <section class="card" data-card="assurance-vie">
+      <div class="card-head"><h2>Assurance-vie</h2><span class="muted small">Abattement sur les gains après 8 ans</span></div>
+      <dl id="tax-av-kpis" class="kpis"></dl>
+      <div class="table-scroll"><table id="tax-av-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th><th class="num" data-sort="deposits"><button type="button" class="sort">Versements</button></th><th data-sort="milestone"><button type="button" class="sort">8 ans</button></th></tr></thead>
+        <tbody id="tax-av"></tbody>
+      </table></div>
+      <p class="muted small">Après 8 ans, abattement annuel sur les gains des rachats : 4 600 € (9 200 € en couple). Avant, aucun.</p>
+    </section>
+    <section class="card" data-card="per">
+      <div class="card-head"><h2>PER</h2><span class="muted small">Versements déduits du revenu, bloqués jusqu'à la retraite</span></div>
+      <form id="form-per" class="tax-form">
+        <label>Plafond épargne retraite (€) <input name="ceiling" inputmode="decimal" placeholder="sur ton avis d'impôt"></label>
+        <label>Tranche marginale d'imposition <select name="tmi">
+          <option value="0">0 %</option><option value="11">11 %</option><option value="30">30 %</option>
+          <option value="41">41 %</option><option value="45">45 %</option>
+        </select></label>
+      </form>
+      <p class="filter-banner" id="tax-per-warning" hidden></p>
+      <dl id="tax-per-kpis" class="kpis"></dl>
+      <div class="table-scroll"><table id="tax-per-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th class="num" data-sort="deposits"><button type="button" class="sort">Versements</button></th><th class="num" id="tax-per-year-head" data-sort="deposits_year"><button type="button" class="sort">Versés dans l'année</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur</button></th><th class="num" data-sort="gains"><button type="button" class="sort">Gains</button></th><th class="num" data-sort="tax"><button type="button" class="sort">Impôt si sortie</button></th><th class="num" data-sort="net"><button type="button" class="sort">Net si sortie</button></th></tr></thead>
+        <tbody id="tax-per"></tbody>
+      </table></div>
+      <details class="note"><summary>Règles de calcul</summary><p class="muted small">Plafond : « plafond épargne retraite » de ton avis d'impôt (reports des années
+        non utilisées compris) ; vide, tout versement est supposé déductible. Économie d'impôt ≈ versements
+        dans le plafond × tranche marginale. Versés dans l'année = opérations « Versement » datées et achats
+        payés sans versement saisi ; le champ « Versements » du compte, sans date, compte pour les années
+        passées. Sortie en capital : versements imposés à la tranche marginale (celle de ta retraite, souvent
+        plus basse), gains au prélèvement forfaitaire. Tous les versements sont supposés déduits. Argent
+        bloqué jusqu'à la retraite, sauf achat de la résidence principale ou accident de la vie (invalidité,
+        décès du conjoint, fin de droits au chômage, surendettement…).</p></details>
+    </section>
+    <section class="card" data-card="comptes-titres">
+      <div class="card-head">
+        <h2>Comptes-titres</h2>
+        <div class="segmented tax-mode" data-mode-for="cto" role="group" aria-label="Plus-values affichées">
+          <button type="button" data-mode="latentes">Latentes</button>
+          <button type="button" data-mode="realisees">Réalisées</button>
+        </div>
+        <span class="muted small" id="tax-cto-sub">Plus-values de l'année, impôt au prélèvement forfaitaire</span>
+      </div>
+      <dl id="tax-kpis" class="kpis"></dl>
+      <div class="table-scroll"><table id="tax-cto-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th class="num" data-sort="gains"><button type="button" class="sort">Plus-values</button></th><th class="num" data-sort="losses"><button type="button" class="sort">Moins-values</button></th><th class="num" data-sort="dividends" id="tax-cto-div-head"><button type="button" class="sort">Dividendes</button></th><th class="num" data-sort="tax" id="tax-cto-tax-head"><button type="button" class="sort">Impôt estimé</button></th></tr></thead>
+        <tbody id="tax-cto"></tbody>
+      </table></div>
+      <div data-mode-show="cto realisees">
+      <h3 class="small-title">Ventes de l'année</h3>
+      <div class="table-scroll"><table id="tax-sales-table">
+        <thead><tr><th data-sort="date"><button type="button" class="sort">Date</button></th><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="asset"><button type="button" class="sort">Ligne</button></th><th class="num" data-sort="proceeds"><button type="button" class="sort">Vendu (net de frais)</button></th><th class="num" data-sort="cost"><button type="button" class="sort">Prix de revient</button></th><th class="num" data-sort="gain_eur"><button type="button" class="sort">Plus-value</button></th></tr></thead>
+        <tbody id="tax-sales"></tbody>
+      </table></div>
+      </div>
+      <details class="note"><summary>Règles de calcul</summary><p class="muted small">Prix de revient au prix moyen pondéré, frais d'achat compris, commun à tous
+        tes comptes-titres pour un même titre (règle fiscale) ; un titre en devise est converti au taux BCE
+        du jour de chaque achat et de la vente, l'effet de change compte donc dans la plus-value.
+        Non pris en compte : moins-values des 10 années précédentes (reportables),
+        option pour le barème de l'impôt, cryptos (carte suivante), abattements. Taux proposé pour les
+        plus-values : 30 % jusqu'en 2024, 31,4 % dès les plus-values 2025 (hausse de la CSG de la loi de
+        financement de la Sécurité sociale 2026, prélèvements sociaux à 18,6 %) ; un taux saisi ci-dessus
+        s'applique à tout. Les dividendes ne sont pas dans l'impôt estimé : un courtier français les
+        verse en général après avoir déjà prélevé ce taux à la source (montant saisi = net reçu). Chez
+        un courtier étranger qui ne prélève rien, l'impôt des dividendes reste à payer et n'est pas
+        compté ici, pas plus que l'imputation d'une retenue à la source étrangère. « Latentes » : valeur
+        d'aujourd'hui − prix de revient, comme si tout était vendu maintenant ; l'impôt porte sur le
+        solde de tous les comptes-titres (les moins-values compensent les plus-values). Une action
+        offerte (Saveback, Stockperk) garde son prix réel comme prix de revient.</p></details>
+    </section>
+    <section class="card" data-card="crypto">
+      <div class="card-head">
+        <h2>Crypto</h2>
+        <span class="muted small">Ventes en euros de l'année, calculées sur tout le portefeuille crypto</span>
+      </div>
+      <dl id="tax-crypto-kpis" class="kpis"></dl>
+      <p class="filter-banner" id="tax-crypto-warning" hidden></p>
+      <h3 class="small-title" id="tax-crypto-title">Ventes imposables de l'année</h3>
+      <div class="table-scroll"><table id="tax-crypto-table">
+        <thead><tr><th data-sort="date"><button type="button" class="sort">Date</button></th><th data-sort="asset"><button type="button" class="sort">Ligne</button></th>
+          <th class="num" data-sort="portfolio_value"><button type="button" class="sort" title="Case 212 : valeur de toutes tes cryptos juste avant la vente">Valeur du portefeuille</button></th>
+          <th class="num" data-sort="gross"><button type="button" class="sort" title="Case 213 : quantité × prix">Prix de cession</button></th>
+          <th class="num" data-sort="fees"><button type="button" class="sort" title="Case 214">Frais</button></th>
+          <th class="num" data-sort="acquisition"><button type="button" class="sort" title="Case 223 : achats payés en euros (220) − parts déjà imputées sur les ventes passées (221)">Prix d'acquisition net</button></th>
+          <th class="num" data-sort="fraction"><button type="button" class="sort" title="223 × 213 ÷ 212 : part du prix d'acquisition qui correspond à cette vente">Part imputée</button></th>
+          <th class="num" data-sort="gain"><button type="button" class="sort" title="Case 224 : prix de cession − frais − part imputée">Plus-value</button></th></tr></thead>
+        <tbody id="tax-crypto-sales"></tbody>
+      </table></div>
+      <details class="note"><summary>Règles de calcul</summary><p class="muted small">Seule une vente contre des euros (ou un achat de bien) est imposable ; un échange
+        contre une autre crypto, stablecoins compris, ne l'est pas (coche « Échange » sur la vente). La
+        plus-value se calcule sur le portefeuille global : tous les comptes de type crypto n'en font qu'un.
+        Rien à payer si les ventes de l'année ne dépassent pas 305 € ; les moins-values ne se compensent
+        qu'avec les plus-values crypto de la même année, sans report. Chaque vente se déclare sur le
+        formulaire 2086 (les numéros de cases sont au survol des colonnes), le total en case 3AN (ou 3BN si
+        moins-value) de la 2042-C ; un compte sur une plateforme étrangère se déclare aussi (formulaire
+        3916-bis). Montants en devise convertis au taux BCE du jour de l'opération. Taux proposé : 31,4 %
+        dès les plus-values 2025 (prélèvements sociaux à 18,6 %). Non pris en compte : minage, staking,
+        airdrops, NFT, activité habituelle (autre régime), option pour le barème.</p></details>
+    </section>
+    <section class="card" data-card="comptes-etranger">
+      <div class="card-head">
+        <h2>Comptes à l'étranger <button type="button" class="tip" data-tip="À déclarer chaque année avec tes revenus, même sans opération ni gain : formulaire 3916 pour une banque, un courtier ou une assurance-vie, 3916-bis pour une plateforme crypto. Le formulaire demande l'établissement, son adresse, la date d'ouverture (ou de clôture) et le type d'usage. Un portefeuille personnel (Ledger, MetaMask…) ne se déclare pas. Coche « Établissement à l'étranger » dans Gérer > Comptes." aria-label="Plus d'infos">?</button></h2>
+        <span class="muted small">Formulaires 3916 et 3916-bis</span>
+      </div>
+      <p class="filter-banner" id="tax-custody-warning" hidden></p>
+      <div class="table-scroll"><table id="tax-foreign-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="institution"><button type="button" class="sort">Établissement</button></th><th data-sort="form"><button type="button" class="sort">Formulaire</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th></tr></thead>
+        <tbody id="tax-foreign"></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <div class="page" data-page="crypto" hidden>
+    <section class="card" data-card="rendements-chiffres-cles">
+      <div class="card-head">
+        <h2>Rendements <button type="button" class="tip" data-tip="Revenus : intérêts Earn, staking, intérêts Aave et cadeaux (airdrops, cashback, parrainage), à leur valeur le jour de réception. Rendement moyen : revenu estimé ÷ capital placé, placements sans taux connu exclus. Les cadeaux ne comptent dans aucun taux." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <dl id="yield-kpis" class="kpis"></dl>
+    </section>
+    <section class="card" data-card="mes-placements">
+      <div class="card-head">
+        <h2>Mes placements <button type="button" class="tip" data-tip="Un placement : un jeton sur un compte qui rapporte des jetons (Aave, Earn, staking). Taux du jour : taux public Aave. Rendement 12 mois : jetons reçus ÷ jetons détenus en moyenne, ramené à un an, sans effet du cours. Revenu estimé : capital × taux du jour, sinon × rendement 12 mois. Aave : seuls la chaîne, le marché et le jeton partent vers Aave, une fois par jour ; « Vérifier » recale l'estimation sur le solde lu dans Aave." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" class="chip" id="aave-new">Suivre une ligne Aave</button>
+      </div>
+      <form id="form-aave-line" class="perf-controls" hidden>
+        <label class="inline">Chaîne <select name="chain_id" required></select></label>
+        <label class="inline">Marché <select name="reserve" required></select></label>
+        <label class="inline">Compte <select name="account" required></select></label>
+        <label class="inline">Jeton <select name="asset_id" required></select></label>
+        <label class="inline">Dépôt <input name="quantity" inputmode="decimal" placeholder="ex. 1000"></label>
+        <label class="inline">le <input type="date" name="op_date"></label>
+        <label class="inline">Venant de <select name="other"></select> <button type="button" class="tip" data-tip="Un compte de l'app : transfert, le prix de revient suit les jetons. Hors de l'app : jetons arrivés d'un portefeuille non suivi, sans toucher aux espèces." aria-label="Plus d'infos">?</button></label>
+        <button type="submit">Suivre</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <form id="form-aave-move" class="perf-controls" hidden>
+        <span id="aave-move-label"></span>
+        <label class="inline"><span data-move-word>Dépôt</span> <input name="quantity" inputmode="decimal" required placeholder="ex. 500"></label>
+        <label class="inline">le <input type="date" name="op_date" required></label>
+        <label class="inline"><span data-move-from>Venant de</span> <select name="other"></select></label>
+        <button type="submit">Enregistrer</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <form id="form-aave-check" class="perf-controls" hidden>
+        <span id="aave-check-label"></span>
+        <label class="inline">Solde lu dans Aave <input name="quantity" inputmode="decimal" required placeholder="ex. 1012.48"></label>
+        <label class="inline">le <input type="date" name="check_date" required></label>
+        <button type="submit">Vérifier</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <div class="table-scroll"><table id="placements-table">
+        <thead><tr><th data-sort="label"><button type="button" class="sort">Placement</button></th><th class="num" data-sort="capital"><button type="button" class="sort">Capital</button></th><th class="num" data-sort="rate_today_pct"><button type="button" class="sort">Taux du jour</button></th><th class="num" data-sort="realized_pct"><button type="button" class="sort">Rendement 12 mois</button></th><th class="num" data-sort="income_12m"><button type="button" class="sort" title="Valeur à la réception">Revenus 12 mois</button></th><th class="num" data-sort="estimated"><button type="button" class="sort">Revenu estimé</button></th><th class="num" data-sort="current_value"><button type="button" class="sort" title="Aave : estimation, enregistrée le 1er du mois suivant">Mois en cours</button></th><th></th></tr></thead>
+        <tbody id="placements-rows"></tbody>
+      </table></div>
+      <p class="muted small" id="aave-note" hidden></p>
+    </section>
+    <section class="card" data-card="emprunts-aave">
+      <div class="card-head">
+        <h2>Emprunts Aave <button type="button" class="tip" data-tip="Dette estimée chaque jour avec le taux d'emprunt public du marché ; « Vérifier » la recale sur la dette lue dans Aave. Facteur de santé = dépôts suivis sur le même marché × seuil de liquidation ÷ dettes : sous 1, Aave vend une partie des dépôts. Juste seulement si tous tes dépôts Aave de ce marché sont suivis ici (mode E et isolation non pris en compte). Les jetons empruntés se saisissent à part, sur le compte où ils arrivent." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" class="chip" id="borrow-new">Suivre un emprunt</button>
+      </div>
+      <p class="warn small" id="borrow-warning" hidden></p>
+      <form id="form-borrow" class="perf-controls" hidden>
+        <label class="inline">Chaîne <select name="chain_id" required></select></label>
+        <label class="inline">Marché <select name="reserve" required></select></label>
+        <label class="inline">Jeton <select name="asset_id" required></select></label>
+        <label class="inline">Emprunt <input name="quantity" inputmode="decimal" required placeholder="ex. 500"></label>
+        <label class="inline">le <input type="date" name="op_date" required></label>
+        <button type="submit">Suivre</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <form id="form-borrow-move" class="perf-controls" hidden>
+        <span id="borrow-move-label"></span>
+        <label class="inline"><span data-move-word>Emprunt</span> <input name="quantity" inputmode="decimal" required placeholder="ex. 100"></label>
+        <label class="inline">le <input type="date" name="op_date" required></label>
+        <button type="submit">Enregistrer</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <form id="form-borrow-check" class="perf-controls" hidden>
+        <span id="borrow-check-label"></span>
+        <label class="inline">Dette lue dans Aave <input name="quantity" inputmode="decimal" required placeholder="ex. 503.21"></label>
+        <label class="inline">le <input type="date" name="check_date" required></label>
+        <button type="submit">Vérifier</button>
+        <button type="button" class="chip" data-cancel>Annuler</button>
+      </form>
+      <div class="table-scroll"><table id="borrows-table">
+        <thead><tr><th data-sort="label"><button type="button" class="sort">Emprunt</button></th><th class="num" data-sort="value_eur"><button type="button" class="sort">Dette</button></th><th class="num" data-sort="apy_today_pct"><button type="button" class="sort">Taux d'emprunt</button></th><th class="num" data-sort="cost_year_eur"><button type="button" class="sort">Coût estimé</button></th><th class="num" data-sort="health_factor"><button type="button" class="sort" title="Sous 1 : liquidation possible">Facteur de santé</button></th><th></th></tr></thead>
+        <tbody id="borrows-rows"></tbody>
+      </table></div>
+    </section>
+    <section class="card" data-card="revenus-par-mois">
+      <div class="card-head">
+        <h2>Revenus par mois <button type="button" class="tip" data-tip="Valeur le jour de réception. Frais : achats, ventes et échanges de crypto (frais en BNB compris), hors part payée par la plateforme ; ils ne comptent pas dans Revenus et frais." aria-label="Plus d'infos">?</button></h2>
+        <span class="muted small" id="crypto-fees-total"></span>
+      </div>
+      <div class="segmented" id="rewards-by" role="group" aria-label="Barres par">
+        <button type="button" data-by="asset" class="active">Par jeton</button>
+        <button type="button" data-by="kind">Par type</button>
+      </div>
+      <div class="chart"><canvas id="chart-rewards" aria-label="Revenus crypto reçus par mois"></canvas></div>
+    </section>
+    <section class="card" data-card="jetons-sans-rendement">
+      <div class="card-head">
+        <h2>Ne rapportent rien <button type="button" class="tip" data-tip="Cryptos détenues sans intérêt ni staking reçu depuis 12 mois. Une information, pas un conseil : prêter ou staker ajoute un risque (plateforme, protocole, blocage des jetons)." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <div class="table-scroll"><table id="idle-table">
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="asset"><button type="button" class="sort">Jeton</button></th><th class="num" data-sort="held"><button type="button" class="sort">Quantité</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur</button></th><th class="num" data-sort="share_pct"><button type="button" class="sort">Part de tes cryptos</button></th></tr></thead>
+        <tbody id="idle-rows"></tbody>
+      </table></div>
+    </section>
+    <section class="card" data-card="historique-des-recompenses">
+      <div class="card-head"><h2>Historique <button type="button" class="tip" data-tip="Import Binance : une ligne par jeton, par mois et par type." aria-label="Plus d'infos">?</button></h2></div>
+      <div class="table-scroll"><table id="rewards-recent-table">
+        <thead><tr><th data-sort="date"><button type="button" class="sort">Date</button></th><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="asset"><button type="button" class="sort">Jeton</button></th><th data-sort="label"><button type="button" class="sort">Type</button></th><th class="num" data-sort="quantity"><button type="button" class="sort">Quantité</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur à réception</button></th></tr></thead>
+        <tbody id="rewards-recent"></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <div class="page" data-page="positions" hidden>
+    <!-- Un bloc par compte (D-073), dans l'ordre choisi dans Gérer : ses positions, puis ses opérations. -->
+    <div class="table-tools positions-tools">
+      <input type="search" id="positions-search" placeholder="Rechercher une ligne, un ticker…" aria-label="Rechercher une position ou une opération">
+      <select id="positions-account" aria-label="Afficher un seul compte"><option value="">Tous les comptes</option></select>
+      <span id="positions-count" class="muted small"></span>
+      <a class="button" href="#gerer">Nouvelle opération</a>
+    </div>
+    <div id="account-blocks"></div>
+  </div>
+
+  <div class="page" data-page="gerer" hidden>
+    <section class="card" id="card-operation" data-card="nouvelle-operation">
+      <div class="card-head">
+        <h2>Nouvelle opération</h2>
+        <span class="muted small">Achat, vente, versement ou retrait : les espèces du compte suivent</span>
+      </div>
+      <div id="new-operation"></div>
+    </section>
+    <section class="card" id="card-import" data-card="importer-plusieurs-operations">
+      <div class="card-head">
+        <h2>Importer plusieurs opérations</h2>
+        <span class="muted small">Relevé de ton courtier, ou lignes copiées depuis Excel</span>
+      </div>
+      <form id="form-import-start" class="import-start">
+        <label>Compte <select name="account_id"></select></label>
+        <label>Fichier CSV <input type="file" name="file" accept=".csv,.txt,text/csv"></label>
+        <div class="form-actions">
+          <button type="submit">Lire le fichier</button>
+          <button type="button" id="import-paste-open">Coller depuis un tableur</button>
+        </div>
+      </form>
+      <p class="muted small">Beaucoup d'opérations ? <a href="#" id="import-template">Télécharge le modèle</a>, remplis-le (une ligne par opération), puis colle les lignes ici ou importe le CSV. <button type="button" class="tip" data-tip="Le fichier ou le texte collé est lu sur ton ordinateur, puis oublié : seules les opérations validées sont enregistrées. Un même relevé importé deux fois ne crée pas de doublons." aria-label="Plus d'infos">?</button></p>
+      <p class="muted small">Relevé reconnu (Trade Republic, Binance « Historique des transactions ») : l'app trouve les comptes et plans qu'il contient et propose de créer ceux qui manquent. Première utilisation : commence par là.</p>
+    </section>
+    <section class="card" id="card-recurring" data-card="achats-programmes">
+      <div class="card-head">
+        <h2>Achats programmés</h2>
+        <button type="button" data-add="recurring">+ Ajouter</button>
+      </div>
+      <div id="recurring-pending" hidden>
+        <p class="muted small">À valider : corrige quantité et prix d'après ton relevé, puis « Valider ». « Ignorer » si l'achat n'a pas eu lieu.</p>
+        <div class="table-scroll">
+          <table class="recurring-table">
+            <thead><tr><th>Échéance</th><th>Actif</th><th class="num">Montant visé</th><th>Date</th><th>Quantité</th><th>Prix unitaire</th><th>Frais</th><th></th></tr></thead>
+            <tbody id="recurring-pending-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-scroll"><table><tbody id="recurring-list"></tbody></table></div>
+      <p class="muted small">Chaque échéance passée est proposée ici, avec une quantité estimée d'après la clôture du jour. <button type="button" class="tip" data-tip="Ex. 100 € d'ETF le 5 de chaque mois, semaine ou trimestre. À défaut de clôture, le dernier cours connu sert. Rien n'est enregistré sans ta validation, et rien ne part chez ta banque." aria-label="Plus d'infos">?</button></p>
+    </section>
+    <section class="card half" data-card="comptes">
+      <div class="card-head">
+        <h2>Comptes</h2>
+        <button type="button" data-add="account">+ Ajouter</button>
+      </div>
+      <div class="table-scroll"><table><tbody id="accounts-list"></tbody></table></div>
+      <p class="muted small">Total du compte, titres et espèces compris. <button type="button" class="tip" data-tip="Survole un montant pour voir les espèces (et les versements d'un PEA, d'une assurance-vie ou d'un PER). PEA, assurance-vie, PER : espèces = versements + ventes + dividendes − achats − frais − retraits. Compte-titres, crypto, livret, autre : espèces saisies comme les affiche la banque, puis les opérations suivantes." aria-label="Plus d'infos">?</button></p>
+    </section>
+    <section class="card half" data-card="actifs">
+      <div class="card-head">
+        <h2>Actifs</h2>
+        <button type="button" data-add="asset">+ Ajouter</button>
+      </div>
+      <div class="table-scroll"><table><tbody id="assets-list"></tbody></table></div>
+      <details id="assets-sold-box" class="sold-box" hidden>
+        <summary>Actifs soldés (<span id="assets-sold-count">0</span>)</summary>
+        <p class="muted small">Revendus ou envoyés hors de l'app : gardés pour l'historique et la fiscalité. Ils reviennent seuls dès qu'une opération en remet.</p>
+        <div class="table-scroll"><table><tbody id="assets-sold"></tbody></table></div>
+      </details>
+      <p class="muted small">Un actif = une ligne. Avec un ticker, le cours se met à jour seul ; sans, saisis sa « Valeur ». <button type="button" class="tip" data-tip="Sans ticker : fonds euros, bien immobilier… Supprimer un actif qui a des opérations demande de les déplacer ou de les supprimer aussi." aria-label="Plus d'infos">?</button></p>
+    </section>
+    <section class="card half" data-card="dettes">
+      <div class="card-head">
+        <h2>Dettes <button type="button" class="tip" data-tip="Crédit immobilier, prêt conso… Le capital restant dû est calculé chaque mois d'après le montant, le taux et la durée (mensualités constantes, hors assurance). Saisis le capital lu sur un relevé pour recaler le calcul. Patrimoine net = patrimoine total − capital restant dû." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" data-add="debt">+ Ajouter</button>
+      </div>
+      <div class="table-scroll"><table><tbody id="debts-list"></tbody></table></div>
+    </section>
+    <section class="card half" data-card="profils">
+      <div class="card-head">
+        <h2>Profils <button type="button" class="tip" data-tip="Une base par personne sur cet ordinateur, rien ne sort de la machine. Le premier ajout range la base actuelle dans le profil « Principal ». Chacun peut ensuite poser son code depuis son nom, en haut de la page. Exporter : une copie de ses propres données, à garder ou à emporter sur un autre ordinateur." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <ul id="profiles-list" class="profiles-list"></ul>
+      <form id="form-profile-new" class="profile-new">
+        <label>Nouveau profil
+          <input name="name" required maxlength="40" placeholder="Prénom" autocomplete="off">
+        </label>
+        <button type="submit">Ajouter</button>
+      </form>
+      <p id="profile-new-error" class="ko small" role="alert" hidden></p>
+      <button type="button" id="profile-demo-add" class="link edit">+ Profil Démo, avec des données fictives</button>
+      <details class="profile-restore-box">
+        <summary>Restaurer un profil exporté</summary>
+        <form id="form-profile-restore" class="profile-new">
+          <label>Fichier .db
+            <input name="file" type="file" accept=".db,application/octet-stream" required>
+          </label>
+          <label>Nom du profil
+            <input name="name" required maxlength="40" autocomplete="off">
+          </label>
+          <button type="submit">Restaurer</button>
+        </form>
+        <p class="muted small">Il devient un nouveau profil, sans rien remplacer. <button type="button" class="tip" data-tip="Le fichier vient de « Exporter » sur un autre ordinateur ou une ancienne copie. L'app vérifie qu'il s'agit bien d'une de ses bases avant de l'accepter, puis la met à jour si elle est ancienne." aria-label="Plus d'infos">?</button></p>
+        <p id="profile-restore-error" class="ko small" role="alert" hidden></p>
+      </details>
+    </section>
+    <section class="card" data-card="alerte-de-variation">
+      <div class="card-head"><h2>Alerte de variation</h2></div>
+      <form id="form-alert" class="alert-form">
+        <label>Seuil de variation du jour, en %
+          <input name="threshold" inputmode="decimal" placeholder="vide = pas d'alerte">
+        </label>
+        <label class="check"><input name="notify" type="checkbox"> Notification Windows aussi</label>
+      </form>
+      <p class="muted small">Bandeau quand le total ou une position varie d'au moins ce seuil sur la dernière séance. <button type="button" class="tip" data-tip="La notification n'indique que des pourcentages, une fois par jour, et seulement si la page est ouverte. Réglage gardé dans ce navigateur." aria-label="Plus d'infos">?</button></p>
+    </section>
+  </div>
+
+  <!-- Formulaire d'opération : une copie dans « Gérer » (ajout), une dans la fenêtre « Modifier ». -->
+  <template id="tpl-operation">
+    <form class="op-form">
+      <label>Compte <select name="account_id" required></select></label>
+      <label>Type
+        <select name="op_type">
+          <option value="achat">Achat</option>
+          <option value="vente">Vente</option>
+          <option value="versement">Versement (argent déposé)</option>
+          <option value="retrait">Retrait (argent retiré)</option>
+          <option value="solde_initial">Titres déjà détenus</option>
+          <option value="transfert_sortant">Transfert sortant (titres envoyés ailleurs)</option>
+          <option value="dividende">Dividende ou coupon</option>
+          <option value="frais">Frais (droits de garde...)</option>
+        </select>
+      </label>
+      <label data-for="trade initial valued income">Actif <select name="asset_id"></select></label>
+      <label>Date <input name="op_date" type="date" required></label>
+      <label data-for="trade initial">Quantité <input name="quantity" inputmode="decimal" placeholder="10"></label>
+      <label data-for="initial"><span>Montant actuel de la ligne<span data-asset-cur></span></span> <input name="line_value" inputmode="decimal" placeholder="1 250"></label>
+      <label data-for="trade initial"><span data-price-label>Prix unitaire</span> <input name="unit_price" inputmode="decimal" placeholder="5,25"></label>
+      <label data-for="trade valued">Frais <input name="fees" inputmode="decimal" placeholder="0"></label>
+      <label data-for="cash valued income"><span data-amount-label>Montant</span> <input name="amount" inputmode="decimal" placeholder="100"></label>
+      <label data-for="trade" data-buy-only><span class="lab">Dont offert (facultatif) <button type="button" class="tip" data-tip="Saveback, action offerte : cette part ne sort pas de tes espèces. L'action garde son prix réel ; les frais qu'elle couvre ne comptent pas dans tes frais payés." aria-label="Plus d'infos">?</button></span> <input name="offered" inputmode="decimal" placeholder="0"></label>
+      <label data-crypto-reward><span class="lab">Type de récompense <button type="button" class="tip" data-tip="Rangé par type dans l'onglet Rendements crypto. Compte seulement si une part est offerte." aria-label="Plus d'infos">?</button></span> <select name="reward_kind"><option value="">Pas une récompense</option><option value="earn">Intérêts Earn</option><option value="staking">Staking</option><option value="airdrop">Airdrop</option><option value="cashback">Cashback</option><option value="parrainage">Parrainage</option><option value="autre">Autre</option></select></label>
+      <label data-for="income"><span class="lab">Impôt retenu (facultatif) <button type="button" class="tip" data-tip="Retenue du pays de la société, déjà déduite du montant reçu." aria-label="Plus d'infos">?</button></span> <input name="tax_withheld" inputmode="decimal" placeholder="0"></label>
+      <label class="check wide" data-crypto-sale><input type="checkbox" name="crypto_swap"> Échange contre une autre crypto ou un stablecoin (non imposable)</label>
+      <label class="wide" data-crypto-sale data-crypto-value>Valeur de toutes tes cryptos juste avant la vente, en € (facultatif, estimée sinon) <input name="portfolio_value" inputmode="decimal" placeholder="relevé de tes plateformes"></label>
+      <label data-transfer><span class="lab">Vers <button type="button" class="tip" data-tip="Un de tes comptes de l'app : les titres arrivent au même prix de revient, l'argent en versement." aria-label="Plus d'infos">?</button></span> <select name="to_account_id"></select></label>
+      <label data-transfer data-transfer-text>Où, hors de l'app (facultatif) <input name="destination" maxlength="80" placeholder="Ledger, cadeau, autre plateforme..."></label>
+      <label class="wide">Note <input name="note" maxlength="200"></label>
+      <p class="muted small wide" data-hint></p>
+      <div class="form-actions wide"><button type="submit">Enregistrer</button></div>
+    </form>
+  </template>
+</main>
+  <!-- Fenêtre « agrandir » : un seul graphique en grand, au-dessus de la page (Échap pour fermer). -->
+  <dialog id="zoom" aria-labelledby="zoom-title">
+    <div class="card-head">
+      <h2 id="zoom-title"></h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <div class="presets" id="zoom-chips" role="group" aria-label="Détail affiché"></div>
+    <div class="zoom-body"><div class="chart" id="zoom-chart"><canvas id="chart-zoom"></canvas></div></div>
+    <p id="zoom-note" class="muted small"></p>
+  </dialog>
+
+  <dialog id="dlg-crop" class="form-dialog crop-dialog" aria-labelledby="crop-title">
+    <div class="card-head">
+      <h2 id="crop-title">Recadrer la photo</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <canvas id="crop-canvas" width="256" height="256" aria-label="Zone de la photo à garder : glisse pour la déplacer"></canvas>
+    <label class="crop-zoom">Zoom <input id="crop-zoom" type="range" min="1" max="4" step="0.01" value="1"></label>
+    <div class="picker-actions">
+      <button type="button" data-close>Annuler</button>
+      <button type="button" id="crop-save" class="primary">Enregistrer</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-ask" class="form-dialog ask-dialog" aria-labelledby="ask-title">
+    <div class="card-head">
+      <h2 id="ask-title"></h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-ask">
+      <p id="ask-detail" class="muted small" hidden></p>
+      <input id="ask-input" maxlength="100" autocomplete="off" hidden>
+      <div class="picker-actions">
+        <button type="button" data-close>Annuler</button>
+        <button type="submit" id="ask-ok" class="primary">Confirmer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-import" class="form-dialog import-dialog" aria-labelledby="dlg-import-title">
+    <div class="card-head">
+      <h2 id="dlg-import-title">Importer</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <div id="import-progress" class="import-progress" role="status" hidden>
+      <div class="import-progress-track"><div class="import-progress-bar"></div></div>
+      <p id="import-progress-label" class="small muted"></p>
+    </div>
+    <div id="import-paste-zone" hidden>
+      <label class="wide">Colle ici les lignes copiées depuis ton tableur (avec la ligne des titres de colonnes)
+        <textarea id="import-paste" rows="6" spellcheck="false" placeholder="Date&#9;Type&#9;ISIN ou ticker&#9;Quantité&#9;Prix unitaire&#10;03/01/2025&#9;Achat&#9;FR0000000001&#9;10&#9;50"></textarea>
+      </label>
+    </div>
+    <div id="import-generic">
+      <p class="muted small">Colonne de chaque information, proposée d'après les titres. Requis : date, type, actif, quantité, prix ou montant.</p>
+      <div id="import-mapping" class="import-mapping"></div>
+      <label class="check"><input type="checkbox" id="import-header" checked> La première ligne contient les noms des colonnes</label>
+    </div>
+    <div id="import-profile" hidden>
+      <p class="import-banner"><strong id="import-profile-label" title="Seules les opérations d'investissement sont reprises : dépenses par carte, virements et intérêts du compte espèces sont ignorés."></strong>
+        <a href="#" id="import-as-generic" class="small">Lire comme un CSV quelconque</a></p>
+      <div id="import-parts" class="import-parts"></div>
+    </div>
+    <div id="import-unknown" class="presets"></div>
+    <div id="import-plans-box" hidden>
+      <p class="muted small">Plans d'investissement trouvés : coche ceux à suivre dans « Achats programmés ».</p>
+      <ul id="import-plans" class="import-plans"></ul>
+    </div>
+    <section id="import-outflows" class="import-outflows" hidden>
+      <div class="outflows-head"><h3>Où vont les fonds sortis ?</h3><span id="import-pending" class="muted small"></span></div>
+      <div id="import-outflows-bulk" class="outflow-bulk" hidden></div>
+      <div id="import-outflows-list"></div>
+    </section>
+    <div class="import-summary-row">
+      <p id="import-summary" class="small"></p>
+      <details id="import-ignored-box" class="small" hidden>
+      <summary id="import-ignored-title"></summary>
+      <ul id="import-ignored" class="muted"></ul>
+      </details>
+    </div>
+    <div class="table-scroll"><table class="import-table" id="import-table">
+      <thead><tr><th data-sort="line"><button class="sort">Ligne</button></th>
+        <th data-sort="status_label"><button class="sort">État</button></th>
+        <th data-sort="op_date"><button class="sort">Date</button></th>
+        <th data-sort="type_label"><button class="sort">Type</button></th>
+        <th data-sort="asset_label"><button class="sort">Actif</button></th>
+        <th data-sort="account"><button class="sort">Compte</button></th>
+        <th data-sort="quantity" class="num"><button class="sort">Quantité</button></th>
+        <th data-sort="unit_price" class="num"><button class="sort">Prix</button></th>
+        <th data-sort="amount" class="num"><button class="sort">Montant</button></th>
+        <th data-sort="fees" class="num"><button class="sort">Frais</button></th></tr></thead>
+      <tbody id="import-rows"></tbody>
+    </table></div>
+    <div class="form-actions"><button type="button" id="import-cancel">Annuler</button><button type="button" class="primary" id="import-go" disabled>Importer</button></div>
+  </dialog>
+
+  <dialog id="dlg-list" class="form-dialog wide-dialog" aria-labelledby="dlg-list-title">
+    <div class="card-head">
+      <h2 id="dlg-list-title">Indices et livrets</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <p class="muted small">Liste commune à Comparaison et Visualisations. <button type="button" class="tip" data-tip="Un indice se compare grâce à son ticker Yahoo (vérifiable sur finance.yahoo.com/quote/TICKER) ; un livret grâce à son taux annuel, calculé sur ta machine." aria-label="Plus d'infos">?</button></p>
+    <div class="table-scroll"><table><tbody id="list-rows"></tbody></table></div>
+    <form id="form-bench">
+      <label>Type
+        <select name="kind">
+          <option value="indice">Indice (ticker Yahoo)</option>
+          <option value="livret">Livret (taux)</option>
+        </select>
+      </label>
+      <label>Nom <input name="label" required maxlength="100" placeholder="ex. Nikkei 225"></label>
+      <label data-kind="indice">Ticker Yahoo <input name="ticker" maxlength="20" placeholder="ex. ^N225"></label>
+      <label data-kind="livret">Taux (%/an) <input name="rate" inputmode="decimal" placeholder="ex. 1,7"></label>
+      <label>Groupe <input name="grp" maxlength="100" placeholder="ex. Asie, Livrets"></label>
+      <div class="form-actions wide">
+        <button type="button" class="link" data-cancel hidden>Annuler la modification</button>
+        <button type="submit">Ajouter</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-operation" class="form-dialog" aria-labelledby="dlg-operation-title">
+    <div class="card-head">
+      <h2 id="dlg-operation-title">Modifier l'opération</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <div id="edit-operation"></div>
+  </dialog>
+
+  <dialog id="dlg-account" class="form-dialog" aria-labelledby="dlg-account-title">
+    <div class="card-head">
+      <h2 id="dlg-account-title">Compte</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-account">
+      <label>Nom <input name="name" required placeholder="PEA"></label>
+      <label>Type
+        <select name="kind">
+          <option value="pea">PEA</option>
+          <option value="cto">Compte-titres (CTO)</option>
+          <option value="crypto">Crypto</option>
+          <option value="assurance_vie">Assurance-vie</option>
+          <option value="per">PER</option>
+          <option value="livret">Livret (A, LDDS, LEP...)</option>
+          <option value="immobilier">Immobilier</option>
+          <option value="autre">Autre</option>
+        </select>
+      </label>
+      <!-- Garde d'un compte crypto et établissement à l'étranger (D-104). -->
+      <label data-for="crypto"><span class="lab">Garde <button type="button" class="tip" data-tip="Plateforme d'échange (Binance, Kraken, Coinbase…) : elle détient tes clés et te doit tes cryptos. Portefeuille personnel (Ledger, MetaMask, Rabby…) : toi seul as les clés." aria-label="Plus d'infos">?</button></span>
+        <select name="custody">
+          <option value="">À préciser</option>
+          <option value="exchange">Plateforme</option>
+          <option value="wallet">Portefeuille</option>
+        </select>
+      </label>
+      <label>Établissement <input name="institution" list="account-institutions"></label>
+      <datalist id="account-institutions"></datalist>
+      <label class="check wide" id="account-abroad"><input type="checkbox" name="abroad"> <span>Établissement à l'étranger <button type="button" class="tip" data-tip="Compte à déclarer chaque année avec tes revenus : formulaire 3916 (banque, courtier, assurance-vie), 3916-bis pour une plateforme crypto. Un compte oublié : 750 € d'amende. Dans le doute, coche. Un portefeuille personnel ne se déclare pas." aria-label="Plus d'infos">?</button></span></label>
+      <label data-for="cto crypto immobilier autre">Devise <input name="currency" value="EUR" maxlength="3" required></label>
+      <label data-for="pea assurance_vie autre"><span class="lab">Date d'ouverture <button type="button" class="tip" data-tip="Sert aux repères fiscaux : 5 ans d'un PEA, 8 ans d'une assurance-vie." aria-label="Plus d'infos">?</button></span> <input name="opened_on" type="date"></label>
+      <!-- Versements : PEA, assurance-vie, PER (fiscalité) ; espèces saisies : livret, CTO,
+           crypto, Autre (D-075) ; immobilier : ni l'un ni l'autre. -->
+      <label data-kind="deposits"><span class="lab">Versements <button type="button" class="tip" data-tip="Total versé sur le compte avant les opérations « Versement » saisies ici (ta banque l'affiche comme « montant des versements »)." aria-label="Plus d'infos">?</button></span> <input name="deposits_before" inputmode="decimal" placeholder="0"></label>
+      <label data-kind="cash"><span id="account-cash-label">Espèces aujourd'hui</span> <input name="cash" inputmode="decimal" placeholder="0"></label>
+      <p class="muted small wide" data-kind="deposits"><span id="account-deposits-why"></span> Les opérations
+        « Versement » saisies ensuite s'y ajoutent. Les espèces en découlent : versements + ventes +
+        dividendes − achats − frais − retraits ; un achat plus gros que les versements suppose un
+        versement plus tôt.</p>
+      <p class="warn small wide" id="account-deposits-warn" hidden></p>
+      <p class="warn small wide" id="account-cash-warn" hidden></p>
+      <p class="muted small wide" data-kind="cash" id="account-cash-help"></p>
+      <div class="form-actions wide"><button type="submit">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <!-- Tutoriel de premier lancement (D-099) : rempli par tutorial.js. -->
+  <dialog id="dlg-tutorial" class="form-dialog tutorial" aria-labelledby="tutorial-title">
+    <div class="card-head">
+      <h2 id="tutorial-title">Tutoriel</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <p id="tutorial-step"></p>
+    <p id="tutorial-text"></p>
+    <div id="tutorial-content"></div>
+  </dialog>
+
+  <dialog id="dlg-debt" class="form-dialog" aria-labelledby="dlg-debt-title">
+    <div class="card-head">
+      <h2 id="dlg-debt-title">Dette</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-debt">
+      <label>Nom <input name="name" required placeholder="Crédit résidence principale"></label>
+      <label>Type
+        <select name="kind">
+          <option value="immobilier">Crédit immobilier</option>
+          <option value="conso">Prêt conso</option>
+          <option value="etudiant">Prêt étudiant</option>
+          <option value="autre">Autre</option>
+        </select>
+      </label>
+      <label>Établissement <input name="institution"></label>
+      <label>Devise <input name="currency" value="EUR" maxlength="3" required></label>
+      <label>Montant emprunté <input name="principal" inputmode="decimal" required placeholder="200000"></label>
+      <label>Début du prêt <input name="start_date" type="date" required></label>
+      <label><span class="lab">Taux annuel (%) <button type="button" class="tip" data-tip="Taux nominal du contrat, hors assurance (pas le TAEG). Vide : 0 %." aria-label="Plus d'infos">?</button></span> <input name="rate_pct" inputmode="decimal" placeholder="3,6"></label>
+      <label><span class="lab">Durée (mois) <button type="button" class="tip" data-tip="Vide pour un prêt in fine ou sans échéancier : le capital ne baisse alors qu'avec un capital restant dû saisi." aria-label="Plus d'infos">?</button></span> <input name="months" type="number" min="1" max="600" placeholder="240"></label>
+      <div class="form-actions wide"><button type="submit">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-debt-balance" class="form-dialog" aria-labelledby="dlg-debt-balance-title">
+    <div class="card-head">
+      <h2 id="dlg-debt-balance-title">Capital restant dû</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-debt-balance">
+      <label>Capital restant dû <input name="balance" inputmode="decimal" required placeholder="185000"></label>
+      <label>Au <input name="balance_date" type="date" required></label>
+      <p class="muted small wide">Lu sur un relevé ou un tableau d'amortissement. <button type="button" class="tip" data-tip="Les échéances suivantes partent de ce montant, avec la même mensualité. Utile après un remboursement anticipé." aria-label="Plus d'infos">?</button></p>
+      <div class="table-scroll wide"><table><tbody id="debt-balances"></tbody></table></div>
+      <div class="form-actions wide"><button type="submit">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-recurring" class="form-dialog" aria-labelledby="dlg-recurring-title">
+    <div class="card-head">
+      <h2 id="dlg-recurring-title">Achat programmé</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-recurring">
+      <label>Compte <select name="account_id" required></select></label>
+      <label>Actif <select name="asset_id" required></select></label>
+      <label><span>Montant par achat<span data-recurring-cur></span></span> <input name="amount" inputmode="decimal" required placeholder="100"></label>
+      <label>Fréquence
+        <select name="frequency">
+          <option value="mensuel">Chaque mois</option>
+          <option value="trimestriel">Chaque trimestre</option>
+          <option value="hebdomadaire">Chaque semaine</option>
+          <option value="bimensuel">Toutes les deux semaines</option>
+        </select>
+      </label>
+      <label data-day="month">Jour du mois <input name="day" type="number" min="1" max="28" value="5"></label>
+      <label data-day="week">Jour de la semaine
+        <select name="weekday">
+          <option value="1">Lundi</option>
+          <option value="2">Mardi</option>
+          <option value="3">Mercredi</option>
+          <option value="4">Jeudi</option>
+          <option value="5">Vendredi</option>
+          <option value="6">Samedi</option>
+          <option value="7">Dimanche</option>
+        </select>
+      </label>
+      <label>À partir du <input name="start_date" type="date" required></label>
+      <label class="wide">Note <input name="note" maxlength="200" placeholder="Achat programmé"></label>
+      <p class="muted small wide">Jour du mois : 1 à 28. Choisis la date du premier achat à suivre. <button type="button" class="tip" data-tip="Tous les mois ont un jour 1 à 28. En trimestriel, les achats tombent tous les 3 mois à partir du mois de début. Les échéances d'avant la date choisie ne sont pas proposées." aria-label="Plus d'infos">?</button></p>
+      <div class="form-actions wide"><button type="submit">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-asset" class="form-dialog" aria-labelledby="dlg-asset-title">
+    <div class="card-head">
+      <h2 id="dlg-asset-title">Actif</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-asset">
+      <label>Classe
+        <select name="asset_class">
+          <option value="etf">ETF</option>
+          <option value="action">Action</option>
+          <option value="fonds">Fonds (OPCVM, UC)</option>
+          <option value="crypto">Crypto</option>
+          <option value="obligation">Obligation</option>
+          <option value="fonds_euros">Fonds euros</option>
+          <option value="scpi">SCPI</option>
+          <option value="or">Or</option>
+          <option value="immobilier">Immobilier</option>
+          <option value="autre">Divers</option>
+        </select>
+      </label>
+      <label>Nom <input name="name" required></label>
+      <p class="wide filter-banner" id="asset-currency-hint" hidden></p>
+      <label data-for="action etf fonds obligation scpi or autre"><span class="lab">ISIN <button type="button" class="tip" data-tip="Sert aussi à reconnaître l'actif dans un relevé importé." aria-label="Plus d'infos">?</button></span> <input name="isin" maxlength="12"></label>
+      <label data-for="action etf fonds obligation scpi or crypto autre"><span class="lab">Ticker Yahoo<span data-optional> (facultatif)</span> <button type="button" class="tip" data-crypto-tip hidden data-tip="Sert à l'historique (Listes de suivi, Calendrier), pas au cours du jour. Vide : l'app le trouve pour les cryptos courantes. Une crypto inconnue garde un an d'historique via CoinGecko." aria-label="Plus d'infos">?</button></span> <input name="ticker" placeholder="ex. CW8.PA"></label>
+      <label data-for="crypto autre">Id CoinGecko <input name="coingecko_id" placeholder="ex. bitcoin"></label>
+      <label>Devise de cotation <input name="currency" value="EUR" maxlength="3" required></label>
+      <label>Catégorie <input name="category" list="category-list" maxlength="40" placeholder="vide = la classe"></label>
+      <datalist id="category-list"></datalist>
+      <label data-for="etf fonds autre">Frais courants (TER, %/an) <input name="ter" inputmode="decimal" placeholder="ex. 0,2"></label>
+      <label>Couleur dans les graphiques
+        <span class="color-pick">
+          <span class="dot" id="asset-color-dot" aria-hidden="true"></span>
+          <select name="color">
+            <option value="">Automatique</option>
+            <option value="1">Bleu</option>
+            <option value="2">Orange</option>
+            <option value="3">Vert d'eau</option>
+            <option value="4">Jaune</option>
+            <option value="5">Rose</option>
+            <option value="6">Vert</option>
+            <option value="7">Violet</option>
+          </select>
+        </span>
+      </label>
+      <p class="muted small wide" id="asset-help"></p>
+      <p class="wide ticker-choices" id="asset-ticker-choices" hidden></p>
+      <div class="form-actions wide">
+        <button type="button" id="asset-find-ticker" data-for="action etf fonds obligation scpi or autre" title="Envoie seulement l'ISIN (et le nom du titre) à Yahoo, jamais un montant">Chercher le ticker (ISIN)</button>
+        <button type="button" data-test-quote data-for="action etf fonds crypto obligation scpi or autre">Tester le cours</button>
+        <button type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+  <!-- Suppression d'un compte ou d'un actif qui a des opérations (D-074). -->
+  <dialog id="dlg-delete" class="form-dialog" aria-labelledby="dlg-delete-title">
+    <div class="card-head">
+      <h2 id="dlg-delete-title">Supprimer</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-delete">
+      <p class="wide delete-warning" id="delete-warning" role="alert"></p>
+      <fieldset class="wide delete-choice">
+        <legend>Que deviennent ses opérations ?</legend>
+        <label class="inline"><input type="radio" name="mode" value="deplacer"> <span id="delete-move-text">Les déplacer vers</span></label>
+        <select name="vers" aria-label="Destination des opérations"></select>
+        <label class="inline"><input type="radio" name="mode" value="supprimer"> <span id="delete-drop-text">Les supprimer aussi</span></label>
+      </fieldset>
+      <p class="muted small wide" id="delete-note"></p>
+      <div class="form-actions wide">
+        <button type="button" data-cancel>Annuler</button>
+        <button type="submit" class="danger" disabled>Supprimer</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dlg-reconcile" class="form-dialog wide-dialog" aria-labelledby="dlg-reconcile-title">
+    <div class="card-head">
+      <h2 id="dlg-reconcile-title">Vérifier</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-reconcile">
+      <p class="muted small wide">Recopie ce qu'affiche ta banque : l'app compare à son calcul, rien n'est enregistré. Un champ vide n'est pas vérifié.</p>
+      <label><span id="reconcile-cash-label">Espèces affichées par la banque</span>
+        <input name="cash" inputmode="decimal" placeholder="0"></label>
+      <div class="table-scroll wide"><table>
+        <thead><tr><th>Ligne</th><th class="num">Selon l'app</th><th class="num">Selon la banque</th><th>Écart</th></tr></thead>
+        <tbody id="reconcile-lines"></tbody>
+      </table></div>
+      <div class="form-actions wide"><button type="submit">Comparer</button></div>
+    </form>
+    <div id="reconcile-result"></div>
+  </dialog>
+
+  <dialog id="dlg-valuation" class="form-dialog" aria-labelledby="dlg-valuation-title">
+    <div class="card-head">
+      <h2 id="dlg-valuation-title">Valeur</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <form id="form-valuation">
+      <label>Date <input name="value_date" type="date" required></label>
+      <label><span>Valeur totale de la ligne<span data-valuation-cur></span></span>
+        <input name="value" inputmode="decimal" required placeholder="250 000"></label>
+      <div class="form-actions"><button type="submit">Enregistrer</button></div>
+      <p class="muted small wide">Valeur de toute la ligne ce jour-là (relevé d'assurance-vie, estimation du bien…). Une nouvelle saisie le même jour remplace l'ancienne.</p>
+    </form>
+    <div class="table-scroll valuation-list"><table><tbody id="valuation-rows"></tbody></table></div>
+  </dialog>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="vendor/chartjs-chart-treemap.min.js"></script>
+  <script src="tips.js"></script>
+  <!-- Avant profiles.js et sans app.js : le bouton « Fenêtre » marche même si la page plante. -->
+  <script src="fenetre.js"></script>
+  <!-- profiles.js choisit le profil (D-098) puis charge app.js ; sans profils, tout de suite. -->
+  <script src="profiles.js"></script>
+  <script src="tutorial.js"></script>
+</body>
+</html>

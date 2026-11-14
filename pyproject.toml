@@ -1,0 +1,39 @@
+[project]
+name = "patrimoine"
+version = "0.1.0"
+description = "Tableau de bord local pour suivre un patrimoine financier (lecture seule)."
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "httpx2>=2.13",   # appels HTTP vers les sources de prix publics (D-019)
+    "uvicorn>=0.30",
+    # Fenêtre d'application (D-125) : Windows et macOS seulement ; ailleurs, le navigateur.
+    "pywebview>=6.2.1; sys_platform == 'win32' or sys_platform == 'darwin'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+# Construction de Patrimoine.exe (D-126) : installé seulement sur la machine qui fabrique
+# l'exécutable (`uv sync --group build`), jamais livré dans l'app ni chargé à l'usage.
+build = [
+    "pyinstaller>=6.22.3",
+]
+
+[tool.uv]
+package = false   # application, pas une bibliothèque à publier
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F : erreurs de base, I : tri des imports, B : pièges courants, UP : syntaxe Python moderne
+select = ["E", "F", "I", "B", "UP"]

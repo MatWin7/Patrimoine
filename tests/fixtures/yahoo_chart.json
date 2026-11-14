@@ -1,0 +1,1 @@
+{"chart": {"result": [{"meta": {"currency": "EUR", "symbol": "FAKE.PA", "exchangeName": "PAR", "regularMarketPrice": 5.4321, "chartPreviousClose": 5.3, "regularMarketTime": 1760104800}, "timestamp": [1760104800], "indicators": {"quote": [{}]}}], "error": null}}
