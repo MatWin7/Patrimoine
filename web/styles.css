@@ -184,6 +184,8 @@ button {
 }
 button:hover { background: var(--surface-2); }
 button:disabled { opacity: 0.6; cursor: progress; }
+/* Champ non modifiable (réglage fixé par .env, D-130 ; « Vers » sans autre compte) : grisé. */
+input:disabled, select:disabled { background: var(--surface-2); color: var(--text-3); cursor: not-allowed; }
 button.primary, form button[type="submit"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 button.primary:hover, form button[type="submit"]:hover { filter: brightness(1.08); }
 button.link { border: none; background: none; color: var(--ko); padding: 0; }
@@ -797,3 +799,8 @@ td { padding: var(--s-2) var(--s-3); font-size: var(--t-sm); }
   #accounts-list td:only-child, #assets-list td:only-child, #assets-sold td:only-child, #debts-list td:only-child { grid-column: 1 / -1; }
   .account-block .card-head > .muted { margin-left: 0; flex-basis: 100%; }
 }
+/* Carte Réglages (D-130) : chaque champ occupe trois rangées partagées (libellé, saisie, note
+   « Défini dans .env ») : une note sous un champ ne décale pas ses voisins. */
+.settings-form { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); row-gap: 0; column-gap: var(--s-4); }
+.settings-form label { display: grid; grid-template-rows: subgrid; grid-row: span 3; gap: var(--s-2); margin-bottom: var(--s-4); }
+.settings-form label > span:first-child { align-self: end; }

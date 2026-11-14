@@ -16,18 +16,16 @@ import re
 import threading
 from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
 
 import httpx2
 
-from app import profiles
+from app import settings as settings_file
 from app.version import __version__
 
 REPO = "MatWin7/Patrimoine"
 API_HOST = "api.github.com"
 LATEST_URL = f"https://{API_HOST}/repos/{REPO}/releases/latest"
 RELEASES_URL = f"https://github.com/{REPO}/releases"
-SETTINGS_NAME = "reglages.json"
 # Une release normale, jamais une préversion : « v1.2.3 » seulement (GitHub exclut déjà
 # brouillons et préversions de « latest »). Chiffres ASCII seulement ([0-9] et non \d, qui
 # accepterait d'autres écritures), sans zéro en tête (le lien construit ne correspondrait plus
@@ -137,16 +135,9 @@ class Settings:
     error: str | None = None  # échec de la dernière tentative
 
 
-def _file() -> Path:
-    return profiles.DATA_DIR / SETTINGS_NAME
-
-
 def load() -> Settings:
     """Réglages de mise à jour ; fichier absent ou abîmé : question à reposer."""
-    try:
-        data = json.loads(_file().read_text(encoding="utf-8")).get("updates", {})
-    except (OSError, ValueError, AttributeError):
-        return Settings()
+    data = settings_file.read_file().get("updates", {})
     if not isinstance(data, dict):
         return Settings()
     enabled = data.get("enabled")
@@ -170,24 +161,16 @@ def _is_date(text: str) -> bool:
 
 
 def save(settings: Settings) -> None:
-    """Écrit les réglages sans perdre les autres clés du fichier (carte Réglages à venir)."""
-    path = _file()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, ValueError):
-        data = {}
-    data["updates"] = {
-        "enabled": settings.enabled,
-        "checked": settings.checked,
-        "latest": settings.latest,
-        "error": settings.error,
-    }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(path.name + ".tmp")
-    temp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    temp.replace(path)  # écriture d'un bloc : jamais un fichier à moitié écrit
+    """Écrit les réglages sans perdre les autres clés du fichier (carte Réglages, D-130)."""
+    settings_file.write_section(
+        "updates",
+        {
+            "enabled": settings.enabled,
+            "checked": settings.checked,
+            "latest": settings.latest,
+            "error": settings.error,
+        },
+    )
 
 
 def set_enabled(enabled: bool) -> Settings:

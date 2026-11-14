@@ -91,8 +91,9 @@ uv sync                   # environnement et dépendances dans .venv
 uv run python -m app      # fenêtre sous Windows et macOS, navigateur sous Linux ; --navigateur pour forcer le navigateur
 ```
 
-Réglages facultatifs (cache des prix, clé CoinGecko, copie des sauvegardes) : copier
-`.env.example` en `.env`.
+Réglages facultatifs (cache des prix, sauvegardes gardées, verrouillage des profils, copie des
+sauvegardes sur un autre disque, clé CoinGecko) : carte **Réglages** de l'onglet Gérer. Un
+fichier `.env` (modèle : `.env.example`) reste possible et passe avant la carte.
 
 ### Essayer sans ses données
 

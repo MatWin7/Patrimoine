@@ -11,8 +11,11 @@ from typing import Annotated, Literal
 from pydantic import (
     BaseModel,
     BeforeValidator,
+    ConfigDict,
     Field,
     StrictBool,
+    StrictInt,
+    StrictStr,
     StringConstraints,
     field_validator,
     model_validator,
@@ -31,6 +34,20 @@ CoingeckoId = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=T
 # Catégorie personnelle (D-061) : texte libre court ; vide = aucune (la classe sert alors).
 Blank = BeforeValidator(lambda v: (v.strip() or None) if isinstance(v, str) else v)
 Category = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+
+class SettingsIn(BaseModel):
+    """Champs changés dans la carte Réglages (D-130) ; un champ absent ne bouge pas, null remet
+    la valeur par défaut. Valeurs vérifiées par app/settings.py, dont les messages ne
+    reprennent jamais la clé reçue."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    price_ttl_minutes: StrictInt | None = None
+    backup_keep: StrictInt | None = None
+    profile_lock_minutes: StrictInt | None = None
+    backup_copy_dir: StrictStr | None = None
+    coingecko_api_key: StrictStr | None = None
 
 
 class UpdatesIn(BaseModel):
