@@ -10,8 +10,6 @@ ROOT = Path(__file__).resolve().parent.parent  # code de l'app : web/, schema.sq
 # dossier que l'utilisateur voit, et où il poserait un .env, est celui de l'exécutable.
 FROZEN = bool(getattr(sys, "frozen", False))
 APP_DIR = Path(sys.executable).resolve().parent if FROZEN else ROOT
-DEFAULT_PRICE_TTL_MINUTES = 5
-DEFAULT_BACKUP_KEEP = 14
 # Dossiers synchronisés vers un cloud, refusés pour les données et BACKUP_COPY_DIR (règle 2,
 # D-114, D-119). Filet de sécurité : un nom inconnu passe.
 SYNCED_FOLDERS = (
@@ -65,50 +63,33 @@ def load_dotenv(path: Path = APP_DIR / ".env") -> None:
 
 
 def price_ttl() -> timedelta:
-    """Durée pendant laquelle un prix en cache est réutilisé sans rappeler la source (D-007)."""
-    value = os.environ.get("PRICE_TTL_MINUTES", "")
-    try:
-        minutes = int(value) if value else DEFAULT_PRICE_TTL_MINUTES
-    except ValueError as err:
-        raise RuntimeError(f"PRICE_TTL_MINUTES doit être un nombre entier, pas {value!r}") from err
-    return timedelta(minutes=max(minutes, 1))
+    """Durée pendant laquelle un prix en cache est réutilisé sans rappeler la source (D-007) :
+    .env, sinon carte Réglages (D-130), sinon 5 min."""
+    from app import settings  # import ici : settings importe profiles, qui importe config
+
+    return timedelta(minutes=settings.number("price_ttl_minutes"))
 
 
 def backup_keep() -> int:
     """Nombre de sauvegardes automatiques gardées (une par jour de lancement)."""
-    value = os.environ.get("BACKUP_KEEP", "")
-    try:
-        keep = int(value) if value else DEFAULT_BACKUP_KEEP
-    except ValueError as err:
-        raise RuntimeError(f"BACKUP_KEEP doit être un nombre entier, pas {value!r}") from err
-    return max(keep, 1)
+    from app import settings
+
+    return settings.number("backup_keep")
 
 
 def backup_copy_dir() -> Path | None:
-    """Dossier hors de WSL où recopier les sauvegardes du jour (D-114), None si non réglé.
+    """Dossier où recopier les sauvegardes du jour (D-114), None si non réglé.
 
     Refusé s'il est relatif, dans le dossier de l'app ou des données (une copie sur le même
-    disque virtuel ne protège de rien) ou synchronisé vers un cloud, OneDrive par exemple (règle 2).
+    disque virtuel ne protège de rien) ou synchronisé vers un cloud, OneDrive par exemple
+    (règle 2) ; choisi dans la carte Réglages, aussi s'il est sur le réseau (D-130).
     """
-    value = os.environ.get("BACKUP_COPY_DIR", "").strip()
-    if not value:
-        return None
-    path = Path(value).expanduser()
-    if not path.is_absolute():
-        raise RuntimeError(f"BACKUP_COPY_DIR doit être un chemin complet, pas {value!r}")
-    if cloud := next((name for name in SYNCED_FOLDERS if name in value.lower()), None):
-        raise RuntimeError(
-            f"BACKUP_COPY_DIR semble synchronisé ({cloud}) : les copies partiraient dans le cloud. "
-            "Choisir un dossier non synchronisé, par exemple /mnt/d/Patrimoine-sauvegardes"
-        )
-    if path.resolve().is_relative_to(APP_DIR):
-        raise RuntimeError(f"BACKUP_COPY_DIR doit être hors du dossier de l'app, pas {value!r}")
-    from app import profiles  # import ici : profiles importe config par datadir
+    from app import settings
 
-    if path.resolve().is_relative_to(profiles.DATA_DIR.resolve()):
-        raise RuntimeError(f"BACKUP_COPY_DIR doit être hors du dossier des données, pas {value!r}")
-    return path
+    return settings.copy_dir()
 
 
 def coingecko_api_key() -> str | None:
-    return os.environ.get("COINGECKO_API_KEY") or None
+    from app import settings
+
+    return settings.coingecko_key()

@@ -40,6 +40,7 @@ from app import (
     rebalance,
     reconcile,
     repository,
+    settings,
     tax,
     tickers,
     updates,
@@ -115,6 +116,7 @@ from app.schemas import (
     RecurringConfirmIn,
     RecurringIn,
     RecurringSkipIn,
+    SettingsIn,
     SplitIn,
     TargetsIn,
     TradeIn,
@@ -350,6 +352,38 @@ def updates_choice(body: UpdatesIn) -> dict:
 def updates_check_now(client: HttpClient) -> dict:
     """Clic sur « Vérifier maintenant » : passe outre la limite d'une fois par jour."""
     return updates.status(updates.check(client, date.today(), force=True))
+
+
+# --- Carte Réglages (D-130) ---------------------------------------------------------------------
+# Réglages de la machine (tous les profils), rangés dans reglages.json. La clé CoinGecko n'est
+# jamais renvoyée ; un réglage fixé par .env est montré sans pouvoir être changé ici.
+
+
+@app.get("/api/settings")
+def settings_status() -> dict:
+    return settings.status()
+
+
+@app.put("/api/settings")
+def settings_update(body: SettingsIn) -> dict:
+    changes = {name: getattr(body, name) for name in body.model_fields_set}
+    with settings.file_lock:  # rien d'autre n'écrit reglages.json entre la lecture et l'écriture
+        try:
+            section = settings.prepare(changes)
+        except settings.SettingsError as err:
+            raise HTTPException(status_code=400, detail=str(err)) from err
+        message = None
+        dest = section.get("backup_copy_dir")
+        if "backup_copy_dir" in changes and dest:
+            # Première copie tout de suite : un dossier où l'on ne peut pas écrire est refusé
+            # avant d'être retenu, et l'utilisateur voit que la copie marche sans attendre.
+            try:
+                copied = backup.copy_out(Path(dest))
+            except (OSError, sqlite3.Error, RuntimeError) as err:
+                raise HTTPException(status_code=400, detail=f"Copie impossible : {err}") from err
+            message = f"{len(copied)} sauvegarde(s) recopiée(s)." if copied else "Dossier prêt."
+        settings.save(section)
+    return {**settings.status(), "message": message}
 
 
 @app.post("/api/window/focus")

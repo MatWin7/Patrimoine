@@ -40,7 +40,6 @@ CODE_MIN, CODE_MAX = 4, 64
 SCRYPT = {"n": 2**14, "r": 8, "p": 1, "dklen": 32}
 MAX_FAILURES = 5
 LOCKOUT = timedelta(minutes=1)
-DEFAULT_IDLE_MINUTES = 30
 # Noms de fichier déjà pris dans data/ : une sauvegarde est nommée d'après le fichier de la base,
 # un profil « Patrimoine » mélangerait sinon ses copies avec celles de la base d'origine.
 RESERVED_IDS = {"patrimoine", "demo", "demo-grand", "sauvegardes", "corbeille"}
@@ -497,13 +496,10 @@ _failures: dict[str, _Failures] = {}
 
 
 def idle_limit() -> timedelta:
-    value = os.environ.get("PROFILE_LOCK_MINUTES", "")
-    try:
-        minutes = int(value) if value else DEFAULT_IDLE_MINUTES
-    except ValueError as err:
-        message = f"PROFILE_LOCK_MINUTES doit être un nombre entier, pas {value!r}"
-        raise RuntimeError(message) from err
-    return timedelta(minutes=max(minutes, 1))
+    """Verrouillage après ce temps sans activité : .env, sinon carte Réglages (D-130)."""
+    from app import settings  # import ici : settings importe ce module
+
+    return timedelta(minutes=settings.number("profile_lock_minutes"))
 
 
 def _now() -> datetime:

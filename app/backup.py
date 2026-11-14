@@ -14,6 +14,7 @@ import argparse
 import re
 import shutil
 import sqlite3
+import threading
 from collections.abc import Iterable
 from contextlib import closing
 from datetime import datetime
@@ -35,6 +36,7 @@ AUTO = "auto"  # repère des copies automatiques : seules elles sont supprimées
 MONTHS_KEPT = 12  # en plus des copies récentes : la dernière de chacun des 12 derniers mois
 REGISTRY_STEM = "profils"  # copie de data/profils.json : profils-auto-<date>.json
 ENV_FILE = APP_DIR / ".env"
+_copy_lock = threading.Lock()
 ENV_COPY = "env-copie.txt"  # réglages (.env) recopiés hors de WSL, dernière version seulement
 # Nom d'une copie automatique : <base>-auto-AAAA-MM-JJ-HHMMSS.db (ou .json pour profils.json).
 # Tout autre fichier d'un dossier de sauvegarde (copie manuelle, avant-suppression, fichier
@@ -205,6 +207,13 @@ def copy_out(
     que data/sauvegardes/ ; .env est recopié en dernière version (env-copie.txt).
     Renvoie les fichiers copiés ; BackupError si le dossier est introuvable.
     """
+    with _copy_lock:  # sauvegarde horaire et choix du dossier dans la carte Réglages (D-130)
+        return _copy_out(dest, source_dir, env_file, keep)
+
+
+def _copy_out(
+    dest: Path, source_dir: Path | None, env_file: Path | None, keep: int | None
+) -> list[Path]:
     source_dir = backup_dir() if source_dir is None else source_dir
     try:
         dest.mkdir(exist_ok=True)  # pas de parents : un disque débranché ne se « recrée » pas
@@ -251,9 +260,9 @@ def daily(
     try:
         dest = backup_copy_dir()
         if dest is not None and (copied := copy_out(dest, target_dir)):
-            messages.append(f"Copie hors de WSL : {len(copied)} fichier(s) dans {dest}")
+            messages.append(f"Copie des sauvegardes : {len(copied)} fichier(s) dans {dest}")
     except (OSError, sqlite3.Error, RuntimeError) as err:
-        messages.append(f"Attention, copie hors de WSL impossible : {err}")
+        messages.append(f"Attention, copie des sauvegardes impossible : {err}")
     return messages
 
 

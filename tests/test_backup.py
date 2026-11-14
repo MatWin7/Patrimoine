@@ -231,7 +231,7 @@ def test_sauvegarde_du_jour_complete(db_file, tmp_path, monkeypatch):
     monkeypatch.setattr(backup_module, "ENV_FILE", tmp_path / "absent")  # jamais le vrai
     messages = daily([source], tmp_path / "sauvegardes", now=datetime(2030, 1, 1, 9))
     assert messages[0].startswith("Sauvegarde du jour")
-    assert messages[1].startswith("Copie hors de WSL : 1 fichier")
+    assert messages[1].startswith("Copie des sauvegardes : 1 fichier")
     assert (dehors / "test-auto-2030-01-01-090000.db").is_file()
     # Une heure plus tard : rien à refaire, rien à dire.
     assert daily([source], tmp_path / "sauvegardes", now=datetime(2030, 1, 1, 10)) == []
@@ -242,7 +242,7 @@ def test_sauvegarde_du_jour_disque_absent_sans_planter(db_file, tmp_path, monkey
     monkeypatch.setenv("BACKUP_COPY_DIR", str(tmp_path / "absent" / "Patrimoine-sauvegardes"))
     messages = daily([source], tmp_path / "sauvegardes", now=datetime(2030, 1, 1, 9))
     assert messages[0].startswith("Sauvegarde du jour")
-    assert messages[1].startswith("Attention, copie hors de WSL impossible")
+    assert messages[1].startswith("Attention, copie des sauvegardes impossible")
 
 
 def test_verifier(db_file, tmp_path):

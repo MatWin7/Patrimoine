@@ -38,12 +38,13 @@ for f in web/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
 ## Architecture
 ```text
 app/updates.py     avis de mise à jour (D-129) : dernière release GitHub une fois par jour si accepté, choix dans data/reglages.json, rien n'est téléchargé
+app/settings.py    carte Réglages (D-130) : reglages.json du dossier des données (verrou commun avec updates), .env prioritaire, clé CoinGecko jamais renvoyée, dossier de copie sans réseau
 app/version.py     __version__ (source lue par l'app, = pyproject.toml et uv.lock), notes d'une version tirées de CHANGELOG.md (D-121)
 app/main.py        FastAPI, API JSON sous /api/..., sert web/
 app/__main__.py    point d'entrée (options) ; app/launcher.py : verrou d'instance, port libre, navigateur, arrêt propre, sauvegarde horaire (D-118)
 app/window.py      fenêtre d'application pywebview (Windows, macOS), repli sur le navigateur, taille gardée, actions du bouton « Fenêtre » (D-125, D-127)
 app/console.py     Patrimoine.exe sans console : journal.txt dans le dossier de données par défaut, erreur de démarrage en boîte de dialogue (D-126)
-app/config.py      lecture de .env (sans écraser l'environnement ; à côté de Patrimoine.exe une fois empaqueté, APP_DIR), PRICE_TTL_MINUTES, clé CoinGecko
+app/config.py      lecture de .env (sans écraser l'environnement ; à côté de Patrimoine.exe une fois empaqueté, APP_DIR) ; PRICE_TTL_MINUTES, clé CoinGecko... lus par app/settings.py (.env, puis carte Réglages)
 app/datadir.py     dossier des données hors du code (D-119) : défaut par système, dossier choisi, copie vérifiée de l'ancien data/
 app/db.py          connexion SQLite (PRAGMA foreign_keys=ON à chaque connexion), base du profil de la requête (ContextVar), Decimal, migrations (user_version)
 app/profiles.py    profils (D-098) : data/profils.json, une base par profil, code en empreinte scrypt, jetons de session en mémoire
@@ -89,6 +90,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
 - Dossier des données (D-119) : hors du code (`%LOCALAPPDATA%\Patrimoine`, `~/Library/Application Support/Patrimoine`, `~/.local/share/patrimoine`), ou choisi (`--choisir`, `PATRIMOINE_DATA_DIR`) ; l'ancien `data/` du code est copié et vérifié au premier lancement, jamais effacé. Ci-dessous, `data/` désigne ce dossier.
 - Fenêtre (D-125) : pywebview (WebView2 / WebKit), seulement Windows et macOS ; sous Windows réglages de la page et cookie de session dans `data/fenetre/` (jamais copié ; magasin WebKit par défaut sous macOS) ; API en `Cache-Control: no-store` ; aucun `js_api` ; SmartScreen coupé ; `POST /api/window/focus` ramène la fenêtre devant ; pas de barre de menu : bouton « Fenêtre » de la page (`web/fenetre.js`, adresse `/?fenetre`), routes fixes `/api/window/browser|folder|zoom` sans profil ni paramètre (D-127).
 - Avis de mise à jour (D-129) : question au premier lancement (bandeau), aucune requête avant la réponse ; `GET /api/updates` vérifie au plus une fois par jour (échec compris), `PUT` le choix, `POST /api/updates/check` « Vérifier maintenant » ; bandeau « Version X disponible » + lien vers la page de la release construit à partir du numéro validé ; carte « Mises à jour » dans Gérer ; réglage de la machine, pas du profil.
+- Réglages (D-130) : `GET/PUT /api/settings`, réglage de la machine dans `data/reglages.json` (clé `reglages`) ; ordre : environnement/.env, carte, défaut ; un réglage de .env est grisé dans la carte.
 - Profils (D-098) : une base par personne (`data/profils/<id>.db`, liste `data/profils.json`), choisie à chaque requête par un jeton de session (cookie HttpOnly) ; sans profils.json, base unique `data/patrimoine.db` ; `PATRIMOINE_DB` force une base unique. Une mémoire de processus qui décrit une base se range par `db.conn_key(conn)`. Code facultatif (anti-curiosité, la base n'est pas chiffrée). Gérer : renommer, exporter (son profil), restaurer (base vérifiée, nouveau profil), supprimer vers `data/corbeille/` ; profil Démo (`app.demo.fill_demo`).
 - Positions **calculées** à partir des opérations, jamais stockées.
 - Espèces **calculées** (D-062) pour PEA, AV, PER ; **saisies** pour CTO, crypto, Autre (solde du jour + opérations suivantes, D-075). Calcul D-062 : champ « Versements » du compte + opérations rejouées dans l'ordre (versements, ventes, dividendes − achats, frais, retraits) ; un achat qui les rendrait négatives compte un versement supposé. Livret : solde saisi + opérations suivantes (D-041).

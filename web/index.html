@@ -794,6 +794,38 @@
         <a id="updates-releases" class="link-plain" target="_blank" rel="noopener noreferrer">Toutes les versions</a>
       </div>
     </section>
+    <section class="card half" data-card="reglages">
+      <div class="card-head">
+        <h2>Réglages <button type="button" class="tip" data-tip="Communs à tous les profils de cet ordinateur, rangés dans le dossier des données (reglages.json). Un réglage écrit dans le fichier .env garde la main : il s'affiche ici sans pouvoir être changé. Champ vide : valeur par défaut." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <form id="form-settings" class="settings-form" novalidate>
+        <label><span>Cache des prix, en minutes <button type="button" class="tip" data-tip="Un cours plus récent que cette durée est réutilisé sans redemander à Yahoo ou CoinGecko. De 1 à 1 440 minutes." aria-label="Plus d'infos">?</button></span>
+          <input name="price_ttl_minutes" type="number" inputmode="numeric" min="1" max="1440" step="1">
+          <span class="muted small" data-locked="price_ttl_minutes" hidden></span>
+        </label>
+        <label><span>Sauvegardes quotidiennes gardées <button type="button" class="tip" data-tip="Une copie par jour de lancement, plus une par mois sur 12 mois et une par an, gardées en plus de ce nombre. De 1 à 365." aria-label="Plus d'infos">?</button></span>
+          <input name="backup_keep" type="number" inputmode="numeric" min="1" max="365" step="1">
+          <span class="muted small" data-locked="backup_keep" hidden></span>
+        </label>
+        <label><span>Verrouiller un profil après, en minutes <button type="button" class="tip" data-tip="Sans activité pendant cette durée, l'app revient au choix du profil et redemande le code s'il y en a un. De 1 à 720 minutes." aria-label="Plus d'infos">?</button></span>
+          <input name="profile_lock_minutes" type="number" inputmode="numeric" min="1" max="720" step="1">
+          <span class="muted small" data-locked="profile_lock_minutes" hidden></span>
+        </label>
+        <label class="wide"><span>Recopier les sauvegardes dans <button type="button" class="tip" data-tip="Un dossier déjà créé sur un autre disque de cet ordinateur ou une clé USB, pour survivre à une panne du disque principal. Refusés : dossiers synchronisés (OneDrive, Dropbox…) et partages réseau, d'où les bases quitteraient la machine (un NAS se règle dans le fichier .env, BACKUP_COPY_DIR). Une première copie part dès l'enregistrement, puis chaque heure." aria-label="Plus d'infos">?</button></span>
+          <input name="backup_copy_dir" maxlength="400" autocomplete="off" spellcheck="false" placeholder="D:\Patrimoine-sauvegardes">
+          <span class="muted small" data-locked="backup_copy_dir" hidden></span>
+        </label>
+        <label class="wide"><span>Clé CoinGecko <button type="button" class="tip" data-tip="Facultative : la clé gratuite « demo » de CoinGecko donne plus d'appels par minute pour les cours crypto. Elle n'est jamais réaffichée une fois enregistrée." aria-label="Plus d'infos">?</button></span>
+          <input name="coingecko_api_key" type="password" maxlength="128" autocomplete="off" spellcheck="false" placeholder="Facultative">
+          <span class="muted small" data-locked="coingecko_api_key" hidden></span>
+        </label>
+        <div class="form-actions wide">
+          <button type="button" id="settings-key-remove" class="link-plain" hidden>Retirer la clé</button>
+          <button type="submit">Enregistrer</button>
+        </div>
+      </form>
+      <p id="settings-state" class="small" role="status" hidden></p>
+    </section>
     <section class="card" data-card="alerte-de-variation">
       <div class="card-head"><h2>Alerte de variation</h2></div>
       <form id="form-alert" class="alert-form">
