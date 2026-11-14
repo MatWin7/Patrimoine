@@ -52,7 +52,12 @@ def test_valeurs_par_defaut(client):
     }
     assert fields["backup_keep"]["value"] == 14
     assert fields["profile_lock_minutes"]["value"] == 30
-    assert fields["backup_copy_dir"] == {"value": None, "locked": None, "error": None}
+    assert fields["backup_copy_dir"] == {
+        "value": None,
+        "locked": None,
+        "error": None,
+        "network": False,
+    }
     assert fields["coingecko_api_key"] == {"set": False, "locked": None}
 
 
@@ -208,9 +213,39 @@ def test_dossier_devenu_reseau_refuse_a_l_usage(tmp_path, monkeypatch):
     dehors.mkdir()
     settings.save({"backup_copy_dir": str(dehors)})
     assert config.backup_copy_dir() == dehors
-    monkeypatch.setattr(settings, "is_network_path", lambda path: True)
-    with pytest.raises(RuntimeError, match="réseau"):
+    monkeypatch.setattr(settings, "network_kind", lambda path: settings.REMOTE)
+    with pytest.raises(RuntimeError, match="montage distant"):
         config.backup_copy_dir()
+
+
+def test_nas_branche_accepte_et_signale(client, tmp_path, monkeypatch):
+    """Un NAS déjà branché par l'utilisateur (lecteur Z:, /mnt/nas) est accepté (D-130) : une
+    page détournée ne pourrait viser que ce partage, jamais un serveur extérieur."""
+    nas = tmp_path / "nas"
+    nas.mkdir()
+    monkeypatch.setattr(
+        settings, "network_kind", lambda path: settings.LAN if "nas" in str(path) else None
+    )
+    response = client.put("/api/settings", json={"backup_copy_dir": str(nas)})
+    assert response.status_code == 200, response.text
+    assert response.json()["fields"]["backup_copy_dir"]["network"] is True
+    assert config.backup_copy_dir() == nas
+
+
+def test_lien_vers_un_montage_distant_refuse(tmp_path, monkeypatch):
+    """Chemin tapé local, mais qui mène (lien symbolique) à un montage distant."""
+    dossier = tmp_path / "dossier"
+    dossier.mkdir()
+    vus = []
+
+    def genre(path):
+        vus.append(path)
+        return None if len(vus) == 1 else settings.REMOTE  # 1er : tapé ; 2e : résolu
+
+    monkeypatch.setattr(settings, "network_kind", genre)
+    with pytest.raises(RuntimeError, match="montage distant"):
+        settings.check_copy_dir(str(dossier))
+    assert len(vus) == 2
 
 
 MOUNTS = """\
@@ -229,25 +264,25 @@ gvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw 0 0
 
 
 @pytest.mark.parametrize(
-    ("chemin", "distant"),
+    ("chemin", "genre"),
     [
-        ("/home/moi/Patrimoine", False),
-        ("/mnt/c/Users/Moi/Sauvegardes", False),  # disque C: vu de WSL
-        ("/mnt/d/Patrimoine-sauvegardes", False),  # disque D: (format relevé sur un vrai WSL)
-        ("/mnt/nas/Patrimoine", True),  # partage Windows monté par drvfs
-        ("/mnt/nas2/Patrimoine", True),
-        ("/mnt/smb/Patrimoine", True),
-        ("/mnt/nfs", True),
-        ("/home/moi/rclone/x", True),
-        ("/mnt/mon disque/Patrimoine", False),
-        ("/run/user/1000/gvfs/smb-share:server=nas/x", True),  # partage ouvert depuis GNOME
-        ("/media/moi/USB/Patrimoine", False),  # clé USB NTFS
+        ("/home/moi/Patrimoine", None),
+        ("/mnt/c/Users/Moi/Sauvegardes", None),  # disque C: vu de WSL
+        ("/mnt/d/Patrimoine-sauvegardes", None),  # disque D: (format relevé sur un vrai WSL)
+        ("/mnt/nas/Patrimoine", "lan"),  # partage Windows monté par drvfs
+        ("/mnt/nas2/Patrimoine", "lan"),
+        ("/mnt/smb/Patrimoine", "lan"),
+        ("/mnt/nfs", "lan"),
+        ("/home/moi/rclone/x", "remote"),  # cloud
+        ("/mnt/mon disque/Patrimoine", None),
+        ("/run/user/1000/gvfs/smb-share:server=nas/x", "remote"),  # gvfs : parfois un cloud
+        ("/media/moi/USB/Patrimoine", None),  # clé USB NTFS
     ],
 )
-def test_montages_reseau_reconnus(tmp_path, chemin, distant):
+def test_montages_reseau_reconnus(tmp_path, chemin, genre):
     mounts = tmp_path / "mounts"
     mounts.write_text(MOUNTS, encoding="utf-8")
-    assert settings._linux_mount_is_remote(PurePosixPath(chemin), str(mounts)) is distant
+    assert settings._linux_kind(PurePosixPath(chemin), str(mounts)) == genre
 
 
 # --- Fichier partagé avec l'avis de mise à jour ------------------------------------------------
@@ -282,7 +317,7 @@ def test_partage_refuse_sans_contacter_le_serveur(monkeypatch, chemin):
 
     monkeypatch.setattr(pathlib.Path, "resolve", interdit)
     monkeypatch.setattr(pathlib.Path, "is_dir", interdit)
-    with pytest.raises(RuntimeError, match="réseau|chemin complet"):
+    with pytest.raises(RuntimeError, match="serveur refusé|chemin complet"):
         settings.check_copy_dir(chemin)
 
 
@@ -290,21 +325,23 @@ MAC = """\
 /dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)
 /dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse)
 //moi@nas/partage on /Volumes/NAS (smbfs, nodev, nosuid, mounted by moi)
+https://exemple.invalid/dav on /Volumes/dav (webdav, nodev, noexec, nosuid, mounted by moi)
 /dev/disk4s1 on /Volumes/Cle USB (exfat, local, nodev, nosuid, noowners)
 """
 
 
 @pytest.mark.parametrize(
-    ("chemin", "distant"),
+    ("chemin", "genre"),
     [
-        ("/Users/moi/Sauvegardes", False),
-        ("/Volumes/NAS/Patrimoine", True),
-        ("/Volumes/Cle USB/Patrimoine", False),
+        ("/Users/moi/Sauvegardes", None),
+        ("/Volumes/NAS/Patrimoine", "lan"),
+        ("/Volumes/dav/Patrimoine", "remote"),
+        ("/Volumes/Cle USB/Patrimoine", None),
     ],
 )
-def test_montages_reseau_macos(chemin, distant):
-    assert settings._mac_mount_is_remote(PurePosixPath(chemin), MAC) is distant
-    assert settings._mac_mount_is_remote(PurePosixPath(chemin), "sortie illisible") is True
+def test_montages_reseau_macos(chemin, genre):
+    assert settings._mac_kind(PurePosixPath(chemin), MAC) == genre
+    assert settings._mac_kind(PurePosixPath(chemin), "sortie illisible") == "remote"
 
 
 def test_lien_vers_un_dossier_synchronise_refuse(tmp_path):

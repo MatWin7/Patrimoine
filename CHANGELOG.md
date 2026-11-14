@@ -30,8 +30,8 @@ la page de la release sur GitHub.
   téléchargement. Rien n'est installé tout seul. Carte « Mises à jour » dans Gérer : changer
   d'avis, vérifier maintenant (D-129).
 - Carte « Réglages » dans Gérer : cache des prix, sauvegardes gardées, verrouillage des profils,
-  dossier où recopier les sauvegardes (autre disque ou clé USB, jamais un dossier réseau ni
-  synchronisé) et clé CoinGecko, sans fichier `.env` ; un réglage écrit dans `.env` passe avant
+  dossier où recopier les sauvegardes (autre disque, clé USB ou NAS branché comme lecteur
+  réseau ; jamais un dossier synchronisé) et clé CoinGecko, sans fichier `.env` ; un réglage écrit dans `.env` passe avant
   (D-130).
 
 ### Publication
