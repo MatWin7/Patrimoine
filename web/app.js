@@ -3889,10 +3889,8 @@ function renderSettings(data) {
     const note = settingsForm.querySelector(`[data-locked="${name}"]`);
     if (!input || !note) continue;
     input.disabled = Boolean(field.locked);
-    const where = field.locked === ".env" ? "Défini dans le fichier .env." : "Défini dans l'environnement.";
-    const nas = field.network ? "Partage réseau : les copies partent sur ton NAS." : "";
-    note.textContent = [field.locked ? where : "", nas].filter(Boolean).join(" ");
-    note.hidden = !note.textContent;
+    note.hidden = !field.locked;
+    note.textContent = field.locked === ".env" ? "Défini dans le fichier .env." : "Défini dans l'environnement.";
     if (name === "coingecko_api_key") {
       input.value = "";
       input.placeholder = field.set ? "Clé enregistrée" : "Facultative";

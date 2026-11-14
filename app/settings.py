@@ -9,8 +9,7 @@ par défaut. Un réglage fixé par .env garde donc la main : la page le montre s
 Deux réglages demandent plus de soin, parce qu'une requête de l'API peut les changer :
 - la clé CoinGecko est un secret : elle est écrite, jamais renvoyée à la page ;
 - le dossier de copie des sauvegardes reçoit toutes les bases : choisi depuis la page, il doit
-  déjà exister et être sur un disque de la machine ou un NAS que l'utilisateur a déjà branché
-  (jamais un chemin \\\\serveur tapé, ni un montage vers un cloud).
+  déjà exister et être sur un disque de la machine (pas de partage réseau, règle 2).
 """
 
 from __future__ import annotations
@@ -52,10 +51,27 @@ COINGECKO_ENV = "COINGECKO_API_KEY"
 COINGECKO_KEY = re.compile(r"[A-Za-z0-9_-]{8,128}")
 MAX_PATH = 400
 
-# Partages du réseau local que l'utilisateur a lui-même branchés (NAS) : acceptés pour la copie
-# des sauvegardes (D-130). Tout autre montage distant (cloud, FTP, SSH, FUSE…) est refusé.
-LAN_FILESYSTEMS = {"nfs", "nfs4", "cifs", "smb3", "smbfs"}
-MAC_LAN_FILESYSTEMS = {"smbfs", "afpfs", "nfs"}
+# Systèmes de fichiers distants ou synchronisés (Linux, WSL) : une copie y quitterait la machine.
+NETWORK_FILESYSTEMS = {
+    "nfs",
+    "nfs4",
+    "cifs",
+    "smb3",
+    "smbfs",
+    "ncpfs",
+    "afs",
+    "ceph",
+    "glusterfs",
+    "davfs",
+    "fuse.davfs2",
+    "fuse.sshfs",
+    "sshfs",
+    "fuse.rclone",
+    "fuse.s3fs",
+    "fuse.gcsfuse",
+    "fuse.onedriver",
+}
+MAC_NETWORK_FILESYSTEMS = {"smbfs", "afpfs", "nfs", "webdav", "ftp", "cifs"}
 MAC_MOUNT = re.compile(r"(?P<src>.+?) on (?P<point>/.*?) \((?P<kind>[^,)]+)[,)].*")
 DRIVE_REMOTE = 4  # GetDriveTypeW : lecteur réseau (Windows)
 
@@ -172,10 +188,9 @@ def copy_dir() -> Path | None:
 
 def check_copy_dir(value: str, *, strict: bool = True, must_exist: bool = True) -> Path:
     """Règles du dossier de copie. Celles de .env (D-114) : chemin complet, ni synchronisé, ni
-    dans le dossier de l'app ou des données. Depuis la page (`strict`), en plus : ni chemin
-    \\\\serveur tapé, ni montage distant autre qu'un NAS déjà branché (`network_kind`), et
-    dossier déjà existant au moment du choix (`must_exist`), pour qu'une requête ne puisse pas
-    créer de dossier n'importe où."""
+    dans le dossier de l'app ou des données. Depuis la page (`strict`), en plus : pas de partage
+    réseau, et dossier déjà existant au moment du choix (`must_exist`), pour qu'une requête ne
+    puisse pas créer de dossier n'importe où."""
     if len(value) > MAX_PATH or any(ord(char) < 32 for char in value):
         raise RuntimeError("Dossier de copie refusé : chemin trop long ou caractère invalide")
     path = Path(value).expanduser()
@@ -188,14 +203,12 @@ def check_copy_dir(value: str, *, strict: bool = True, must_exist: bool = True) 
         )
     # Réseau d'abord, avant tout accès au disque : sous Windows, résoudre ou ouvrir un chemin
     # \\serveur\partage contacterait ce serveur (et lui présenterait l'identité de la session).
-    kind = network_kind(path) if strict else None
-    if kind == UNC:
-        raise RuntimeError(
-            "Chemin \\\\serveur refusé ici : connecter d'abord le partage du NAS comme lecteur "
-            "réseau (par exemple Z:), puis choisir ce lecteur"
-        )
-    if kind == REMOTE:
-        raise RuntimeError(_REMOTE_MESSAGE)
+    network = RuntimeError(
+        "Le dossier de copie est sur le réseau : les bases quitteraient l'ordinateur. "
+        "Choisir un disque branché sur cette machine"
+    )
+    if strict and is_network_path(path):
+        raise network
     resolved = path.resolve()
     if strict and (cloud := _synced(str(resolved))):  # lien ou jonction vers OneDrive…
         raise RuntimeError(f"Le dossier de copie mène à un dossier synchronisé ({cloud})")
@@ -206,59 +219,38 @@ def check_copy_dir(value: str, *, strict: bool = True, must_exist: bool = True) 
             f"Le dossier de copie doit être hors du dossier des données, pas {value!r}"
         )
     if strict:
-        # Lien symbolique vers un partage : seulement vers un partage déjà branché. Un lecteur
-        # réseau Windows (Z:) se résout en \\serveur\partage : accepté, puisque Z: l'était.
-        if kind != LAN and network_kind(resolved) in (UNC, REMOTE):
-            raise RuntimeError(_REMOTE_MESSAGE)
+        if is_network_path(resolved):  # lien symbolique vers un partage
+            raise network
         if must_exist and not path.is_dir():
             raise RuntimeError(f"Dossier introuvable : {value} (le créer d'abord)")
     return path
-
-
-_REMOTE_MESSAGE = (
-    "Le dossier de copie est sur un montage distant qui n'est pas un partage du réseau local "
-    "(cloud, FTP, SSH…) : les bases quitteraient la maison. Choisir un disque de cet ordinateur, "
-    "une clé USB ou un NAS branché comme lecteur réseau"
-)
-UNC, LAN, REMOTE = "unc", "lan", "remote"
 
 
 def _synced(text: str) -> str | None:
     return next((name for name in SYNCED_FOLDERS if name in text.lower()), None)
 
 
-def network_kind(path: Path) -> str | None:
-    """None pour un disque de la machine ; LAN pour un partage du réseau local déjà branché par
-    l'utilisateur (lecteur réseau Windows, montage SMB ou NFS, partage drvfs sous WSL, smbfs ou
-    afpfs sous macOS) ; UNC pour un chemin \\\\serveur tapé tel quel ; REMOTE pour tout autre
-    montage distant (WebDAV, FTP, SSH, FUSE, rclone…). Un lecteur réseau Windows déjà monté par
-    WSL (/mnt/z) ressemble à un disque local : None."""
-    if str(path).startswith(("\\\\", "//")):
-        return UNC
+def is_network_path(path: Path) -> bool:
+    """Partage réseau ? Windows : chemin \\\\serveur\\partage ou lecteur réseau ; Linux et WSL :
+    montage NFS, SMB, FUSE… ou partage Windows monté par drvfs ; macOS : smbfs, afpfs, nfs,
+    webdav. Filet de sécurité : un lecteur réseau Windows déjà monté par WSL (/mnt/z) ressemble
+    à un disque local et passe."""
+    text = str(path)
+    if text.startswith(("\\\\", "//")):
+        return True
     if sys.platform == "win32":
-        return _windows_kind(path)
+        return _windows_drive_is_remote(path)
     if sys.platform.startswith("linux"):
-        return _linux_kind(path)
+        return _linux_mount_is_remote(path)
     if sys.platform == "darwin":
-        return _mac_kind(path)
-    return None
+        return _mac_mount_is_remote(path)
+    return False
 
 
-def _windows_kind(path: Path) -> str | None:
-    if path.drive.startswith("\\\\"):
-        return UNC
-    if not path.drive:
-        return None
-    import ctypes
-
-    remote = ctypes.windll.kernel32.GetDriveTypeW(f"{path.drive}\\") == DRIVE_REMOTE
-    return LAN if remote else None
-
-
-def _mac_kind(path: Path, output: str | None = None) -> str | None:
+def _mac_mount_is_remote(path: Path, output: str | None = None) -> bool:
     """macOS : montage le plus long qui contient `path`, lu dans la sortie de `mount`
-    (« //moi@nas/partage on /Volumes/NAS (smbfs, nodev, …) »). Sortie illisible : REMOTE, par
-    prudence : une copie ne doit pas partir n'importe où faute d'avoir pu vérifier."""
+    (« //moi@nas/partage on /Volumes/NAS (smbfs, nodev, …) »). Sortie illisible : refus par
+    prudence, une copie ne doit pas partir sur un partage faute d'avoir pu vérifier."""
     if output is None:
         import subprocess
 
@@ -267,8 +259,8 @@ def _mac_kind(path: Path, output: str | None = None) -> str | None:
                 ["/sbin/mount"], capture_output=True, text=True, timeout=5, check=True
             ).stdout
         except (OSError, subprocess.SubprocessError):
-            return REMOTE
-    best, found = "", REMOTE
+            return True
+    best, remote = "", True
     for line in output.splitlines():
         match = MAC_MOUNT.fullmatch(line.strip())
         if not match:
@@ -276,18 +268,26 @@ def _mac_kind(path: Path, output: str | None = None) -> str | None:
         point, kind = match["point"], match["kind"]
         if path.is_relative_to(point) and len(point) >= len(best):
             best = point
-            local = kind in ("apfs", "hfs", "exfat", "msdos", "ntfs", "ufs", "devfs")
-            found = None if local else LAN if kind in MAC_LAN_FILESYSTEMS else REMOTE
-    return found
+            remote = kind in MAC_NETWORK_FILESYSTEMS or kind.startswith(("macfuse", "osxfuse"))
+    return remote
 
 
-def _linux_kind(path: Path, mounts: str = "/proc/self/mounts") -> str | None:
-    """Montage le plus long qui contient `path`, lu dans /proc/self/mounts."""
+def _windows_drive_is_remote(path: Path) -> bool:
+    if not path.drive or path.drive.startswith("\\\\"):
+        return bool(path.drive)
+    import ctypes
+
+    return ctypes.windll.kernel32.GetDriveTypeW(f"{path.drive}\\") == DRIVE_REMOTE
+
+
+def _linux_mount_is_remote(path: Path, mounts: str = "/proc/self/mounts") -> bool:
+    """Montage le plus long qui contient `path` : distant si son type est réseau, ou si sa
+    source est un chemin \\\\serveur (drvfs, écrit \\134 dans /proc/mounts)."""
     try:
         lines = Path(mounts).read_text(encoding="utf-8").splitlines()
     except OSError:
-        return None
-    best, found = "", None
+        return False
+    best, remote = "", False
     for line in lines:
         fields = line.split()
         if len(fields) < 3:
@@ -299,23 +299,15 @@ def _linux_kind(path: Path, mounts: str = "/proc/self/mounts") -> str | None:
             # WSL 2 : drvfs en 9p, source « C:\134 » (\ échappé) et options « path=C:\; » (non
             # échappé, relevé sur un vrai WSL le 2026-11-14) ; un partage donne \134\134serveur
             # en source et path=\\serveur dans les options.
-            drvfs_share = (
-                src.startswith("\\134\\134")
+            unc = (
+                src.startswith(("\\134\\134", "//"))
                 or "path=\\\\" in options
                 or "path=\\134\\134" in options
             )
-            if kind in LAN_FILESYSTEMS or drvfs_share or src.startswith("//"):
-                found = LAN if kind in LAN_FILESYSTEMS or kind in ("9p", "drvfs") else REMOTE
-            elif kind.startswith("fuse.") or kind in REMOTE_FILESYSTEMS:
-                # FUSE : gvfs, kio, rclone, sshfs… souvent un cloud ; fuseblk (NTFS, exFAT d'un
-                # disque branché) reste local.
-                found = REMOTE
-            else:
-                found = None
-    return found
-
-
-REMOTE_FILESYSTEMS = {"ncpfs", "afs", "ceph", "glusterfs", "davfs", "sshfs"}
+            # FUSE (fuse.*) : presque toujours distant (gvfs, kio, rclone, sshfs…) ; refusé par
+            # prudence. fuseblk (NTFS, exFAT d'un disque branché) reste local.
+            remote = kind in NETWORK_FILESYSTEMS or kind.startswith("fuse.") or unc
+    return remote
 
 
 # --- Lecture et écriture pour la page ----------------------------------------------------------
@@ -345,13 +337,10 @@ def status() -> dict:
         copy_dir()
     except RuntimeError as err:
         copy_error = str(err)
-    copy_value = copy_value if isinstance(copy_value, str) and copy_value else None
     fields["backup_copy_dir"] = {
-        "value": copy_value,
+        "value": copy_value if isinstance(copy_value, str) and copy_value else None,
         "locked": copy_locked,
         "error": copy_error,
-        # Partage du réseau local (NAS) : la page le dit, la copie quitte cet ordinateur.
-        "network": bool(copy_value) and network_kind(Path(copy_value)) in (LAN, UNC),
     }
     fields["coingecko_api_key"] = {
         "set": coingecko_key() is not None,
