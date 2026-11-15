@@ -826,6 +826,13 @@
       </form>
       <p id="settings-state" class="small" role="status" hidden></p>
     </section>
+    <section class="card" id="card-how" data-card="comment-ca-marche">
+      <div class="card-head">
+        <h2>Comment ça marche <button type="button" class="tip" data-tip="Les mêmes repères que dans le tutoriel (« ? » en haut de la page), lus sur cet ordinateur à l'ouverture de Gérer." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" class="link-plain" data-outbound-open>Ce qui sort de cet ordinateur</button>
+      </div>
+      <div id="how-blocks" class="how-grid"></div>
+    </section>
     <section class="card" data-card="alerte-de-variation">
       <div class="card-head"><h2>Alerte de variation</h2></div>
       <form id="form-alert" class="alert-form">
@@ -1059,6 +1066,20 @@
     <p id="tutorial-step"></p>
     <p id="tutorial-text"></p>
     <div id="tutorial-content"></div>
+  </dialog>
+
+  <dialog id="dlg-outbound" class="form-dialog wide-dialog outbound" aria-labelledby="outbound-title">
+    <div class="card-head">
+      <h2 id="outbound-title">Ce qui sort de cet ordinateur</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <p><span id="outbound-never"></span> <button type="button" class="tip" id="outbound-seen" aria-label="Plus d'infos">?</button></p>
+    <div class="table-scroll"><table id="outbound-table">
+      <thead><tr><th data-sort="name"><button type="button" class="sort">Service</button></th><th data-sort="purpose"><button type="button" class="sort">Pour quoi</button></th><th data-sort="sent"><button type="button" class="sort">Ce qui part</button></th><th data-sort="when"><button type="button" class="sort">Quand</button></th><th data-sort="count" class="num"><button type="button" class="sort">Depuis le lancement</button></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="outbound-refused" class="warn small" hidden></p>
+    <p id="outbound-outside" class="muted small"></p>
   </dialog>
 
   <dialog id="dlg-debt" class="form-dialog" aria-labelledby="dlg-debt-title">

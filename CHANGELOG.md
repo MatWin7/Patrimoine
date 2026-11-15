@@ -33,6 +33,10 @@ la page de la release sur GitHub.
   dossier où recopier les sauvegardes (autre disque ou clé USB, jamais un dossier réseau ni
   synchronisé) et clé CoinGecko, sans fichier `.env` ; un réglage écrit dans `.env` passe avant
   (D-130).
+- « Comment ça marche » : quatre repères (où sont les données, sauvegardes, mises à jour, ce que
+  l'on peut changer), lus sur l'ordinateur, dans le tutoriel (nouvelle étape 2) et dans une carte
+  de Gérer. Fenêtre « Ce qui sort de cet ordinateur » : chaque service joint par l'app, ce qui lui
+  est envoyé, quand, comment s'en passer, et le nombre de requêtes depuis le lancement (D-131).
 
 ### Publication
 
@@ -44,6 +48,8 @@ la page de la release sur GitHub.
 
 ### Sécurité
 
+- L'app refuse toute requête vers une adresse qui n'est pas déclarée dans la liste « Ce qui sort
+  de cet ordinateur », ou qui n'est pas en https (D-131).
 - `opentelemetry-api` 1.45.2 (alerte Dependabot) ; télémétrie native de FastAPI coupée d'office
   (D-122).
 - Dépendances à jour (FastAPI 0.162, Starlette 1.10, httpx2 2.16...) et revues chaque semaine

@@ -683,6 +683,17 @@ button.link-plain:hover { background: none; text-decoration: underline; }
 a.link-plain { color: var(--accent); text-decoration: none; }
 a.link-plain:hover { text-decoration: underline; }
 .demo-banner a.link-plain { margin-left: var(--s-2); }
+/* Comment ça marche et Ce qui sort de cet ordinateur (D-131) */
+.how-grid { display: grid; gap: var(--s-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.how-block { border: 1px solid var(--border); border-radius: var(--r-sm); padding: var(--s-3) var(--s-4); }
+.how-block h3 { margin: 0 0 var(--s-1); }
+.how-block p { margin: 0; }
+.how-block p + p { margin-top: var(--s-1); }
+.how-path { overflow-wrap: anywhere; }
+dialog.outbound { width: min(960px, calc(100vw - 32px)); }
+dialog.outbound .table-scroll { max-height: none; }
+#outbound-table td { vertical-align: top; white-space: normal; min-width: 150px; }
+#outbound-table td.num { min-width: 0; white-space: nowrap; }
 .updates-actions { display: flex; gap: var(--s-4); align-items: center; flex-wrap: wrap; }
 
 .card[hidden] { display: none; }

@@ -75,6 +75,8 @@ Seulement des demandes publiques, sans montant ni quantité :
   elle ne télécharge ni n'installe rien.
 
 Ces services voient votre adresse IP et le ticker demandé, comme pour toute visite de leur site.
+Dans l'app, Gérer > « Comment ça marche » > « Ce qui sort de cet ordinateur » reprend cette liste
+avec le nombre de requêtes depuis le lancement ; toute autre adresse est bloquée par l'app.
 L'app n'écoute que sur `127.0.0.1` : elle n'est pas joignable depuis un autre appareil.
 
 Hors de la portée de l'app, sans aucun montant : le moteur de la fenêtre (WebView2 sous Windows)

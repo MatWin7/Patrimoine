@@ -140,6 +140,17 @@
       },
     },
     {
+      title: "Comment ça marche",
+      text: "Quatre repères avant de commencer.",
+      tip: "Ils restent dans Gérer, carte « Comment ça marche », avec la liste de ce qui sort de cet ordinateur.",
+      body(box, next) {
+        const blocks = el("div", { className: "how-grid" }, el("p", { className: "muted small" }, "Chargement…"));
+        fillHow(blocks);
+        box.append(blocks, outboundLink());
+        return next("Suivant");
+      },
+    },
+    {
       title: "Un compte par enveloppe",
       text: "Un compte, c'est une enveloppe : PEA, assurance-vie, livret, wallet crypto...",
       tip: "Crée un compte par enveloppe, comme chez ta banque ou ton courtier. Le type règle les champs utiles (versements d'un PEA, espèces d'un livret) et les repères fiscaux.",
@@ -205,6 +216,123 @@
       },
     },
   ];
+
+  // --- Comment ça marche et Ce qui sort de cet ordinateur (D-131) ---------------------------
+  // Lu sur cet ordinateur par /api/about, sans réseau : dossier des données, sauvegardes du
+  // profil ouvert, choix des mises à jour, liste des services joints et leur compteur.
+
+  const inWindow = new URLSearchParams(location.search).has("fenetre");
+
+  function howBlocks(info) {
+    const block = (title, tipText, line, detail) =>
+      el("section", { className: "how-block" }, el("h3", {}, title, " ", tip(tipText)), el("p", {}, line), ...(detail ? [detail] : []));
+    const detail = (...parts) => el("p", { className: "muted small" }, ...parts);
+
+    const folder = detail(el("span", { className: "how-path", textContent: info.data_dir }));
+    if (inWindow) {
+      const open = el("button", { type: "button", className: "link-plain", textContent: "Ouvrir" });
+      open.addEventListener("click", async () => {
+        const res = await api("/api/window/folder", { method: "POST" }).catch(() => ({}));
+        if (!res.done) showMessage("Le dossier des données n'a pas pu être ouvert.", true);
+      });
+      folder.append(" ", open);
+    }
+
+    const b = info.backups;
+    const copy = b.copy_error
+      ? el("span", { className: "warn", textContent: b.copy_error })
+      : b.copy_dir
+        ? `Autre disque : ${b.copy_dir}`
+        : "Autre disque : pas encore (carte Réglages)";
+    const backups = detail(b.last ? `Dernière : ${frDate(b.last)}` : "Première copie au prochain lancement", " · ", copy);
+
+    const UPDATES = { true: "avis activé", false: "avis coupé", null: "avis pas encore choisi" };
+
+    return [
+      block(
+        "Tes données",
+        "Une base par profil, dans ce dossier. Ni cloud, ni compte, ni télémétrie. Le code d'un profil évite les regards curieux mais ne chiffre pas la base.",
+        "Sur cet ordinateur, nulle part ailleurs.",
+        folder,
+      ),
+      block(
+        "Sauvegardes",
+        `Copie relue de chaque base au lancement puis chaque heure (une par jour au plus), dans le dossier « sauvegardes ». Gardées : les ${b.keep} dernières, une par mois sur ${b.months} mois et une par an. Une copie sur un autre disque ou une clé USB survit à une panne : carte Réglages.`,
+        "Une copie par jour d'utilisation, vérifiée.",
+        backups,
+      ),
+      block(
+        "Mises à jour",
+        "Si tu l'as accepté, l'app demande à GitHub, une fois par jour au plus, le numéro de la dernière version. Elle prévient seulement : tu télécharges la nouvelle version toi-même, tes données restent dans leur dossier.",
+        "L'app prévient, tu télécharges.",
+        detail(`Version ${info.version} · ${UPDATES[info.updates]}`),
+      ),
+      block(
+        "Ce que tu peux changer",
+        "Comptes, actifs et opérations se corrigent ou se suppriment à tout moment ; supprimer un compte ou un actif fait d'abord une sauvegarde. Onglets : « Réorganiser » dans la Vue d'ensemble. Réglages, mises à jour et profils : cartes de Gérer.",
+        "Tout se corrige, à tout moment.",
+        detail("Gérer : saisies et réglages · Vue d'ensemble : Réorganiser"),
+      ),
+    ];
+  }
+
+  async function fillHow(box) {
+    try {
+      box.replaceChildren(...howBlocks(await api("/api/about")));
+    } catch {
+      box.replaceChildren(el("p", { className: "muted small" }, "Repères indisponibles pour l'instant."));
+    }
+  }
+
+  function outboundLink() {
+    const link = el("button", { type: "button", className: "link-plain", textContent: "Ce qui sort de cet ordinateur" });
+    link.addEventListener("click", openOutbound);
+    return link;
+  }
+
+  let sortBound = false;
+  async function openOutbound() {
+    let info;
+    try {
+      info = await api("/api/about");
+    } catch (err) {
+      return showMessage(err.message, true);
+    }
+    const o = info.outbound;
+    if (!sortBound) {
+      bindSortable("outbound-table", ["count"]); // app.js se charge après ce script
+      sortBound = true;
+    }
+    $("outbound-never").textContent = o.never_sent;
+    $("outbound-seen").dataset.tip = o.seen_anyway;
+    $("outbound-outside").textContent = o.outside_app;
+    const refused = $("outbound-refused");
+    refused.hidden = !o.refused;
+    refused.textContent = `Bloquées depuis le lancement : ${o.refused} requête(s) vers une adresse non déclarée.`;
+    fillSortable(
+      "outbound-table",
+      o.services,
+      (s) => {
+        const name = cell(s.name);
+        name.append(" ", tip(`Pour t'en passer : ${s.stop} Adresse : ${s.hosts.join(", ")}.`));
+        const count = cell(s.count ? `${s.count} · à ${formatTime(s.last_at)}` : "aucune", "num");
+        if (s.last_at) count.title = `Dernière à ${formatTime(s.last_at)}`;
+        return rowOf(name, cell(s.purpose), cell(s.sent), cell(s.when), count);
+      },
+      "",
+    );
+    const outbound = $("dlg-outbound");
+    if (!outbound.open) outbound.showModal();
+  }
+
+  for (const button of document.querySelectorAll("[data-outbound-open]")) button.addEventListener("click", openOutbound);
+
+  // Carte de Gérer : relue à chaque ouverture de la page (dernière sauvegarde, réglages changés).
+  const refreshHowCard = () => {
+    if (location.hash === "#gerer") fillHow($("how-blocks"));
+  };
+  window.addEventListener("hashchange", refreshHowCard);
+  document.addEventListener("patrimoine:data", refreshHowCard, { once: true });
 
   // --- Fenêtre ----------------------------------------------------------------------------
 
@@ -332,7 +460,7 @@
     // Opération enregistrée pendant que la fenêtre était fermée : on passe à la suite.
     if (waiting && lists.operations.length) {
       waiting = false;
-      show(4);
+      show(STEPS.length - 1);
     }
   });
 })();
