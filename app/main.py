@@ -322,7 +322,7 @@ async def unexpected_error(request: Request, exc: Exception):
     route = getattr(request.scope.get("route"), "path", None) or "(route inconnue)"
     diagnostic.record(exc, f"{request.method} {route}")
     return JSONResponse(
-        {"detail": "Erreur inattendue. Pour la signaler : Gérer, « Copier le diagnostic »."},
+        {"detail": "Erreur inattendue. Pour la signaler : Réglages, « Copier le diagnostic »."},
         status_code=500,
     )
 

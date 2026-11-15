@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Ce signalement est public.** N'y mettez jamais de montant, de relevé, de nom de compte ni de capture de vos vraies données. Pour une capture, le profil Démo suffit (Gérer > Profils, ou « Explorer avec la démo » au premier lancement).
+        **Ce signalement est public.** N'y mettez jamais de montant, de relevé, de nom de compte ni de capture de vos vraies données. Pour une capture, le profil Démo suffit (Réglages > Profils, ou « Explorer avec la démo » au premier lancement).
   - type: textarea
     id: probleme
     attributes:
@@ -30,7 +30,7 @@ body:
     attributes:
       label: Diagnostic
       description: |
-        Dans l'app : Gérer > Signaler un problème > « Copier le diagnostic », puis coller ici (Ctrl + V). Il ne contient ni montant, ni nom, ni chemin.
+        Dans l'app : Réglages (roue dentée) > Aide > « Copier le diagnostic », puis coller ici (Ctrl + V). Il ne contient ni montant, ni nom, ni chemin.
         Si l'app ne démarre pas : version de Patrimoine et de Windows ou macOS, et le message affiché.
       render: text
     validations:

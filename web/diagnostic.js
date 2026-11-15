@@ -52,7 +52,7 @@
   });
 
   function pageLines() {
-    const dark = matchMedia("(prefers-color-scheme: dark)").matches ? "sombre" : "clair";
+    const dark = document.documentElement.dataset.theme === "dark" ? "sombre" : "clair";
     const scale = String(Math.round(devicePixelRatio * 100) / 100).replace(".", ",");
     const lines = [
       `Page : ${navigator.userAgent}`,

@@ -424,7 +424,7 @@ async function saveOrder(kind, rows, moved) {
 // Intérêts Aave estimés (D-095) : recalculés par l'app, corrigés par « Vérifier » (onglet Rendements crypto).
 function aaveOpCell() {
   const td = cell("calculé", "muted small");
-  td.append(" ", makeTip("Intérêts Aave estimés par l'app chaque mois. Pour les corriger : « Vérifier » dans l'onglet Rendements crypto."));
+  td.append(" ", makeTip("Intérêts Aave estimés par l'app chaque mois. Pour les corriger : « Vérifier » dans l'onglet Crypto."));
   return td;
 }
 
@@ -998,8 +998,8 @@ function chartTheme() {
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
 }
 
-// Passage clair/sombre du système : graphiques recréés avec les nouvelles couleurs.
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+// Passage clair/sombre (système ou carte Apparence, theme.js) : graphiques recréés avec les nouvelles couleurs.
+document.addEventListener("themechange", () => {
   for (const id of Object.keys(charts)) {
     charts[id].destroy();
     delete charts[id];
@@ -1008,6 +1008,22 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
   if (lastHistory) drawHistory(lastHistory);
   if (lastPerformance) renderPerformance(lastPerformance);
 });
+
+// Carte Apparence (D-133) : thème clair, sombre ou celui du système, gardé par theme.js.
+function renderThemeChoice() {
+  for (const button of $("theme-choice").querySelectorAll("button")) {
+    const chosen = button.dataset.themeChoice === window.patrimoineTheme.get();
+    button.classList.toggle("active", chosen);
+    button.setAttribute("aria-pressed", String(chosen));
+  }
+}
+$("theme-choice").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-theme-choice]");
+  if (!button) return;
+  window.patrimoineTheme.set(button.dataset.themeChoice);
+  renderThemeChoice();
+});
+renderThemeChoice();
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 // Crée le graphique au premier appel, puis remplace seulement ses données (sans animation)
@@ -1697,7 +1713,7 @@ function setFilter(update) {
 }
 
 // Onglets qui suivent le filtre : le bouton « Lignes » n'apparaît que sur eux.
-const FILTERED_PAGES = new Set(["apercu", "performance", "visualisations", "comparaison", "projection"]);
+const FILTERED_PAGES = new Set(["apercu", "performance", "visualisations", "projection"]);
 let filterUseful = false; // au moins deux lignes ou deux comptes à choisir
 
 function renderLineFilter() {
@@ -1762,7 +1778,9 @@ function renderFilterButton() {
   button.hidden = !filterUseful || !FILTERED_PAGES.has(currentPage);
   const n = lineFilter.accounts.length + lineFilter.lines.length;
   button.classList.toggle("active", filterActive());
-  $("line-filter-summary").textContent = filterActive() ? `${n} retirée${n > 1 ? "s" : ""}` : "toutes";
+  // Icône seule ; une pastille compte les lignes retirées quand le filtre agit.
+  $("line-filter-summary").textContent = String(n);
+  $("line-filter-summary").hidden = !filterActive();
   button.title = filterActive() ? `Calcul sans : ${filterSummary()}` : "Choisir les lignes comptées";
 }
 
@@ -2711,12 +2729,14 @@ projForm.addEventListener("submit", (e) => e.preventDefault());
 // rechargement et permet le bouton « Précédent » du navigateur.
 
 const PAGES = {
-  visualisations: refreshVisualisations, comparaison: refreshBenchmark,
+  visualisations: refreshVisualisations, performance: refreshBenchmark, // la comparaison vit dans Performance (D-133)
   projection: () => Promise.all([refreshProjection(), refreshTargets()]),
   revenus: () => refreshIncome(), fiscalite: () => refreshTax(), crypto: () => refreshAave().finally(refreshRewards).finally(refreshBorrows),
 };
-// Anciennes adresses (favoris) : Calendrier et Allocation cible ont rejoint d'autres pages.
-const PAGE_ALIASES = { calendrier: "visualisations", cible: "projection" };
+// Anciennes adresses (favoris) : Calendrier, Allocation cible et Comparaison ont rejoint d'autres pages.
+const PAGE_ALIASES = { calendrier: "visualisations", cible: "projection", comparaison: "performance" };
+// Nom affiché d'un onglet (sans son icône ni sa pastille) ; la roue dentée n'a que son libellé.
+const tabName = (a) => a.querySelector(".tab-label")?.textContent ?? a.getAttribute("aria-label") ?? "";
 let currentPage = "apercu";
 
 function showPage() {
@@ -2735,7 +2755,7 @@ function showPage() {
     tab.setAttribute("aria-current", tab.dataset.tab === currentPage ? "page" : "false");
   }
   const tab = document.querySelector(`[data-tab="${currentPage}"]`);
-  $("current-page").textContent = tab?.firstChild.textContent.trim() ?? ""; // sans la pastille
+  $("current-page").textContent = tab ? tabName(tab) : "";
   // Fenêtre étroite : la barre d'onglets défile (D-115), l'onglet ouvert reste visible.
   const bar = $("tabs");
   if (tab && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
@@ -2870,7 +2890,7 @@ function startArrangingTabs() {
   const tabs = $("tabs");
   tabs.classList.add("arranging", "open"); // petit écran : le menu s'ouvre pour montrer les onglets
   for (const a of movableTabs()) {
-    const name = a.firstChild.textContent.trim();
+    const name = tabName(a);
     const box = document.createElement("input");
     box.type = "checkbox";
     box.className = "tab-shown";
@@ -2987,8 +3007,8 @@ const OP_HINTS = {
   vente: "Crédite les espèces du compte : quantité × prix − frais.",
   versement: "Argent déposé sur le compte : ajouté à ses espèces.",
   retrait: "Argent retiré du compte : déduit de ses espèces. Vers un autre de tes comptes de l'app : il y arrive en versement.",
-  dividende: "Dividende ou coupon reçu (montant net crédité), ajouté aux espèces du compte. Visible dans l'onglet Revenus et frais.",
-  frais: "Droits de garde, frais de gestion... débités des espèces du compte. Comptés dans l'onglet Revenus et frais.",
+  dividende: "Dividende ou coupon reçu (montant net crédité), ajouté aux espèces du compte. Visible dans l'onglet Revenus.",
+  frais: "Droits de garde, frais de gestion... débités des espèces du compte. Comptés dans l'onglet Revenus.",
   transfert_sortant:
     "Titres ou crypto envoyés hors de ce compte (ton wallet, un autre courtier) : la quantité baisse sans vente ni espèces. Vers un autre de tes comptes de l'app : ils y arrivent au même prix de revient (ni gain ni perte). Prix = valeur unitaire ce jour-là, pour la performance. Vendus ailleurs ? Saisis plutôt une vente.",
   solde_initial:
@@ -3716,7 +3736,7 @@ async function checkHealth() {
     const data = await api("/api/health");
     if (data.status !== "ok") text = `Serveur ${data.status}`;
     // Numéro de l'app (D-121), à citer dans un signalement ; suit une mise à jour sans recharger.
-    if (data.version) $("app-version").textContent = ` · version ${data.version}`;
+    if (data.version) $("app-version").textContent = `Version ${data.version}`;
   } catch (err) {
     text = "Serveur injoignable";
   }
@@ -5865,7 +5885,7 @@ async function refreshDebts() {
   const weak = aaveDebts.filter((b) => b.health_factor !== null && Number(b.health_factor) < HEALTH_WARNING);
   if (weak.length && !healthAlerted) {
     healthAlerted = true;
-    showMessage(`Aave : facteur de santé ${formatDecimal(weak[0].health_factor)} sur ${weak[0].chain}, sous ${formatDecimal("1.5")}. Voir Rendements crypto.`, true);
+    showMessage(`Aave : facteur de santé ${formatDecimal(weak[0].health_factor)} sur ${weak[0].chain}, sous ${formatDecimal("1.5")}. Voir l'onglet Crypto.`, true);
   }
 }
 
@@ -5912,7 +5932,7 @@ function renderDebts() {
     money.append(sub);
     const actions = document.createElement("td");
     actions.className = "actions";
-    actions.append(smallButton("Voir", "Géré dans Rendements crypto", () => { location.hash = "#crypto"; }));
+    actions.append(smallButton("Voir", "Géré dans l'onglet Crypto", () => { location.hash = "#crypto"; }));
     tr.append(name, money, actions);
     rows.push(tr);
   }

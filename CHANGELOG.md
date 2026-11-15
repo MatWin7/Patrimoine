@@ -42,6 +42,14 @@ la page de la release sur GitHub.
   réglages, services joints, dernières erreurs), sans montant, nom, ticker ni chemin. Une erreur
   inattendue du serveur l'indique dans son message. `uv run python -m app.diagnostic` donne la
   même chose quand l'app ne démarre pas (D-132).
+- Nouvelle interface (D-133) : cartes blanches sur fond gris, barre du haut en une ligne (logo,
+  onglets au milieu, filtre, actualiser, réglages et profil à droite), icônes, page de démarrage
+  avec un mot d'accueil. Thème au choix : automatique, clair ou sombre. En thème sombre, le halo
+  blanc autour des infobulles et des panneaux a disparu.
+- Neuf onglets aux noms courts : « Comparaison » rejoint Performance. Nouvelle page Réglages (roue
+  dentée) : Profils, Apparence, Général, Alertes et mises à jour, Aide ; les cartes citées plus
+  haut (Réglages, Mises à jour, Comment ça marche, Signaler un problème) s'y trouvent. « Gérer »
+  ne garde que ce qui se saisit : opérations, import, achats programmés, comptes, actifs, dettes.
 
 ### Publication
 

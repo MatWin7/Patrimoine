@@ -23,6 +23,7 @@ VENDOR_LICENCES = [
     ("Chart.js", VENDOR / "chart.js-LICENSE.md"),
     ("chartjs-chart-treemap", VENDOR / "chartjs-chart-treemap-LICENSE.md"),
     ("Police Inter", VENDOR / "inter" / "LICENSE"),
+    ("Icônes Lucide", VENDOR / "lucide-LICENSE"),
 ]
 NOTE_EXE = (
     "Patrimoine.exe est construit avec PyInstaller, dont le chargeur est sous GPL 2 avec une\n"
