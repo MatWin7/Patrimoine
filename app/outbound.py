@@ -7,7 +7,8 @@ quand, et comment s'en passer. Cette liste fait foi à trois endroits :
 - un test relève chaque adresse https:// écrite dans app/ et vérifie qu'elle y figure.
 
 Le compte des requêtes depuis le lancement reste en mémoire : ni fichier, ni journal, et rien
-de la requête n'est gardé (seulement le service et l'heure).
+de la requête n'est gardé (seulement le service et l'heure). Pour le diagnostic (D-132), le
+code HTTP de chaque réponse en erreur est compté aussi, jamais l'adresse ni le contenu.
 """
 
 import threading
@@ -125,6 +126,8 @@ _BY_HOST = {host: service.key for service in SERVICES for host in service.hosts}
 _lock = threading.Lock()
 _counts: dict[str, int] = {}
 _last: dict[str, datetime] = {}
+_answered: dict[str, int] = {}  # réponses reçues, quel que soit leur code
+_failed: dict[str, dict[int, int]] = {}  # service -> {code HTTP >= 400: nombre}
 _refused = 0
 
 
@@ -151,6 +154,38 @@ def on_request(request: httpx2.Request) -> None:
             _last[key] = datetime.now(UTC)
     if key is None:
         raise OutboundRefused(f"adresse non déclarée : {url.host}", request=request)
+
+
+def on_response(response: httpx2.Response) -> None:
+    """Crochet du client HTTP, appelé à chaque réponse : compte les réponses et les codes en
+    erreur. Une requête restée sans réponse (réseau coupé, délai dépassé) ne passe pas ici."""
+    key = service_of(response.request.url.host)
+    if key is None:
+        return
+    with _lock:
+        _answered[key] = _answered.get(key, 0) + 1
+        if response.status_code >= 400:
+            codes = _failed.setdefault(key, {})
+            codes[response.status_code] = codes.get(response.status_code, 0) + 1
+
+
+def health() -> dict:
+    """Pour le diagnostic (D-132) : par service joint, requêtes, codes en erreur et requêtes
+    restées sans réponse (ou encore en cours), plus le nombre de requêtes bloquées."""
+    with _lock:
+        counts, answered, refused = dict(_counts), dict(_answered), _refused
+        failed = {key: dict(codes) for key, codes in _failed.items()}
+    services = [
+        {
+            "name": s.name,
+            "count": counts[s.key],
+            "failed": dict(sorted(failed.get(s.key, {}).items())),
+            "unanswered": max(counts[s.key] - answered.get(s.key, 0), 0),
+        }
+        for s in SERVICES
+        if counts.get(s.key)
+    ]
+    return {"services": services, "refused": refused}
 
 
 def summary() -> dict:
@@ -185,4 +220,6 @@ def reset() -> None:
     with _lock:
         _counts.clear()
         _last.clear()
+        _answered.clear()
+        _failed.clear()
         _refused = 0

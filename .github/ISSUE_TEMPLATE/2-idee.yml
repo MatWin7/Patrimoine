@@ -1,0 +1,25 @@
+name: Proposer une idée
+description: Une fonction qui manque, un écran pas clair, une plateforme à importer.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ce signalement est public** : pas de montant, de relevé ni de capture de vos vraies données. Pour une plateforme à importer, décrivez les colonnes de l'export, jamais un vrai fichier.
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Ce qui manque ou gêne
+      description: La situation, avant la solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idee
+    attributes:
+      label: Ce que vous proposez
+  - type: input
+    id: version
+    attributes:
+      label: Version de Patrimoine
+      description: Affichée en haut de la page, sous le titre.
+      placeholder: "0.1.0"

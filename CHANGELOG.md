@@ -37,6 +37,11 @@ la page de la release sur GitHub.
   l'on peut changer), lus sur l'ordinateur, dans le tutoriel (nouvelle étape 2) et dans une carte
   de Gérer. Fenêtre « Ce qui sort de cet ordinateur » : chaque service joint par l'app, ce qui lui
   est envoyé, quand, comment s'en passer, et le nombre de requêtes depuis le lancement (D-131).
+- « Signaler un problème » (Gérer, et l'écran de choix du profil) : « Copier le diagnostic » montre
+  puis copie un texte à coller dans le signalement (version, système, état des bases, sauvegardes,
+  réglages, services joints, dernières erreurs), sans montant, nom, ticker ni chemin. Une erreur
+  inattendue du serveur l'indique dans son message. `uv run python -m app.diagnostic` donne la
+  même chose quand l'app ne démarre pas (D-132).
 
 ### Publication
 
@@ -45,6 +50,9 @@ la page de la release sur GitHub.
   utilisateur (avertissement, installation, données, ce qui sort de la machine) et `SECURITY.md`
   pour signaler une faille en privé. Un « ? » à côté de la version rappelle la licence et que les
   chiffres sont des estimations, ni conseil en investissement ni conseil fiscal (D-128).
+- Modèles de signalement sur GitHub : « Signaler un problème » (avec le diagnostic) et « Proposer
+  une idée », qui rappellent de ne jamais joindre de vraies données ; une faille se signale en
+  privé (D-132).
 
 ### Sécurité
 

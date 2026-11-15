@@ -21,6 +21,7 @@
       <button type="submit" class="primary">Ouvrir</button>
     </div>
   </form>
+  <p class="picker-foot"><button type="button" class="link-plain small" data-diagnostic-open>Signaler un problème</button></p>
 </section>
 <main>
   <header class="topbar">
@@ -833,7 +834,16 @@
       </div>
       <div id="how-blocks" class="how-grid"></div>
     </section>
-    <section class="card" data-card="alerte-de-variation">
+    <section class="card half" id="card-report" data-card="signaler-un-probleme">
+      <div class="card-head">
+        <h2>Signaler un problème <button type="button" class="tip" data-tip="Le diagnostic dit ce qui tourne sur cet ordinateur : version, système, état des bases et des sauvegardes, services joints, dernières erreurs. Jamais de montant, de nom, de ticker ni de chemin. Rien ne part tout seul : tu le relis, puis tu le colles toi-même dans ton signalement sur GitHub (compte GitHub gratuit nécessaire)." aria-label="Plus d'infos">?</button></h2>
+      </div>
+      <p class="muted small">Copie le diagnostic, puis colle-le dans ton signalement.</p>
+      <div class="updates-actions">
+        <button type="button" data-diagnostic-open>Copier le diagnostic</button>
+      </div>
+    </section>
+    <section class="card half" data-card="alerte-de-variation">
       <div class="card-head"><h2>Alerte de variation</h2></div>
       <form id="form-alert" class="alert-form">
         <label>Seuil de variation du jour, en %
@@ -1082,6 +1092,20 @@
     <p id="outbound-outside" class="muted small"></p>
   </dialog>
 
+  <dialog id="dlg-diagnostic" class="form-dialog wide-dialog diagnostic" aria-labelledby="diagnostic-title">
+    <div class="card-head">
+      <h2 id="diagnostic-title">Diagnostic</h2>
+      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+    </div>
+    <p>Ni montant, ni nom, ni chemin : relis-le avant de le partager. <button type="button" class="tip" data-tip="Tailles par tranche (« 10 à 99 opérations »), erreurs sans leur message (il peut citer un chemin ou une valeur), services joints sans les tickers demandés. Le texte reste ici tant que tu ne le colles pas ailleurs. Un signalement sur GitHub est public : pas de capture de tes vraies données, le profil Démo suffit." aria-label="Plus d'infos">?</button></p>
+    <textarea id="diagnostic-text" readonly rows="14" spellcheck="false" aria-label="Texte du diagnostic"></textarea>
+    <div class="form-actions diagnostic-actions">
+      <p id="diagnostic-state" class="small" role="status"></p>
+      <a id="diagnostic-report" class="link-plain" target="_blank" rel="noopener noreferrer" hidden>Ouvrir un signalement sur GitHub</a>
+      <button type="button" id="diagnostic-copy" class="primary">Copier</button>
+    </div>
+  </dialog>
+
   <dialog id="dlg-debt" class="form-dialog" aria-labelledby="dlg-debt-title">
     <div class="card-head">
       <h2 id="dlg-debt-title">Dette</h2>
@@ -1267,6 +1291,8 @@
   <script src="vendor/chart.umd.js"></script>
   <script src="vendor/chartjs-chart-treemap.min.js"></script>
   <script src="tips.js"></script>
+  <!-- Tout de suite : relève les erreurs de la page dès le chargement (D-132), sans app.js. -->
+  <script src="diagnostic.js"></script>
   <!-- Avant profiles.js et sans app.js : le bouton « Fenêtre » marche même si la page plante. -->
   <script src="fenetre.js"></script>
   <!-- profiles.js choisit le profil (D-098) puis charge app.js ; sans profils, tout de suite. -->

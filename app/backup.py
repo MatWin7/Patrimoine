@@ -266,6 +266,17 @@ def daily(
     return messages
 
 
+def last_auto_day(stem: str, folder: Path | None = None) -> str | None:
+    """Jour (AAAA-MM-JJ) de la dernière copie automatique d'une base, d'après le nom des
+    fichiers <base>-auto-AAAA-MM-JJ-HHMMSS.db ; None s'il n'y en a aucune."""
+    folder = backup_dir() if folder is None else folder
+    if not folder.is_dir():
+        return None
+    name = re.compile(rf"{re.escape(stem)}-{AUTO}-(\d{{4}}-\d{{2}}-\d{{2}})-\d{{6}}\.db")
+    days = [m.group(1) for p in folder.iterdir() if (m := name.fullmatch(p.name))]
+    return max(days, default=None)
+
+
 def describe_copy(path: Path) -> str:
     """Une ligne sur une copie : date, version du schéma, comptes et opérations (aucun montant)."""
     try:

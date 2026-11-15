@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 import httpx2
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
@@ -33,6 +33,7 @@ from app import (
     debts,
     defi,
     defi_sync,
+    diagnostic,
     income,
     outbound,
     prices,
@@ -200,9 +201,10 @@ WINDOW_ACTIONS = (
 def _without_profile(request: Request) -> bool:
     """Routes qui servent à choisir un profil, et celles de la fenêtre (D-125, D-127) : elles ne
     lisent aucune base, et le bouton « Fenêtre » marche aussi sur l'écran de choix du profil,
-    comme la barre de menu qu'il remplace."""
+    comme la barre de menu qu'il remplace. Le diagnostic (D-132) aussi : un profil qui ne
+    s'ouvre plus doit pouvoir être signalé ; sans profil ouvert, il ne lit aucune base."""
     path, method = request.url.path, request.method
-    if path in ("/api/health", "/api/profiles", "/api/window"):
+    if path in ("/api/health", "/api/profiles", "/api/window", "/api/diagnostic"):
         return method == "GET"
     return method == "POST" and (
         path == "/api/profiles/lock" or path in WINDOW_ACTIONS or bool(OPEN_PROFILE.fullmatch(path))
@@ -312,6 +314,19 @@ async def revalidate_web_files(request: Request, call_next):
     return response
 
 
+# Erreur inattendue (D-132) : retenue en mémoire pour le diagnostic (type et lignes de l'app,
+# jamais son message ni l'adresse demandée), et un message qui dit quoi faire. L'erreur reste
+# écrite dans la console ou le journal local, comme avant.
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    route = getattr(request.scope.get("route"), "path", None) or "(route inconnue)"
+    diagnostic.record(exc, f"{request.method} {route}")
+    return JSONResponse(
+        {"detail": "Erreur inattendue. Pour la signaler : Gérer, « Copier le diagnostic »."},
+        status_code=500,
+    )
+
+
 def http_client() -> Iterator[httpx2.Client]:
     """Client HTTP des sources de prix. Les tests le remplacent (app.dependency_overrides)."""
     with providers.new_client() as client:
@@ -392,18 +407,6 @@ def settings_update(body: SettingsIn) -> dict:
 # des mises à jour (lu, jamais vérifié ici) et la liste des services joints avec leur compteur.
 
 
-def _last_auto_backup() -> str | None:
-    """Jour de la dernière copie automatique de la base ouverte (<base>-auto-AAAA-MM-JJ-...)."""
-    folder = backup.backup_dir()
-    if not folder.is_dir():
-        return None
-    name = re.compile(
-        rf"{re.escape(db.db_path().stem)}-{backup.AUTO}-(\d{{4}}-\d{{2}}-\d{{2}})-\d{{6}}\.db"
-    )
-    days = [m.group(1) for p in folder.iterdir() if (m := name.fullmatch(p.name))]
-    return max(days, default=None)
-
-
 @app.get("/api/about")
 def about() -> dict:
     try:
@@ -417,13 +420,26 @@ def about() -> dict:
             "folder": str(backup.backup_dir()),
             "keep": config.backup_keep(),
             "months": backup.MONTHS_KEPT,
-            "last": _last_auto_backup(),
+            "last": backup.last_auto_day(db.db_path().stem),
             "copy_dir": str(copy_dir) if copy_dir else None,
             "copy_error": copy_error,
         },
         "updates": updates.load().enabled,
         "outbound": outbound.summary(),
     }
+
+
+# --- Diagnostic à copier dans un signalement (D-132) --------------------------------------------
+# Lecture seule, sans réseau, sans montant ni nom ni chemin. Répond aussi sans profil ouvert
+# (écran de choix, profil qui ne s'ouvre plus) : la base n'est alors pas lue.
+
+
+@app.get("/api/diagnostic")
+def diagnostic_report(request: Request) -> dict:
+    opened = not profiles.enabled() or getattr(request.state, "profile", None) is not None
+    path = db.db_path() if opened else None
+    text = diagnostic.report(path, unready=len(unready_profiles))
+    return {"text": text, "report_url": diagnostic.REPORT_URL}
 
 
 @app.post("/api/window/focus")

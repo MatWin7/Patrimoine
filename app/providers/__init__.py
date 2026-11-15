@@ -37,7 +37,7 @@ def new_client(transport: httpx2.BaseTransport | None = None) -> httpx2.Client:
     return httpx2.Client(
         timeout=TIMEOUT_SECONDS,
         headers={"User-Agent": USER_AGENT},
-        event_hooks={"request": [outbound.on_request]},
+        event_hooks={"request": [outbound.on_request], "response": [outbound.on_response]},
         transport=transport,
     )
 
