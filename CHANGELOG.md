@@ -43,7 +43,8 @@ la page de la release sur GitHub.
   inattendue du serveur l'indique dans son message. `uv run python -m app.diagnostic` donne la
   même chose quand l'app ne démarre pas (D-132).
 - Nouvelle interface (D-133) : cartes blanches sur fond gris, barre du haut en une ligne (logo,
-  onglets au milieu, filtre, actualiser, réglages et profil à droite), icônes, page de démarrage
+  onglets au milieu, filtre, actualiser, réglages et profil à droite), icônes, page plus large
+  (jusqu'à 1 840 px), page de démarrage
   avec un mot d'accueil. Thème au choix : automatique, clair ou sombre. En thème sombre, le halo
   blanc autour des infobulles et des panneaux a disparu.
 - Neuf onglets aux noms courts : « Comparaison » rejoint Performance. Nouvelle page Réglages (roue
