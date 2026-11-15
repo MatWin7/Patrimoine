@@ -61,11 +61,11 @@
         <a href="#apercu" data-tab="apercu"><span class="tab-label">Vue d'ensemble</span></a>
         <a href="#performance" data-tab="performance"><span class="tab-label">Performance</span></a>
         <a href="#visualisations" data-tab="visualisations"><span class="tab-label">Visualisations</span></a>
-        <a href="#projection" data-tab="projection"><span class="tab-label">Projection</span></a>
-        <a href="#revenus" data-tab="revenus"><span class="tab-label">Revenus</span></a>
+        <a href="#projection" data-tab="projection"><span class="tab-label">Projection<span class="tab-more"> et objectifs</span></span></a>
+        <a href="#revenus" data-tab="revenus"><span class="tab-label">Revenus<span class="tab-more"> et frais</span></span></a>
         <a href="#fiscalite" data-tab="fiscalite"><span class="tab-label">Fiscalité</span></a>
-        <a href="#crypto" data-tab="crypto"><span class="tab-label">Crypto</span></a>
-        <a href="#positions" data-tab="positions"><span class="tab-label">Positions</span></a>
+        <a href="#crypto" data-tab="crypto"><span class="tab-label"><span class="tab-more">Rendements </span>crypto</span></a>
+        <a href="#positions" data-tab="positions"><span class="tab-label">Positions<span class="tab-more"> et opérations</span></span></a>
         <a href="#gerer" data-tab="gerer"><span class="tab-label">Gérer</span> <span class="tab-badge" id="recurring-badge" hidden></span></a>
       </nav>
       <div class="topbar-actions">
@@ -405,7 +405,7 @@
       <div class="form-actions target-actions">
         <label class="inline" id="target-add-label" hidden><span id="target-add-text">Ajouter</span> <select id="target-add"></select></label>
         <span class="muted small" id="target-total"></span>
-        <button type="button" id="target-save">Enregistrer les cibles</button>
+        <button type="button" id="target-save" class="primary">Enregistrer les cibles</button>
       </div>
     </section>
   </div>
@@ -915,7 +915,7 @@
       <label data-for="trade valued">Frais <input name="fees" inputmode="decimal" placeholder="0"></label>
       <label data-for="cash valued income"><span data-amount-label>Montant</span> <input name="amount" inputmode="decimal" placeholder="100"></label>
       <label data-for="trade" data-buy-only><span class="lab">Dont offert (facultatif) <button type="button" class="tip" data-tip="Saveback, action offerte : cette part ne sort pas de tes espèces. L'action garde son prix réel ; les frais qu'elle couvre ne comptent pas dans tes frais payés." aria-label="Plus d'infos">?</button></span> <input name="offered" inputmode="decimal" placeholder="0"></label>
-      <label data-crypto-reward><span class="lab">Type de récompense <button type="button" class="tip" data-tip="Rangé par type dans l'onglet Crypto. Compte seulement si une part est offerte." aria-label="Plus d'infos">?</button></span> <select name="reward_kind"><option value="">Pas une récompense</option><option value="earn">Intérêts Earn</option><option value="staking">Staking</option><option value="airdrop">Airdrop</option><option value="cashback">Cashback</option><option value="parrainage">Parrainage</option><option value="autre">Autre</option></select></label>
+      <label data-crypto-reward><span class="lab">Type de récompense <button type="button" class="tip" data-tip="Rangé par type dans l'onglet Rendements crypto. Compte seulement si une part est offerte." aria-label="Plus d'infos">?</button></span> <select name="reward_kind"><option value="">Pas une récompense</option><option value="earn">Intérêts Earn</option><option value="staking">Staking</option><option value="airdrop">Airdrop</option><option value="cashback">Cashback</option><option value="parrainage">Parrainage</option><option value="autre">Autre</option></select></label>
       <label data-for="income"><span class="lab">Impôt retenu (facultatif) <button type="button" class="tip" data-tip="Retenue du pays de la société, déjà déduite du montant reçu." aria-label="Plus d'infos">?</button></span> <input name="tax_withheld" inputmode="decimal" placeholder="0"></label>
       <label class="check wide" data-crypto-sale><input type="checkbox" name="crypto_swap"> Échange contre une autre crypto ou un stablecoin (non imposable)</label>
       <label class="wide" data-crypto-sale data-crypto-value>Valeur de toutes tes cryptos juste avant la vente, en € (facultatif, estimée sinon) <input name="portfolio_value" inputmode="decimal" placeholder="relevé de tes plateformes"></label>

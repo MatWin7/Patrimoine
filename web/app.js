@@ -424,7 +424,7 @@ async function saveOrder(kind, rows, moved) {
 // Intérêts Aave estimés (D-095) : recalculés par l'app, corrigés par « Vérifier » (onglet Rendements crypto).
 function aaveOpCell() {
   const td = cell("calculé", "muted small");
-  td.append(" ", makeTip("Intérêts Aave estimés par l'app chaque mois. Pour les corriger : « Vérifier » dans l'onglet Crypto."));
+  td.append(" ", makeTip("Intérêts Aave estimés par l'app chaque mois. Pour les corriger : « Vérifier » dans l'onglet Rendements crypto."));
   return td;
 }
 
@@ -837,7 +837,7 @@ function renderPositions() {
     };
     const counts = { positions: positions.length, operations: ops.length };
     const seg = document.createElement("div");
-    seg.className = "segmented small-seg tax-mode";
+    seg.className = "segmented small-seg account-view";
     seg.setAttribute("role", "group");
     seg.setAttribute("aria-label", `Tableau affiché pour ${account.name}`);
     const showView = (view) => {
@@ -3007,8 +3007,8 @@ const OP_HINTS = {
   vente: "Crédite les espèces du compte : quantité × prix − frais.",
   versement: "Argent déposé sur le compte : ajouté à ses espèces.",
   retrait: "Argent retiré du compte : déduit de ses espèces. Vers un autre de tes comptes de l'app : il y arrive en versement.",
-  dividende: "Dividende ou coupon reçu (montant net crédité), ajouté aux espèces du compte. Visible dans l'onglet Revenus.",
-  frais: "Droits de garde, frais de gestion... débités des espèces du compte. Comptés dans l'onglet Revenus.",
+  dividende: "Dividende ou coupon reçu (montant net crédité), ajouté aux espèces du compte. Visible dans l'onglet Revenus et frais.",
+  frais: "Droits de garde, frais de gestion... débités des espèces du compte. Comptés dans l'onglet Revenus et frais.",
   transfert_sortant:
     "Titres ou crypto envoyés hors de ce compte (ton wallet, un autre courtier) : la quantité baisse sans vente ni espèces. Vers un autre de tes comptes de l'app : ils y arrivent au même prix de revient (ni gain ni perte). Prix = valeur unitaire ce jour-là, pour la performance. Vendus ailleurs ? Saisis plutôt une vente.",
   solde_initial:
@@ -5732,7 +5732,7 @@ const saleRow = (v) => rowOf(
   cell(formatDecimal(signed(v.gain_eur), "EUR"), signClass(v.gain_eur)),
 );
 
-for (const group of document.querySelectorAll(".tax-mode")) {
+for (const group of document.querySelectorAll(".tax-mode[data-mode-for]")) {
   for (const b of group.querySelectorAll("button")) {
     b.addEventListener("click", () => {
       taxModes[group.dataset.modeFor] = b.dataset.mode;
@@ -5743,7 +5743,7 @@ for (const group of document.querySelectorAll(".tax-mode")) {
 }
 
 function renderTaxModes() {
-  for (const group of document.querySelectorAll(".tax-mode")) {
+  for (const group of document.querySelectorAll(".tax-mode[data-mode-for]")) {
     for (const b of group.querySelectorAll("button")) b.classList.toggle("active", b.dataset.mode === taxModes[group.dataset.modeFor]);
   }
   for (const el of document.querySelectorAll("[data-mode-show]")) {
@@ -5885,7 +5885,7 @@ async function refreshDebts() {
   const weak = aaveDebts.filter((b) => b.health_factor !== null && Number(b.health_factor) < HEALTH_WARNING);
   if (weak.length && !healthAlerted) {
     healthAlerted = true;
-    showMessage(`Aave : facteur de santé ${formatDecimal(weak[0].health_factor)} sur ${weak[0].chain}, sous ${formatDecimal("1.5")}. Voir l'onglet Crypto.`, true);
+    showMessage(`Aave : facteur de santé ${formatDecimal(weak[0].health_factor)} sur ${weak[0].chain}, sous ${formatDecimal("1.5")}. Voir Rendements crypto.`, true);
   }
 }
 
@@ -5932,7 +5932,7 @@ function renderDebts() {
     money.append(sub);
     const actions = document.createElement("td");
     actions.className = "actions";
-    actions.append(smallButton("Voir", "Géré dans l'onglet Crypto", () => { location.hash = "#crypto"; }));
+    actions.append(smallButton("Voir", "Géré dans Rendements crypto", () => { location.hash = "#crypto"; }));
     tr.append(name, money, actions);
     rows.push(tr);
   }

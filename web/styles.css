@@ -32,6 +32,7 @@
   --ko: #c8322f;
   --warn: #9a6700;
   --accent-soft: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --accent-soft-hover: color-mix(in srgb, var(--accent) 18%, var(--surface));
   --accent-ring: color-mix(in srgb, var(--accent) 28%, transparent);
   --ok-soft: color-mix(in srgb, var(--ok) 10%, var(--surface));
   --ko-soft: color-mix(in srgb, var(--ko) 10%, var(--surface));
@@ -258,7 +259,9 @@ input, select, textarea {
 input:hover, select:hover, textarea:hover { border-color: var(--border-strong); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); box-shadow: none; }
-/* Boutons : blancs, bordés d'un trait et d'une ombre courte ; un seul bouton plein par action. */
+/* Boutons (D-133). La base ci-dessous est neutre : elle sert aux contrôles qui ont leur propre
+   dessin (pastille du profil, tuile d'un profil, champ de colonne). Les boutons d'action sont
+   bleus, voir plus bas : pleins pour agir, teintés pour ce qui accompagne. */
 button, a.button {
   font: inherit; font-size: var(--t-md); font-weight: 500; cursor: pointer; align-self: end;
   color: var(--text); background: var(--control-bg); border: 1px solid transparent; box-shadow: var(--shadow-button);
@@ -272,8 +275,24 @@ button:disabled { opacity: 0.6; cursor: progress; }
 @media (prefers-reduced-motion: reduce) { button, a.button { transition: none; } button:active { scale: none !important; } }
 /* Champ non modifiable (réglage fixé par .env, D-130 ; « Vers » sans autre compte) : grisé. */
 input:disabled, select:disabled { background: var(--surface-2); color: var(--text-3); cursor: not-allowed; box-shadow: none; }
-button.primary, form button[type="submit"] { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-accent); }
-button.primary:hover, form button[type="submit"]:hover { background: var(--accent-hover); }
+/* Bouton d'action : bleu plein. Un bouton sans classe est un bouton d'action. */
+button:not([class]), button[class=""], a.button, button.primary, form button[type="submit"] { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-accent); }
+button:not([class]):hover, button[class=""]:hover, a.button:hover, button.primary:hover, form button[type="submit"]:hover { background: var(--accent-hover); }
+/* Bouton d'accompagnement : bleu teinté, pour qu'à côté d'un bouton plein l'action principale
+   reste évidente. Annuler, Fermer, Retour, aide dans un formulaire (Tester le cours), puce,
+   ligne du menu « Fenêtre », « Passer » du tutoriel, boutons de la carte Aide ; `class="secondary"` pour tout autre cas. */
+button.secondary, button.chip, button[data-cancel]:not(.link), button[data-close]:not(.icon),
+form button[type="button"]:not([class]), form button[type="button"][class=""],
+.form-actions button[type="button"]:not([class]), .window-panel button:not(.icon), .tutorial-actions button:first-child,
+.help-actions button:not([class]) {
+  background: var(--accent-soft); color: var(--accent); box-shadow: none;
+}
+button.secondary:hover, button.chip:hover, button[data-cancel]:not(.link):hover, button[data-close]:not(.icon):hover,
+form button[type="button"]:not([class]):hover, form button[type="button"][class=""]:hover,
+.form-actions button[type="button"]:not([class]):hover, .window-panel button:not(.icon):hover, .tutorial-actions button:first-child:hover,
+.help-actions button:not([class]):hover {
+  background: var(--accent-soft-hover);
+}
 button.link { border: none; background: none; box-shadow: none; color: var(--ko); padding: 0; }
 
 /* Messages et couleurs de sens */
@@ -317,8 +336,12 @@ label.inline input { padding: var(--s-2) var(--s-2); }
 .color-pick { display: flex; align-items: center; gap: var(--s-1); }
 .color-pick select { flex: 1; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--s-2); vertical-align: 1px; }
-.chip { padding: var(--s-1) var(--s-3); border-radius: var(--radius); font-size: var(--t-sm); color: var(--text-2); }
-.chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+/* Puce : petit bouton teinté ; choisie, elle devient pleine. Dans le filtre des lignes, où tout
+   est coché au départ, la puce cochée reste teintée et la puce décochée devient grise et barrée. */
+.chip { padding: var(--s-1) var(--s-3); border-radius: var(--radius); font-size: var(--t-sm); }
+button.chip.active { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-accent); }
+.filter-panel button.chip.active { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+.filter-panel button.chip.off { background: var(--surface-2); color: var(--text-3); }
 /* Lignes prises en compte (D-094) : bouton de la barre du haut et panneau par-dessus la page. */
 .filter-toggle span { font-weight: 400; color: var(--text-2); }
 .filter-toggle.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -368,21 +391,28 @@ dialog .table-scroll thead th { background: var(--floating); }
 /* Titre de la page : lu par les lecteurs d'écran ; affiché seulement quand les onglets sont repliés. */
 .current-page { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .menu-toggle { display: none; }
-/* Les onglets gardent leur ligne : quand la place manque, le nom de l'app s'efface, puis celui
-   du profil (le logo et la pastille restent), puis les onglets se resserrent. Seuils mesurés dans
-   le pire cas (bouton « Fenêtre », nom de profil long, nombre à deux chiffres sur Gérer), avec
-   au moins 25 pixels de marge. */
+/* Les onglets gardent leur ligne et leur nom complet tant que la place suffit : le nom de l'app
+   s'efface d'abord, puis celui du profil (le logo et la pastille restent), puis les onglets se
+   resserrent. Sous 1 500 px, les quatre noms longs passent à leur forme courte (« Projection »,
+   « Revenus », « Crypto », « Positions ») et la place rendue sert au nom du profil. Seuils mesurés
+   dans le pire cas (bouton « Fenêtre », nom de profil long, nombre à deux chiffres sur Gérer),
+   avec au moins 25 pixels de marge. */
 .profile-toggle #profile-name { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 1439px) {
+.tab-label { display: inline-block; }
+.tab-label::first-letter { text-transform: uppercase; }
+@media (max-width: 1759px) {
   .brand-name { display: none; }
   .brand { padding-right: 0; }
 }
-@media (max-width: 1400px) {
+@media (min-width: 1500px) and (max-width: 1659px), (max-width: 1400px) {
   .profile-toggle #profile-name { display: none; }
   .profile-toggle { padding: var(--s-1); }
 }
-@media (max-width: 1300px) {
+@media (min-width: 1500px) and (max-width: 1579px), (max-width: 1300px) {
   .tabs a { padding: 0 var(--s-2); }
+}
+@media (min-width: 1221px) and (max-width: 1499px) {
+  .tab-more { display: none; }
 }
 /* Fenêtre étroite : les onglets se replient dans un menu (☰), le nom de la page sert de titre. */
 @media (max-width: 1220px) {
@@ -591,8 +621,8 @@ form button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; filter:
 
 /* Retouches série 6 (D-076) : sélecteur Latentes | Réalisées dans l'en-tête d'une carte,
    sous-totaux par compte des frais courants, cases du calendrier des dividendes. */
-.card-head .tax-mode { align-self: center; margin-right: auto; }
-.card-head .tax-mode button { padding: var(--s-1) var(--s-3); font-size: var(--t-sm); }
+.card-head .tax-mode, .card-head .account-view { align-self: center; margin-right: auto; }
+.card-head .tax-mode button, .card-head .account-view button { padding: var(--s-1) var(--s-3); font-size: var(--t-sm); }
 tr.group-row td { font-weight: 500; background: var(--surface-2); }
 .heat-table td.heat { background: color-mix(in srgb, var(--series-1) var(--heat, 0%), transparent); white-space: nowrap; }
 .heat-table th, .heat-table td { padding-left: var(--s-2); padding-right: var(--s-2); }
@@ -659,8 +689,9 @@ select.inline { padding: var(--s-1) var(--s-1); font: inherit; font-size: var(--
 
 /* Boutons de la fenêtre d'import (D-090) : un seul gabarit, celui des listes (rectangle aux angles de 8 px),
    en deux tailles : pleine (créer un actif ou un compte) et compacte (actions dans une carte). */
-.import-dialog .chip, .import-dialog .field-btn { border-radius: var(--radius); font-size: var(--t-md); font-weight: 400; padding: var(--s-2) var(--s-3); color: var(--text); }
-.import-dialog .outflow .chip { padding: var(--s-1) var(--s-3); font-size: var(--t-sm); color: var(--text-2); }
+.import-dialog .chip, .import-dialog .field-btn { border-radius: var(--radius); font-size: var(--t-md); font-weight: 400; padding: var(--s-2) var(--s-3); }
+.import-dialog .field-btn { color: var(--text); }
+.import-dialog .outflow .chip { padding: var(--s-1) var(--s-3); font-size: var(--t-sm); }
 .import-dialog .presets { align-items: center; gap: var(--s-2); }
 .import-banner a { color: var(--text-2); font-size: var(--t-sm); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .import-banner a:hover { color: var(--accent); }
