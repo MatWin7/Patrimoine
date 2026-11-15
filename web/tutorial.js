@@ -142,7 +142,7 @@
     {
       title: "Comment ça marche",
       text: "Quatre repères avant de commencer.",
-      tip: "Ils restent dans Gérer, carte « Comment ça marche », avec la liste de ce qui sort de cet ordinateur.",
+      tip: "Ils restent dans Réglages (roue dentée), carte « Aide », avec la liste de ce qui sort de cet ordinateur.",
       body(box, next) {
         const blocks = el("div", { className: "how-grid" }, el("p", { className: "muted small" }, "Chargement…"));
         fillHow(blocks);
@@ -204,7 +204,7 @@
     {
       title: "Le tour des onglets",
       text: "Voilà ce que tu trouveras, une fois tes lignes en place.",
-      tip: "Les onglets se masquent et se réorganisent avec « Réorganiser » (Vue d'ensemble). Ce tutoriel se rouvre avec le « ? » en haut de la page.",
+      tip: "Les onglets se masquent et se réorganisent avec « Réorganiser » (Vue d'ensemble). Ce tutoriel se rouvre depuis Réglages (roue dentée), carte « Aide ».",
       body(box) {
         const list = el("dl", { className: "tutorial-tour" });
         for (const tab of document.querySelectorAll("#tabs [data-tab]")) {
@@ -243,7 +243,7 @@
       ? el("span", { className: "warn", textContent: b.copy_error })
       : b.copy_dir
         ? `Autre disque : ${b.copy_dir}`
-        : "Autre disque : pas encore (carte Réglages)";
+        : "Autre disque : pas encore (Réglages, carte Général)";
     const backups = detail(b.last ? `Dernière : ${frDate(b.last)}` : "Première copie au prochain lancement", " · ", copy);
 
     const UPDATES = { true: "avis activé", false: "avis coupé", null: "avis pas encore choisi" };
@@ -271,7 +271,7 @@
         "Ce que tu peux changer",
         "Comptes, actifs et opérations se corrigent ou se suppriment à tout moment ; supprimer un compte ou un actif fait d'abord une sauvegarde. Onglets : « Réorganiser » dans la Vue d'ensemble. Réglages, mises à jour et profils : cartes de Gérer.",
         "Tout se corrige, à tout moment.",
-        detail("Gérer : saisies et réglages · Vue d'ensemble : Réorganiser"),
+        detail("Gérer : saisies · Roue dentée : réglages · Vue d'ensemble : Réorganiser"),
       ),
     ];
   }
@@ -327,9 +327,9 @@
 
   for (const button of document.querySelectorAll("[data-outbound-open]")) button.addEventListener("click", openOutbound);
 
-  // Carte de Gérer : relue à chaque ouverture de la page (dernière sauvegarde, réglages changés).
+  // Carte « Aide » de Réglages : relue à chaque ouverture de la page (dernière sauvegarde, réglages changés).
   const refreshHowCard = () => {
-    if (location.hash === "#gerer") fillHow($("how-blocks"));
+    if (location.hash === "#reglages") fillHow($("how-blocks"));
   };
   window.addEventListener("hashchange", refreshHowCard);
   document.addEventListener("patrimoine:data", refreshHowCard, { once: true });

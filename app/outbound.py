@@ -100,7 +100,7 @@ SERVICES: tuple[Service, ...] = (
         purpose="Numéro de la dernière version publiée de Patrimoine.",
         sent="Rien d'autre que l'adresse fixe de la page des versions.",
         when="Une fois par jour au plus, seulement si tu l'as accepté ; ou sur clic.",
-        stop="Décocher « Prévenir quand une nouvelle version sort » (Gérer, Mises à jour).",
+        stop="Décocher « Prévenir quand une nouvelle version sort » (Réglages, Mises à jour).",
     ),
 )
 

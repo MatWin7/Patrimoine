@@ -167,8 +167,15 @@
     };
   }
 
+  // Avis du profil Démo : masqué par son ✕ jusqu'au prochain lancement (il flotte sur la page).
+  let demoNoticeClosed = false;
+  $("demo-banner-close").onclick = () => {
+    demoNoticeClosed = true;
+    $("demo-banner").hidden = true;
+  };
+
   function showCurrent(profile, state) {
-    $("demo-banner").hidden = !profile.demo;
+    $("demo-banner").hidden = !profile.demo || demoNoticeClosed;
     $("form-profile-code").hidden = !!profile.demo; // données fictives : pas de code à proposer
     const toggle = $("profile-toggle");
     toggle.hidden = false;
@@ -185,7 +192,7 @@
       avatar(profile, $("profile-photo-preview"));
       avatar(profile, $("profile-avatar"));
       const inCard = document.querySelector(`#profiles-list li[data-id="${profile.id}"] .avatar`);
-      if (inCard) avatar(profile, inCard); // la carte « Profils » de Gérer suit tout de suite
+      if (inCard) avatar(profile, inCard); // la carte « Profils » de Réglages suit tout de suite
       $("profile-photo-remove").hidden = !profile.photo;
     };
     syncPhoto();
@@ -328,7 +335,7 @@
     $("profile-code-remove").addEventListener("click", () => save(null));
   }
 
-  // --- Carte « Profils » de Gérer : ajouter, renommer, exporter, restaurer, supprimer -------
+  // --- Carte « Profils » de Réglages : ajouter, renommer, exporter, restaurer, supprimer -------
 
   function linkButton(text, className, onClick) {
     const button = document.createElement("button");

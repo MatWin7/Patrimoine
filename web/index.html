@@ -3,48 +3,87 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tableau de bord – Patrimoine financier</title>
+  <title>Patrimoine</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <!-- Avant le premier affichage : pose le thème clair ou sombre sur <html> (D-133). -->
+  <script src="theme.js"></script>
 </head>
 <body>
-<!-- Écran de choix du profil (D-098) : seul affiché tant qu'aucun profil n'est ouvert. -->
+<!-- Icônes Lucide (licence ISC, web/vendor/lucide-LICENSE), dessinées par <use href="#i-nom"> (D-133). -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/> <path d="M21 3v5h-5"/> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/> <path d="M8 16H3v5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/> <circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-list-filter" viewBox="0 0 24 24"><path d="M2 5h20"/> <path d="M6 12h12"/> <path d="M9 19h6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 5h16"/> <path d="M4 12h16"/> <path d="M4 19h16"/></symbol>
+  <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></symbol>
+</svg>
+<!-- Page de démarrage (D-098, D-133) : seule affichée tant qu'aucun profil n'est ouvert. Un mot
+     d'accueil, puis le choix du profil, sur le fond choisi dans Réglages. -->
 <section id="profile-picker" class="profile-picker" hidden aria-labelledby="picker-title">
-  <h1 id="picker-title">Qui consulte ?</h1>
-  <div id="picker-list" class="picker-list"></div>
-  <form id="picker-code" class="picker-code" hidden>
-    <label><span>Code de <span id="picker-name"></span></span>
-      <input name="code" type="password" autocomplete="current-password" required minlength="4" maxlength="64">
-    </label>
-    <p id="picker-error" class="ko small" role="alert" hidden></p>
-    <div class="picker-actions">
-      <button type="button" id="picker-back">Retour</button>
-      <button type="submit" class="primary">Ouvrir</button>
+  <div class="picker-box">
+    <div class="picker-welcome">
+      <svg class="logo" viewBox="0 0 1000 1000" aria-hidden="true"><rect class="logo-bg" x="60" y="60" width="880" height="880" rx="220"/><rect class="logo-bar" x="220" y="560" width="140" height="200"/><rect class="logo-bar" x="430" y="420" width="140" height="340"/><rect class="logo-bar" x="640" y="260" width="140" height="500"/></svg>
+      <h1 id="picker-title">Bienvenue dans Patrimoine</h1>
+      <p class="picker-text" id="picker-text">Tes comptes et tes chiffres, sur ton ordinateur.</p>
     </div>
-  </form>
-  <p class="picker-foot"><button type="button" class="link-plain small" data-diagnostic-open>Signaler un problème</button></p>
+    <div class="picker-panel">
+      <h2 class="picker-ask">Qui consulte ?</h2>
+      <div id="picker-list" class="picker-list"></div>
+      <form id="picker-code" class="picker-code" hidden>
+        <label><span>Code de <span id="picker-name"></span></span>
+          <input name="code" type="password" autocomplete="current-password" required minlength="4" maxlength="64">
+        </label>
+        <p id="picker-error" class="ko small" role="alert" hidden></p>
+        <div class="picker-actions">
+          <button type="button" id="picker-back">Retour</button>
+          <button type="submit" class="primary">Ouvrir</button>
+        </div>
+      </form>
+      <p class="picker-foot"><button type="button" class="link-plain small" data-diagnostic-open>Signaler un problème</button></p>
+    </div>
+  </div>
 </section>
 <main>
+  <!-- Barre du haut (D-133) : logo et nom, onglets, puis actions. Elle reste en haut de l'écran. -->
   <header class="topbar">
-    <button id="menu-toggle" type="button" class="menu-toggle" aria-controls="tabs" aria-expanded="false"
-      aria-label="Ouvrir le menu des pages"><span aria-hidden="true">☰</span></button>
-    <div class="title">
-      <h1>Tableau de bord – Patrimoine financier <span id="health" class="status-dot ko" role="status" hidden><span class="visually-hidden"></span></span></h1>
-      <p class="subtitle">Suivi local, lecture seule<span id="app-version"></span> <button type="button" class="tip" data-tip="Logiciel libre (licence GNU GPL v3 ou ultérieure), fourni sans aucune garantie. Les chiffres affichés sont des estimations : ni conseil en investissement, ni conseil fiscal." aria-label="Plus d'infos">?</button></p>
-    </div>
-    <div class="topbar-actions">
-      <!-- Lignes prises en compte (D-069, D-094) : bouton sur les onglets qui suivent le filtre,
-           le choix s'ouvre en panneau par-dessus la page, sans la décaler. -->
-      <button id="filter-toggle" type="button" class="filter-toggle" popovertarget="filter-panel" hidden>Lignes : <span id="line-filter-summary">toutes</span></button>
-      <button id="refresh-prices" type="button" class="icon-button" title="Actualiser les cours" aria-label="Actualiser les cours"><span aria-hidden="true">↻</span></button>
-      <button id="tutorial-open" type="button" class="icon-button" title="Revoir le tutoriel" aria-label="Revoir le tutoriel"><span aria-hidden="true">?</span></button>
-      <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu. -->
-      <button id="window-toggle" type="button" class="icon-button" popovertarget="window-panel" title="Fenêtre" aria-label="Fenêtre" hidden><span aria-hidden="true">⋯</span></button>
-      <button id="profile-toggle" type="button" class="profile-toggle" popovertarget="profile-panel" hidden><span class="avatar" id="profile-avatar" aria-hidden="true"></span><span id="profile-name"></span></button>
+    <div class="topbar-in">
+      <div class="topbar-left">
+      <a class="brand" href="#apercu" aria-label="Patrimoine : vue d'ensemble"><svg class="logo" viewBox="0 0 1000 1000" aria-hidden="true"><rect class="logo-bg" x="60" y="60" width="880" height="880" rx="220"/><rect class="logo-bar" x="220" y="560" width="140" height="200"/><rect class="logo-bar" x="430" y="420" width="140" height="340"/><rect class="logo-bar" x="640" y="260" width="140" height="500"/></svg><span class="brand-name">Patrimoine</span></a>
+      <span id="health" class="status-dot ko" role="status" hidden><span class="visually-hidden"></span></span>
+      <button id="menu-toggle" type="button" class="icon-button menu-toggle" aria-controls="tabs" aria-expanded="false"
+        aria-label="Ouvrir le menu des pages"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      </div>
+      <nav class="tabs" id="tabs" aria-label="Pages">
+        <a href="#apercu" data-tab="apercu"><span class="tab-label">Vue d'ensemble</span></a>
+        <a href="#performance" data-tab="performance"><span class="tab-label">Performance</span></a>
+        <a href="#visualisations" data-tab="visualisations"><span class="tab-label">Visualisations</span></a>
+        <a href="#projection" data-tab="projection"><span class="tab-label">Projection<span class="tab-more"> et objectifs</span></span></a>
+        <a href="#revenus" data-tab="revenus"><span class="tab-label">Revenus<span class="tab-more"> et frais</span></span></a>
+        <a href="#fiscalite" data-tab="fiscalite"><span class="tab-label">Fiscalité</span></a>
+        <a href="#crypto" data-tab="crypto"><span class="tab-label"><span class="tab-more">Rendements </span>crypto</span></a>
+        <a href="#positions" data-tab="positions"><span class="tab-label">Positions<span class="tab-more"> et opérations</span></span></a>
+        <a href="#gerer" data-tab="gerer"><span class="tab-label">Gérer</span> <span class="tab-badge" id="recurring-badge" hidden></span></a>
+      </nav>
+      <div class="topbar-actions">
+        <!-- Lignes prises en compte (D-069, D-094) : bouton sur les onglets qui suivent le filtre,
+             le choix s'ouvre en panneau par-dessus la page, sans la décaler. -->
+        <button id="filter-toggle" type="button" class="icon-button filter-toggle" popovertarget="filter-panel" aria-label="Lignes prises en compte" hidden><svg class="ic" aria-hidden="true"><use href="#i-list-filter"/></svg><span id="line-filter-summary" class="tab-badge" hidden></span></button>
+        <button id="refresh-prices" type="button" class="icon-button" title="Actualiser les cours" aria-label="Actualiser les cours"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg></button>
+        <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu. -->
+        <button id="window-toggle" type="button" class="icon-button" popovertarget="window-panel" title="Fenêtre" aria-label="Fenêtre" hidden><svg class="ic" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
+        <a id="settings-link" class="icon-button" href="#reglages" data-tab="reglages" title="Réglages" aria-label="Réglages"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg></a>
+        <button id="profile-toggle" type="button" class="profile-toggle" popovertarget="profile-panel" hidden><span class="avatar" id="profile-avatar" aria-hidden="true"></span><span id="profile-name"></span></button>
+      </div>
     </div>
   </header>
+  <h1 class="current-page" id="current-page"></h1>
   <div id="filter-panel" class="filter-panel" popover aria-labelledby="filter-panel-title">
     <div class="card-head">
-      <h2 id="filter-panel-title">Lignes prises en compte <button type="button" class="tip" data-tip="Un compte se retire en entier, espèces comprises ; une ligne, de ce compte seulement. Suivi par Vue d'ensemble, Performance, Visualisations, Comparaison et Projection ; Positions, Revenus, Allocation cible et Fiscalité restent complets." aria-label="Plus d'infos">?</button></h2>
+      <h2 id="filter-panel-title">Lignes prises en compte <button type="button" class="tip" data-tip="Un compte se retire en entier, espèces comprises ; une ligne, de ce compte seulement. Suivi par Vue d'ensemble, Performance, Visualisations et Projection ; Positions, Revenus, Allocation cible et Fiscalité restent complets." aria-label="Plus d'infos">?</button></h2>
       <button type="button" class="icon" popovertarget="filter-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
     </div>
     <p class="muted small">Clique sur un compte ou une ligne pour le retirer.</p>
@@ -104,23 +143,14 @@
     </form>
   </div>
 
-  <p id="demo-banner" class="demo-banner" hidden>Profil Démo : toutes les données sont fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button></p>
+
+  <!-- Avis (D-133) : en bas à gauche de l'écran, par-dessus la page, sans la décaler. -->
+  <div id="notices" class="notices">
+  <p id="demo-banner" class="notice" hidden>Profil Démo : données fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button> <button type="button" id="demo-banner-close" class="icon" aria-label="Masquer cet avis">✕</button></p>
   <!-- Avis de mise à jour (D-129) : question posée une fois, puis bandeau quand une version sort. -->
-  <p id="update-ask" class="demo-banner" hidden>Prévenir quand une nouvelle version de Patrimoine sort ? <button type="button" class="tip" data-tip="Une fois par jour au plus, l'app demande à GitHub le numéro de la dernière version publiée. Rien d'autre ne part : ni montant, ni compte, ni version ; GitHub voit l'adresse IP, comme pour toute page web. Rien n'est téléchargé ni installé : tu choisis de télécharger. Modifiable dans Gérer." aria-label="Plus d'infos">?</button> <button type="button" class="link-plain" data-updates="yes">Oui</button> <button type="button" class="link-plain" data-updates="no">Non</button></p>
-  <p id="update-banner" class="demo-banner" hidden>Patrimoine <span id="update-latest"></span> est disponible (version actuelle <span id="update-current"></span>). <a id="update-link" class="link-plain" target="_blank" rel="noopener noreferrer">Voir la version</a> <button type="button" id="update-later" class="link-plain">Plus tard</button></p>
-  <p class="current-page" id="current-page" aria-hidden="true"></p>
-  <nav class="tabs" id="tabs" aria-label="Pages">
-    <a href="#apercu" data-tab="apercu">Vue d'ensemble</a>
-    <a href="#performance" data-tab="performance">Performance</a>
-    <a href="#visualisations" data-tab="visualisations">Visualisations</a>
-    <a href="#comparaison" data-tab="comparaison">Comparaison</a>
-    <a href="#projection" data-tab="projection">Projection et objectifs</a>
-    <a href="#revenus" data-tab="revenus">Revenus et frais</a>
-    <a href="#fiscalite" data-tab="fiscalite">Fiscalité</a>
-    <a href="#crypto" data-tab="crypto">Rendements crypto</a>
-    <a href="#positions" data-tab="positions">Positions et opérations</a>
-    <a href="#gerer" data-tab="gerer">Gérer <span class="tab-badge" id="recurring-badge" hidden></span></a>
-  </nav>
+  <p id="update-ask" class="notice" hidden>Prévenir quand une nouvelle version de Patrimoine sort ? <button type="button" class="tip" data-tip="Une fois par jour au plus, l'app demande à GitHub le numéro de la dernière version publiée. Rien d'autre ne part : ni montant, ni compte, ni version ; GitHub voit l'adresse IP, comme pour toute page web. Rien n'est téléchargé ni installé : tu choisis de télécharger. Modifiable dans Réglages." aria-label="Plus d'infos">?</button> <button type="button" class="link-plain" data-updates="yes">Oui</button> <button type="button" class="link-plain" data-updates="no">Non</button></p>
+  <p id="update-banner" class="notice" hidden>Patrimoine <span id="update-latest"></span> est disponible (version actuelle <span id="update-current"></span>). <a id="update-link" class="link-plain" target="_blank" rel="noopener noreferrer">Voir la version</a> <button type="button" id="update-later" class="link-plain">Plus tard</button></p>
+  </div>
 
   <!-- Messages, en haut à droite de l'écran quel que soit le défilement, et au-dessus des
        fenêtres ouvertes (popover) : le rouge s'efface après 15 s, le vert après 5 s ; ✕ pour
@@ -237,6 +267,24 @@
       </div>
       <p id="perf-status" class="muted small"></p>
     </section>
+    <section class="card" data-card="comparaison-a-un-indice-ou-a-un-livret">
+      <div class="card-head">
+        <h2>Comparaison à un indice ou à un livret</h2>
+        <span class="muted small">Le même argent, versé aux mêmes dates, placé ailleurs</span>
+      </div>
+      <div class="perf-controls">
+        <label class="inline">Comparer à <select id="bench-select"></select></label>
+        <label class="inline" id="bench-custom-label" hidden>Ticker Yahoo <input id="bench-custom" placeholder="ex. ^N225" maxlength="20"></label>
+        <label class="inline" id="bench-rate-label" hidden>Taux du livret (%/an) <input id="bench-rate" inputmode="decimal" placeholder="ex. 1,7" maxlength="6"></label>
+        <button type="button" id="bench-save" hidden>Ajouter à la liste</button>
+        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
+        <label class="inline">Depuis le <input id="bench-start" type="date"></label>
+        <label class="inline">Jusqu'au <input id="bench-end" type="date"></label>
+      </div>
+      <dl id="bench-kpis" class="kpis"></dl>
+      <div class="chart wide-chart"><canvas id="chart-benchmark" aria-label="Portefeuille comparé à un indice"></canvas></div>
+      <p id="bench-status" class="muted small"></p>
+    </section>
   </div>
 
   <div class="page" data-page="visualisations" hidden>
@@ -309,27 +357,6 @@
     </section>
   </div>
 
-  <div class="page" data-page="comparaison" hidden>
-    <section class="card" data-card="comparaison-a-un-indice-ou-a-un-livret">
-      <div class="card-head">
-        <h2>Comparaison à un indice ou à un livret</h2>
-        <span class="muted small">Le même argent, versé aux mêmes dates, placé ailleurs</span>
-      </div>
-      <div class="perf-controls">
-        <label class="inline">Comparer à <select id="bench-select"></select></label>
-        <label class="inline" id="bench-custom-label" hidden>Ticker Yahoo <input id="bench-custom" placeholder="ex. ^N225" maxlength="20"></label>
-        <label class="inline" id="bench-rate-label" hidden>Taux du livret (%/an) <input id="bench-rate" inputmode="decimal" placeholder="ex. 1,7" maxlength="6"></label>
-        <button type="button" id="bench-save" hidden>Ajouter à la liste</button>
-        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
-        <label class="inline">Depuis le <input id="bench-start" type="date"></label>
-        <label class="inline">Jusqu'au <input id="bench-end" type="date"></label>
-      </div>
-      <dl id="bench-kpis" class="kpis"></dl>
-      <div class="chart wide-chart"><canvas id="chart-benchmark" aria-label="Portefeuille comparé à un indice"></canvas></div>
-      <p id="bench-status" class="muted small"></p>
-    </section>
-  </div>
-
   <div class="page" data-page="projection" hidden>
     <section class="card" data-card="projection-et-objectif">
       <div class="card-head">
@@ -378,7 +405,7 @@
       <div class="form-actions target-actions">
         <label class="inline" id="target-add-label" hidden><span id="target-add-text">Ajouter</span> <select id="target-add"></select></label>
         <span class="muted small" id="target-total"></span>
-        <button type="button" id="target-save">Enregistrer les cibles</button>
+        <button type="button" id="target-save" class="primary">Enregistrer les cibles</button>
       </div>
     </section>
   </div>
@@ -756,6 +783,10 @@
       </div>
       <div class="table-scroll"><table><tbody id="debts-list"></tbody></table></div>
     </section>
+  </div>
+
+  <!-- Réglages (D-133) : ce qu'on règle une fois, hors de la barre d'onglets (roue dentée). -->
+  <div class="page" data-page="reglages" hidden>
     <section class="card half" data-card="profils">
       <div class="card-head">
         <h2>Profils <button type="button" class="tip" data-tip="Une base par personne sur cet ordinateur, rien ne sort de la machine. Le premier ajout range la base actuelle dans le profil « Principal ». Chacun peut ensuite poser son code depuis son nom, en haut de la page. Exporter : une copie de ses propres données, à garder ou à emporter sur un autre ordinateur." aria-label="Plus d'infos">?</button></h2>
@@ -784,20 +815,22 @@
         <p id="profile-restore-error" class="ko small" role="alert" hidden></p>
       </details>
     </section>
-    <section class="card half" data-card="mises-a-jour">
+    <section class="card half" data-card="apparence">
       <div class="card-head">
-        <h2>Mises à jour <button type="button" class="tip" data-tip="L'app demande à GitHub, une fois par jour au plus, le numéro de la dernière version publiée, sans rien envoyer d'autre. Elle prévient seulement : télécharger et dézipper la nouvelle version reste ton geste, les données restent dans leur dossier. Réglage commun à tous les profils de cet ordinateur." aria-label="Plus d'infos">?</button></h2>
+        <h2>Apparence <button type="button" class="tip" data-tip="Réglages d'affichage gardés dans ce navigateur, communs à tous les profils." aria-label="Plus d'infos">?</button></h2>
       </div>
-      <label class="check"><input id="updates-enabled" type="checkbox"> Prévenir quand une nouvelle version sort</label>
-      <p id="updates-state" class="muted small"></p>
-      <div class="updates-actions">
-        <button type="button" id="updates-check">Vérifier maintenant</button>
-        <a id="updates-releases" class="link-plain" target="_blank" rel="noopener noreferrer">Toutes les versions</a>
+      <div class="field">
+        <span class="field-label" id="theme-label">Thème</span>
+        <div class="segmented" id="theme-choice" role="group" aria-labelledby="theme-label">
+          <button type="button" data-theme-choice="auto"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Système</button>
+          <button type="button" data-theme-choice="clair"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>Clair</button>
+          <button type="button" data-theme-choice="sombre"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Sombre</button>
+        </div>
       </div>
     </section>
     <section class="card half" data-card="reglages">
       <div class="card-head">
-        <h2>Réglages <button type="button" class="tip" data-tip="Communs à tous les profils de cet ordinateur, rangés dans le dossier des données (reglages.json). Un réglage écrit dans le fichier .env garde la main : il s'affiche ici sans pouvoir être changé. Champ vide : valeur par défaut." aria-label="Plus d'infos">?</button></h2>
+        <h2>Général <button type="button" class="tip" data-tip="Communs à tous les profils de cet ordinateur, rangés dans le dossier des données (reglages.json). Un réglage écrit dans le fichier .env garde la main : il s'affiche ici sans pouvoir être changé. Champ vide : valeur par défaut." aria-label="Plus d'infos">?</button></h2>
       </div>
       <form id="form-settings" class="settings-form" novalidate>
         <label><span>Cache des prix, en minutes <button type="button" class="tip" data-tip="Un cours plus récent que cette durée est réutilisé sans redemander à Yahoo ou CoinGecko. De 1 à 1 440 minutes." aria-label="Plus d'infos">?</button></span>
@@ -827,31 +860,34 @@
       </form>
       <p id="settings-state" class="small" role="status" hidden></p>
     </section>
-    <section class="card" id="card-how" data-card="comment-ca-marche">
-      <div class="card-head">
-        <h2>Comment ça marche <button type="button" class="tip" data-tip="Les mêmes repères que dans le tutoriel (« ? » en haut de la page), lus sur cet ordinateur à l'ouverture de Gérer." aria-label="Plus d'infos">?</button></h2>
-        <button type="button" class="link-plain" data-outbound-open>Ce qui sort de cet ordinateur</button>
-      </div>
-      <div id="how-blocks" class="how-grid"></div>
-    </section>
-    <section class="card half" id="card-report" data-card="signaler-un-probleme">
-      <div class="card-head">
-        <h2>Signaler un problème <button type="button" class="tip" data-tip="Le diagnostic dit ce qui tourne sur cet ordinateur : version, système, état des bases et des sauvegardes, services joints, dernières erreurs. Jamais de montant, de nom, de ticker ni de chemin. Rien ne part tout seul : tu le relis, puis tu le colles toi-même dans ton signalement sur GitHub (compte GitHub gratuit nécessaire)." aria-label="Plus d'infos">?</button></h2>
-      </div>
-      <p class="muted small">Copie le diagnostic, puis colle-le dans ton signalement.</p>
-      <div class="updates-actions">
-        <button type="button" data-diagnostic-open>Copier le diagnostic</button>
-      </div>
-    </section>
-    <section class="card half" data-card="alerte-de-variation">
-      <div class="card-head"><h2>Alerte de variation</h2></div>
+    <section class="card half" data-card="alertes-et-mises-a-jour">
+      <div class="card-head"><h2>Alertes et mises à jour</h2></div>
+      <h3 class="card-part">Alerte de variation <button type="button" class="tip" data-tip="Message quand le total ou une position varie d'au moins ce seuil sur la dernière séance. La notification n'indique que des pourcentages, une fois par jour, et seulement si la page est ouverte. Réglage gardé dans ce navigateur." aria-label="Plus d'infos">?</button></h3>
       <form id="form-alert" class="alert-form">
         <label>Seuil de variation du jour, en %
           <input name="threshold" inputmode="decimal" placeholder="vide = pas d'alerte">
         </label>
         <label class="check"><input name="notify" type="checkbox"> Notification Windows aussi</label>
       </form>
-      <p class="muted small">Bandeau quand le total ou une position varie d'au moins ce seuil sur la dernière séance. <button type="button" class="tip" data-tip="La notification n'indique que des pourcentages, une fois par jour, et seulement si la page est ouverte. Réglage gardé dans ce navigateur." aria-label="Plus d'infos">?</button></p>
+      <h3 class="card-part">Mises à jour <button type="button" class="tip" data-tip="L'app demande à GitHub, une fois par jour au plus, le numéro de la dernière version publiée, sans rien envoyer d'autre. Elle prévient seulement : télécharger et dézipper la nouvelle version reste ton geste, les données restent dans leur dossier. Réglage commun à tous les profils de cet ordinateur." aria-label="Plus d'infos">?</button></h3>
+      <label class="check"><input id="updates-enabled" type="checkbox"> Prévenir quand une nouvelle version sort</label>
+      <p id="updates-state" class="muted small"></p>
+      <div class="updates-actions">
+        <button type="button" id="updates-check">Vérifier maintenant</button>
+        <a id="updates-releases" class="link-plain" target="_blank" rel="noopener noreferrer">Toutes les versions</a>
+      </div>
+    </section>
+    <section class="card" id="card-how" data-card="aide">
+      <div class="card-head">
+        <h2>Aide <button type="button" class="tip" data-tip="Les mêmes repères que dans le tutoriel, lus sur cet ordinateur à l'ouverture de Réglages." aria-label="Plus d'infos">?</button></h2>
+        <span class="muted small"><span id="app-version"></span> <button type="button" class="tip" data-tip="Logiciel libre (licence GNU GPL v3 ou ultérieure), fourni sans aucune garantie. Les chiffres affichés sont des estimations : ni conseil en investissement, ni conseil fiscal." aria-label="Plus d'infos">?</button></span>
+      </div>
+      <div id="how-blocks" class="how-grid"></div>
+      <div class="help-actions" id="card-report">
+        <button type="button" id="tutorial-open">Revoir le tutoriel</button>
+        <button type="button" data-outbound-open>Ce qui sort de cet ordinateur</button>
+        <span class="help-report"><button type="button" data-diagnostic-open>Copier le diagnostic</button><button type="button" class="tip" data-tip="Le diagnostic dit ce qui tourne sur cet ordinateur : version, système, état des bases et des sauvegardes, services joints, dernières erreurs. Jamais de montant, de nom, de ticker ni de chemin. Rien ne part tout seul : tu le relis, puis tu le colles toi-même dans ton signalement sur GitHub (compte GitHub gratuit nécessaire)." aria-label="Plus d'infos">?</button></span>
+      </div>
     </section>
   </div>
 
@@ -992,7 +1028,7 @@
       <h2 id="dlg-list-title">Indices et livrets</h2>
       <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
     </div>
-    <p class="muted small">Liste commune à Comparaison et Visualisations. <button type="button" class="tip" data-tip="Un indice se compare grâce à son ticker Yahoo (vérifiable sur finance.yahoo.com/quote/TICKER) ; un livret grâce à son taux annuel, calculé sur ta machine." aria-label="Plus d'infos">?</button></p>
+    <p class="muted small">Liste commune à Performance et Visualisations. <button type="button" class="tip" data-tip="Un indice se compare grâce à son ticker Yahoo (vérifiable sur finance.yahoo.com/quote/TICKER) ; un livret grâce à son taux annuel, calculé sur ta machine." aria-label="Plus d'infos">?</button></p>
     <div class="table-scroll"><table><tbody id="list-rows"></tbody></table></div>
     <form id="form-bench">
       <label>Type

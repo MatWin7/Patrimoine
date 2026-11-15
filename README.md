@@ -70,12 +70,12 @@ Seulement des demandes publiques, sans montant ni quantité :
 - taux de change de la BCE (Frankfurter) ;
 - indice des prix Eurostat, pour la courbe de l'inflation ;
 - taux de dépôt et d'emprunt publics d'Aave, si vous suivez une ligne Aave (une fois par jour) ;
-- si vous l'acceptez (question au premier lancement, modifiable dans Gérer), le numéro de la
+- si vous l'acceptez (question au premier lancement, modifiable dans Réglages), le numéro de la
   dernière version de Patrimoine publiée sur GitHub, une fois par jour. L'app prévient seulement :
   elle ne télécharge ni n'installe rien.
 
 Ces services voient votre adresse IP et le ticker demandé, comme pour toute visite de leur site.
-Dans l'app, Gérer > « Comment ça marche » > « Ce qui sort de cet ordinateur » reprend cette liste
+Dans l'app, Réglages (roue dentée) > Aide > « Ce qui sort de cet ordinateur » reprend cette liste
 avec le nombre de requêtes depuis le lancement ; toute autre adresse est bloquée par l'app.
 L'app n'écoute que sur `127.0.0.1` : elle n'est pas joignable depuis un autre appareil.
 
@@ -94,7 +94,7 @@ uv run python -m app      # fenêtre sous Windows et macOS, navigateur sous Linu
 ```
 
 Réglages facultatifs (cache des prix, sauvegardes gardées, verrouillage des profils, copie des
-sauvegardes sur un autre disque, clé CoinGecko) : carte **Réglages** de l'onglet Gérer. Un
+sauvegardes sur un autre disque, clé CoinGecko) : page **Réglages** (roue dentée), carte Général. Un
 fichier `.env` (modèle : `.env.example`) reste possible et passe avant la carte.
 
 ### Essayer sans ses données
@@ -105,7 +105,7 @@ PATRIMOINE_DB=data/demo.db uv run python -m app
 ```
 
 Au premier lancement, « Explorer avec la démo » ouvre un profil Démo ; on peut aussi l'ajouter
-dans Gérer > Profils.
+dans Réglages > Profils.
 
 ## Développement
 
@@ -123,7 +123,7 @@ jamais contenir un vrai relevé, même partiel.
 
 ## Signaler un problème
 
-Dans l'app : Gérer > « Signaler un problème » > **Copier le diagnostic**, puis
+Dans l'app : Réglages (roue dentée) > Aide > **Copier le diagnostic**, puis
 [ouvrir un signalement](../../issues/new/choose) et coller le texte. Le diagnostic dit quelle
 version tourne sur quel système et quelles erreurs sont survenues, sans aucun montant, nom, ticker
 ni chemin ; il s'affiche avant d'être copié. Si l'app ne démarre pas :

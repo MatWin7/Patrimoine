@@ -837,7 +837,7 @@ function renderPositions() {
     };
     const counts = { positions: positions.length, operations: ops.length };
     const seg = document.createElement("div");
-    seg.className = "segmented small-seg tax-mode";
+    seg.className = "segmented small-seg account-view";
     seg.setAttribute("role", "group");
     seg.setAttribute("aria-label", `Tableau affiché pour ${account.name}`);
     const showView = (view) => {
@@ -998,8 +998,8 @@ function chartTheme() {
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
 }
 
-// Passage clair/sombre du système : graphiques recréés avec les nouvelles couleurs.
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+// Passage clair/sombre (système ou carte Apparence, theme.js) : graphiques recréés avec les nouvelles couleurs.
+document.addEventListener("themechange", () => {
   for (const id of Object.keys(charts)) {
     charts[id].destroy();
     delete charts[id];
@@ -1008,6 +1008,22 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
   if (lastHistory) drawHistory(lastHistory);
   if (lastPerformance) renderPerformance(lastPerformance);
 });
+
+// Carte Apparence (D-133) : thème clair, sombre ou celui du système, gardé par theme.js.
+function renderThemeChoice() {
+  for (const button of $("theme-choice").querySelectorAll("button")) {
+    const chosen = button.dataset.themeChoice === window.patrimoineTheme.get();
+    button.classList.toggle("active", chosen);
+    button.setAttribute("aria-pressed", String(chosen));
+  }
+}
+$("theme-choice").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-theme-choice]");
+  if (!button) return;
+  window.patrimoineTheme.set(button.dataset.themeChoice);
+  renderThemeChoice();
+});
+renderThemeChoice();
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 // Crée le graphique au premier appel, puis remplace seulement ses données (sans animation)
@@ -1697,7 +1713,7 @@ function setFilter(update) {
 }
 
 // Onglets qui suivent le filtre : le bouton « Lignes » n'apparaît que sur eux.
-const FILTERED_PAGES = new Set(["apercu", "performance", "visualisations", "comparaison", "projection"]);
+const FILTERED_PAGES = new Set(["apercu", "performance", "visualisations", "projection"]);
 let filterUseful = false; // au moins deux lignes ou deux comptes à choisir
 
 function renderLineFilter() {
@@ -1762,7 +1778,9 @@ function renderFilterButton() {
   button.hidden = !filterUseful || !FILTERED_PAGES.has(currentPage);
   const n = lineFilter.accounts.length + lineFilter.lines.length;
   button.classList.toggle("active", filterActive());
-  $("line-filter-summary").textContent = filterActive() ? `${n} retirée${n > 1 ? "s" : ""}` : "toutes";
+  // Icône seule ; une pastille compte les lignes retirées quand le filtre agit.
+  $("line-filter-summary").textContent = String(n);
+  $("line-filter-summary").hidden = !filterActive();
   button.title = filterActive() ? `Calcul sans : ${filterSummary()}` : "Choisir les lignes comptées";
 }
 
@@ -2711,12 +2729,14 @@ projForm.addEventListener("submit", (e) => e.preventDefault());
 // rechargement et permet le bouton « Précédent » du navigateur.
 
 const PAGES = {
-  visualisations: refreshVisualisations, comparaison: refreshBenchmark,
+  visualisations: refreshVisualisations, performance: refreshBenchmark, // la comparaison vit dans Performance (D-133)
   projection: () => Promise.all([refreshProjection(), refreshTargets()]),
   revenus: () => refreshIncome(), fiscalite: () => refreshTax(), crypto: () => refreshAave().finally(refreshRewards).finally(refreshBorrows),
 };
-// Anciennes adresses (favoris) : Calendrier et Allocation cible ont rejoint d'autres pages.
-const PAGE_ALIASES = { calendrier: "visualisations", cible: "projection" };
+// Anciennes adresses (favoris) : Calendrier, Allocation cible et Comparaison ont rejoint d'autres pages.
+const PAGE_ALIASES = { calendrier: "visualisations", cible: "projection", comparaison: "performance" };
+// Nom affiché d'un onglet (sans son icône ni sa pastille) ; la roue dentée n'a que son libellé.
+const tabName = (a) => a.querySelector(".tab-label")?.textContent ?? a.getAttribute("aria-label") ?? "";
 let currentPage = "apercu";
 
 function showPage() {
@@ -2735,7 +2755,7 @@ function showPage() {
     tab.setAttribute("aria-current", tab.dataset.tab === currentPage ? "page" : "false");
   }
   const tab = document.querySelector(`[data-tab="${currentPage}"]`);
-  $("current-page").textContent = tab?.firstChild.textContent.trim() ?? ""; // sans la pastille
+  $("current-page").textContent = tab ? tabName(tab) : "";
   // Fenêtre étroite : la barre d'onglets défile (D-115), l'onglet ouvert reste visible.
   const bar = $("tabs");
   if (tab && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
@@ -2870,7 +2890,7 @@ function startArrangingTabs() {
   const tabs = $("tabs");
   tabs.classList.add("arranging", "open"); // petit écran : le menu s'ouvre pour montrer les onglets
   for (const a of movableTabs()) {
-    const name = a.firstChild.textContent.trim();
+    const name = tabName(a);
     const box = document.createElement("input");
     box.type = "checkbox";
     box.className = "tab-shown";
@@ -3716,7 +3736,7 @@ async function checkHealth() {
     const data = await api("/api/health");
     if (data.status !== "ok") text = `Serveur ${data.status}`;
     // Numéro de l'app (D-121), à citer dans un signalement ; suit une mise à jour sans recharger.
-    if (data.version) $("app-version").textContent = ` · version ${data.version}`;
+    if (data.version) $("app-version").textContent = `Version ${data.version}`;
   } catch (err) {
     text = "Serveur injoignable";
   }
@@ -5712,7 +5732,7 @@ const saleRow = (v) => rowOf(
   cell(formatDecimal(signed(v.gain_eur), "EUR"), signClass(v.gain_eur)),
 );
 
-for (const group of document.querySelectorAll(".tax-mode")) {
+for (const group of document.querySelectorAll(".tax-mode[data-mode-for]")) {
   for (const b of group.querySelectorAll("button")) {
     b.addEventListener("click", () => {
       taxModes[group.dataset.modeFor] = b.dataset.mode;
@@ -5723,7 +5743,7 @@ for (const group of document.querySelectorAll(".tax-mode")) {
 }
 
 function renderTaxModes() {
-  for (const group of document.querySelectorAll(".tax-mode")) {
+  for (const group of document.querySelectorAll(".tax-mode[data-mode-for]")) {
     for (const b of group.querySelectorAll("button")) b.classList.toggle("active", b.dataset.mode === taxModes[group.dataset.modeFor]);
   }
   for (const el of document.querySelectorAll("[data-mode-show]")) {
