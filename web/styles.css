@@ -695,6 +695,14 @@ dialog.outbound .table-scroll { max-height: none; }
 #outbound-table td { vertical-align: top; white-space: normal; min-width: 150px; }
 #outbound-table td.num { min-width: 0; white-space: nowrap; }
 .updates-actions { display: flex; gap: var(--s-4); align-items: center; flex-wrap: wrap; }
+/* Diagnostic et signalement (D-132) */
+#diagnostic-text {
+  width: 100%; margin: var(--s-2) 0 var(--s-3); resize: vertical;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: var(--t-sm);
+}
+.diagnostic-actions { align-items: center; gap: var(--s-4); }
+.diagnostic-actions p { margin: 0 auto 0 0; }
+.picker-foot { margin: var(--s-5) 0 0; }
 
 .card[hidden] { display: none; }
 .start-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }

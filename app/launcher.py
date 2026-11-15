@@ -378,6 +378,9 @@ def _serve_with_window(server, sock: socket.socket, url: str, storage: Path, dat
             shown = window.run(url, storage, data_dir, open_in_browser=open_browser)
         except Exception as err:  # noqa: BLE001 : moteur web en panne, l'app reste utilisable
             print(f"Fenêtre impossible : {err}")
+            from app import diagnostic
+
+            diagnostic.record(err, "ouverture de la fenêtre")
             shown = False
         if not shown:
             print("Ouverture dans le navigateur (Ctrl+C pour arrêter).")
@@ -423,3 +426,6 @@ class BackupWorker:
                     print(message)
             except Exception as err:  # noqa: BLE001 : ce fil ne doit jamais s'arrêter en silence
                 print(f"Attention, sauvegarde automatique impossible : {err}")
+                from app import diagnostic
+
+                diagnostic.record(err, "sauvegarde de chaque heure")

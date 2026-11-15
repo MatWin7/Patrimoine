@@ -9,9 +9,10 @@ Utilisez le **signalement privé** de GitHub : onglet **Security** du dépôt, p
 (relevé, base, capture avec des montants) : une base de démo (`uv run python -m app.demo`) suffit à
 reproduire.
 
-Décrivez ce qui est touché (version, système), comment le reproduire et ce qu'un attaquant
-pourrait obtenir. Vous recevrez une réponse dès que possible ; c'est un projet tenu sur du temps
-libre, sans délai garanti.
+Décrivez ce qui est touché (version, système : Gérer > « Copier le diagnostic » les donne, sans
+aucune donnée personnelle), comment le reproduire et ce qu'un attaquant pourrait obtenir. Vous
+recevrez une réponse dès que possible ; c'est un projet tenu sur du temps libre, sans délai
+garanti.
 
 ## Ce que l'app promet
 

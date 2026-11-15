@@ -121,10 +121,18 @@ Sortir une version : [`docs/releases.md`](docs/releases.md). Changements : [`CHA
 Les tests, exemples et fixtures ne contiennent que des données fictives. Une contribution ne doit
 jamais contenir un vrai relevé, même partiel.
 
-## Signaler une faille
+## Signaler un problème
 
-Voir [`SECURITY.md`](SECURITY.md) : par le signalement privé de GitHub, jamais dans une issue
-publique.
+Dans l'app : Gérer > « Signaler un problème » > **Copier le diagnostic**, puis
+[ouvrir un signalement](../../issues/new/choose) et coller le texte. Le diagnostic dit quelle
+version tourne sur quel système et quelles erreurs sont survenues, sans aucun montant, nom, ticker
+ni chemin ; il s'affiche avant d'être copié. Si l'app ne démarre pas :
+`uv run python -m app.diagnostic` depuis le code, sinon la version et le message affiché.
+
+Une issue est publique : jamais de relevé, de base ni de capture de vos vraies données (le profil
+Démo suffit pour une capture).
+
+Une **faille de sécurité** se signale en privé : voir [`SECURITY.md`](SECURITY.md).
 
 ## Licence
 
