@@ -38,6 +38,7 @@ for f in web/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
 ## Architecture
 ```text
 app/updates.py     avis de mise à jour (D-129) : dernière release GitHub une fois par jour si accepté, choix dans data/reglages.json, rien n'est téléchargé
+app/outbound.py    ce qui sort de la machine (D-131) : liste des services joints (fait foi), crochet du client HTTP qui refuse toute autre adresse, compteur en mémoire ; GET /api/about
 app/settings.py    carte Réglages (D-130) : reglages.json du dossier des données (verrou commun avec updates), .env prioritaire, clé CoinGecko jamais renvoyée, dossier de copie sans réseau
 app/version.py     __version__ (source lue par l'app, = pyproject.toml et uv.lock), notes d'une version tirées de CHANGELOG.md (D-121)
 app/main.py        FastAPI, API JSON sous /api/..., sert web/
@@ -74,7 +75,7 @@ app/providers/     une source par fichier (yahoo, coingecko, frankfurter, eurost
 app/crypto_tickers.py ticker Yahoo d'une crypto (table vérifiée, D-111)
 app/tickers.py     ticker Yahoo d'un ISIN : table locale, puis recherche Yahoo sur clic (/api/tickers, D-083)
 app/importers/     import CSV : csv_generique (lecture, correspondance des colonnes), preparation (comptes, actifs, doublons), un profil par plateforme reconnu aux en-têtes (trade_republic D-071, binance D-082) ; /api/import/preview puis /api/import (D-053)
-web/tutorial.js    tutoriel de premier lancement en 5 étapes (D-099), relançable par le « ? » de la barre du haut
+web/tutorial.js    tutoriel de premier lancement en 6 étapes (D-099), relançable par le « ? » de la barre du haut ; « Comment ça marche » et fenêtre « Ce qui sort de cet ordinateur » (D-131)
 web/               index.html (pages par onglets #apercu, #performance...), profiles.js (choix du profil, puis charge app.js, D-098), app.js, tips.js (infobulles « ? »), styles.css ; web/vendor/ : Chart.js, chartjs-chart-treemap et police Inter copiés (pas de CDN, D-117)
 .github/workflows/ CI : tests sous Linux, Windows et macOS, lint et syntaxe du front à chaque PR ; release.yml : étiquette vX.Y.Z → contrôles, archive, Patrimoine.exe zippé, SHA256SUMS, page de release (actions figées par SHA, D-121) ; exe-windows.yml : construit et lance Patrimoine.exe (D-126) ; dependabot.yml : dépendances chaque semaine en une PR, 7 j de recul sauf alerte (D-123)
 .claude/           réglages Claude Code (D-079, D-113) : hooks garde-fou données réelles (bases des profils comprises) et ruff après édition, sous-agents, skills /avant-pr et nouvelle-migration

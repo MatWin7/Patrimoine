@@ -240,6 +240,7 @@ const SORT_DEFAULTS = {
   "idle-table": { key: "value", dir: "desc" },
   "borrows-table": { key: "value_eur", dir: "desc" },
   "rewards-recent-table": { key: "date", dir: "desc" },
+  "outbound-table": { key: null, dir: "asc" },
 };
 const sortNumeric = {};
 

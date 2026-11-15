@@ -11,6 +11,8 @@ from decimal import Decimal
 
 import httpx2
 
+from app import outbound
+
 TIMEOUT_SECONDS = 10
 # Yahoo refuse les requêtes sans User-Agent de navigateur (erreur 429).
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) Patrimoine/0.1"
@@ -29,8 +31,15 @@ class Price:
     previous_close: Decimal | None = None  # clôture de la veille, pour la variation du jour
 
 
-def new_client() -> httpx2.Client:
-    return httpx2.Client(timeout=TIMEOUT_SECONDS, headers={"User-Agent": USER_AGENT})
+def new_client(transport: httpx2.BaseTransport | None = None) -> httpx2.Client:
+    """Client de toutes les requêtes sortantes de l'app. Chaque envoi passe par
+    `outbound.on_request` (D-131) : adresse absente de la liste déclarée = requête refusée."""
+    return httpx2.Client(
+        timeout=TIMEOUT_SECONDS,
+        headers={"User-Agent": USER_AGENT},
+        event_hooks={"request": [outbound.on_request]},
+        transport=transport,
+    )
 
 
 def get_json(client: httpx2.Client, url: str, **kwargs) -> object:

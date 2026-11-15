@@ -34,6 +34,7 @@ from app import (
     defi,
     defi_sync,
     income,
+    outbound,
     prices,
     profiles,
     providers,
@@ -384,6 +385,45 @@ def settings_update(body: SettingsIn) -> dict:
             message = f"{len(copied)} sauvegarde(s) recopiée(s)." if copied else "Dossier prêt."
         settings.save(section)
     return {**settings.status(), "message": message}
+
+
+# --- Comment ça marche et Ce qui sort de cet ordinateur (D-131) ---------------------------------
+# Lecture seule, sans réseau : où sont les données, les sauvegardes du profil ouvert, le choix
+# des mises à jour (lu, jamais vérifié ici) et la liste des services joints avec leur compteur.
+
+
+def _last_auto_backup() -> str | None:
+    """Jour de la dernière copie automatique de la base ouverte (<base>-auto-AAAA-MM-JJ-...)."""
+    folder = backup.backup_dir()
+    if not folder.is_dir():
+        return None
+    name = re.compile(
+        rf"{re.escape(db.db_path().stem)}-{backup.AUTO}-(\d{{4}}-\d{{2}}-\d{{2}})-\d{{6}}\.db"
+    )
+    days = [m.group(1) for p in folder.iterdir() if (m := name.fullmatch(p.name))]
+    return max(days, default=None)
+
+
+@app.get("/api/about")
+def about() -> dict:
+    try:
+        copy_dir, copy_error = settings.copy_dir(), None
+    except RuntimeError as err:
+        copy_dir, copy_error = None, str(err)
+    return {
+        "version": __version__,
+        "data_dir": str(profiles.DATA_DIR),
+        "backups": {
+            "folder": str(backup.backup_dir()),
+            "keep": config.backup_keep(),
+            "months": backup.MONTHS_KEPT,
+            "last": _last_auto_backup(),
+            "copy_dir": str(copy_dir) if copy_dir else None,
+            "copy_error": copy_error,
+        },
+        "updates": updates.load().enabled,
+        "outbound": outbound.summary(),
+    }
 
 
 @app.post("/api/window/focus")
