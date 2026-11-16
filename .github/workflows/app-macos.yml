@@ -122,7 +122,9 @@ jobs:
           # Journal de l'essai 1 (« Ouvrir ... dans le navigateur ») mis de côté : il ne doit
           # rester que celui de ce lancement.
           rm -f "$data/lancement.lock.port" "$data/journal.txt"
-          avant="$(pgrep -f com.apple.WebKit.WebContent | wc -l)"
+          # pgrep rend 1 quand rien ne tourne : sans « || true », pipefail arrêterait l'essai.
+          moteurs() { { pgrep -f com.apple.WebKit.WebContent || true; } | wc -l | tr -d ' '; }
+          avant="$(moteurs)"
           open -n dist/Patrimoine.app
           port=""
           for _ in $(seq 120); do
@@ -139,7 +141,7 @@ jobs:
           fenetre="$(curl -fsS "http://127.0.0.1:$port/api/window")"
           echo "$fenetre"
           [[ "$fenetre" == *'"window":true'* ]]
-          apres="$(pgrep -f com.apple.WebKit.WebContent | wc -l)"
+          apres="$(moteurs)"
           echo "Processus WebKit : $avant avant, $apres après"
           test "$apres" -gt "$avant" || { echo "Aucun moteur WebKit lancé" >&2; exit 1; }
           if grep -E 'navigateur|Fenêtre impossible|Pas de fenêtre' "$data/journal.txt"; then
