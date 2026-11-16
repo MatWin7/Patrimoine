@@ -93,7 +93,7 @@ jobs:
             kill -0 $pid 2>/dev/null || { echo "L'app s'est arrêtée" >&2; exit 1; }
             if [ -f "$data/lancement.lock.port" ]; then
               candidat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$data/lancement.lock.port")"
-              if curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null | grep -q '"patrimoine"'; then
+              if [[ "$(curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null)" == *'"patrimoine"'* ]]; then
                 port="$candidat"; break
               fi
             fi
@@ -101,8 +101,10 @@ jobs:
           done
           test -n "$port" || { echo "Le serveur n'a pas répondu en 60 s" >&2; exit 1; }
           version="$(uv run python -m app.version)"
-          curl -fsS "http://127.0.0.1:$port/api/health" | grep -q "\"$version\""
-          curl -fsS "http://127.0.0.1:$port/" | grep -q '<title>'
+          # Réponse lue en entier avant d'être cherchée : avec pipefail, `curl | grep -q` échoue
+          # dès que grep a trouvé et ferme le tuyau (curl : erreur 23).
+          [[ "$(curl -fsS "http://127.0.0.1:$port/api/health")" == *"\"$version\""* ]]
+          [[ "$(curl -fsS "http://127.0.0.1:$port/")" == *'<title>'* ]]
           for chemin in /styles.css /app.js /vendor/chart.umd.js /api/portfolio; do
             curl -fsS -o /dev/null "http://127.0.0.1:$port$chemin"
           done
@@ -126,7 +128,7 @@ jobs:
           for _ in $(seq 120); do
             if [ -f "$data/lancement.lock.port" ]; then
               candidat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$data/lancement.lock.port")"
-              if curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null | grep -q '"patrimoine"'; then
+              if [[ "$(curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null)" == *'"patrimoine"'* ]]; then
                 port="$candidat"; break
               fi
             fi
@@ -134,7 +136,9 @@ jobs:
           done
           test -n "$port" || { echo "L'app n'a pas répondu en 60 s" >&2; cat "$data/journal.txt" || true; exit 1; }
           sleep 10 # le temps que la page se charge dans la fenêtre
-          curl -fsS "http://127.0.0.1:$port/api/window" | tee /dev/stderr | grep -q '"window":true'
+          fenetre="$(curl -fsS "http://127.0.0.1:$port/api/window")"
+          echo "$fenetre"
+          [[ "$fenetre" == *'"window":true'* ]]
           apres="$(pgrep -f com.apple.WebKit.WebContent | wc -l)"
           echo "Processus WebKit : $avant avant, $apres après"
           test "$apres" -gt "$avant" || { echo "Aucun moteur WebKit lancé" >&2; exit 1; }
