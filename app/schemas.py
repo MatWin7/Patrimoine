@@ -50,6 +50,16 @@ class SettingsIn(BaseModel):
     coingecko_api_key: StrictStr | None = None
 
 
+class StartPageIn(BaseModel):
+    """Page de démarrage (D-134) : fond et mot d'accueil ; un champ absent ne bouge pas, un
+    texte vide ou null remet celui d'origine. Valeurs vérifiées par app/startpage.py."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fond: StrictStr | None = Field(default=None, max_length=20)
+    texte: StrictStr | None = Field(default=None, max_length=400)
+
+
 class UpdatesIn(BaseModel):
     """Réponse à « Prévenir des nouvelles versions ? » (D-129)."""
 
