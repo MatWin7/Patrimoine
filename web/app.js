@@ -167,13 +167,18 @@ function showPricesStatus(portfolio) {
   const errors = portfolio.positions.filter((p) => p.price_error);
   const parts = [];
   if (dates.length) parts.push(`Cours du ${formatTime(dates[0])}`);
-  if (errors.length) parts.push(`${errors.length} cours non mis à jour (survoler la ligne pour le détail)`);
+  if (errors.length) parts.push(`${errors.length} cours non mis à jour`);
   if (portfolio.fx_error) parts.push(portfolio.fx_error);
   const negative = portfolio.cash.filter((c) => c.cash.startsWith("-")).map((c) => c.account);
   if (negative.length) parts.push(`Espèces négatives (${negative.join(", ")}) : un versement manque sans doute`);
-  parts.push(`actualisation automatique toutes les ${portfolio.price_ttl_minutes} min`);
   const el = $("prices-status");
-  el.textContent = portfolio.positions.length || negative.length ? parts.join(" · ") : "";
+  const shown = portfolio.positions.length || negative.length;
+  el.textContent = shown ? parts.join(" · ") : "";
+  if (shown) {
+    const detail = [`Les cours se mettent à jour seuls, toutes les ${portfolio.price_ttl_minutes} min au plus.`];
+    if (errors.length) detail.push("Cours non mis à jour : dans Positions et opérations, survole le cours de la ligne pour voir pourquoi.");
+    el.append(" ", makeTip(detail.join(" ")));
+  }
   el.className = errors.length || portfolio.fx_error || negative.length ? "muted small warn" : "muted small";
 }
 
@@ -1157,9 +1162,10 @@ function biggestGains(lines) {
 // Niveau des cibles (D-061) : par ligne ou par catégorie, gardé dans le navigateur.
 const TARGET_KEY = PREF + "cible";
 const targetPref = loadPref(TARGET_KEY, { level: "ligne" });
+// Une ligne visible, le mode d'emploi dans l'infobulle (D-091).
 const TARGET_HELP = {
-  ligne: "Donne une part visée (en %) aux lignes qui comptent pour toi : l'app montre l'écart de chacune et répartit ton prochain versement pour t'en rapprocher, sans rien vendre. Les parts se calculent entre les lignes qui ont une cible.",
-  categorie: "Donne une part visée (en %) à tes catégories (choisies dans « Gérer » > Actifs ; à défaut, la classe de l'actif). Le montant à acheter dans une catégorie va sur sa plus grosse ligne : un seul ordre, moins de frais. Pour viser une nouvelle catégorie, donne-la d'abord à un actif.",
+  ligne: ["Donne une part visée (en %) aux lignes qui comptent pour toi.", "L'app montre l'écart de chaque ligne et répartit ton prochain versement pour t'en rapprocher, sans rien vendre. Les parts se calculent entre les lignes qui ont une cible."],
+  categorie: ["Donne une part visée (en %) à tes catégories.", "Catégories choisies dans « Gérer » > Actifs ; à défaut, la classe de l'actif. Le montant à acheter dans une catégorie va sur sa plus grosse ligne : un seul ordre, moins de frais. Pour viser une nouvelle catégorie, donne-la d'abord à un actif."],
 };
 
 const GROUP_KEY = PREF + "repartition";
@@ -1511,9 +1517,7 @@ function renderPerformance(data) {
     tiles.push(kpi("Périodes en hausse", `${s.positive_periods} / ${s.count}`));
   }
   $("perf-kpis").replaceChildren(...tiles);
-  $("perf-status").textContent = (s
-    ? "Performance « pondérée par le temps » : un achat ou une vente ne compte ni comme gain ni comme perte ; comptent la variation des cours, les dividendes reçus et les frais payés (droits de garde...)."
-    : "Aucune opération sur cette période.");
+  $("perf-status").textContent = s ? "" : "Aucune opération sur cette période.";
 
   const rows = data.periods;
   const labels = rows.map((p) => periodLabel(p, perf.period, true));
@@ -2320,8 +2324,7 @@ function renderTreemap() {
   const notes = [];
   if (!rows.length) notes.push("Aucune ligne valorisée pour l'instant.");
   if (group === "class" || group === "category") notes.push("Une même ligne détenue dans deux comptes forme une seule tuile.");
-  if (treemapPref.area !== "value") notes.push("Surface adoucie : les grosses lignes paraissent moins grosses qu'en réalité ; la valeur exacte et le poids sont dans l'infobulle.");
-  if (mode !== "line") notes.push("Vert : hausse, rouge : baisse, plus la couleur est vive, plus le mouvement est fort ; gris : pas de cours.");
+  if (mode !== "line") notes.push("Vert : hausse, rouge : baisse (plus vif, plus fort), gris : pas de cours.");
   $("treemap-note").textContent = notes.join(" ");
 }
 
@@ -2566,11 +2569,12 @@ async function refreshBenchmark() {
     if (s.benchmark_value) tiles.push(kpi(isLivret ? "Si placé sur le livret" : "Si placé dans l'indice", formatDecimal(s.benchmark_value, "EUR"), "mêmes versements, mêmes dates"));
   }
   $("bench-kpis").replaceChildren(...tiles);
-  $("bench-status").textContent = isLivret
-    ? "Livret calculé sur ta machine à taux fixe, intérêts capitalisés chaque jour (très proche du calcul par quinzaine). Un livret réglementé est net d'impôt, ton PEA ne l'est qu'après 5 ans."
+  const [benchLine, benchDetail] = isLivret
+    ? ["Livret à taux fixe, calculé sur ta machine.", "Intérêts capitalisés chaque jour (très proche du calcul par quinzaine). Un livret réglementé est net d'impôt, ton PEA ne l'est qu'après 5 ans."]
     : data.currency !== "EUR"
-      ? `Indice coté en ${data.currency}, converti au taux du jour : l'effet de change passé n'est pas compté.`
-      : "Indice en euros. Un indice « prix » ne compte pas les dividendes, ta performance si : l'écart te favorise donc un peu.";
+      ? [`Indice coté en ${data.currency}, converti au taux du jour : effet de change passé non compté.`, ""]
+      : ["Un indice « prix » ne compte pas les dividendes, ta performance si : l'écart te favorise un peu.", ""];
+  $("bench-status").replaceChildren(benchLine, ...(benchDetail ? [" ", makeTip(benchDetail)] : []));
   const points = data.points;
   drawChart("chart-benchmark", {
     type: "line",
@@ -5459,7 +5463,12 @@ function renderTer(t) {
   render();
   rerenders[tableId] = render;
   const missing = t.without_ter.length ? ` Sans TER saisi : ${t.without_ter.join(", ")}.` : "";
-  $("ter-note").textContent = `Les frais courants sont prélevés chaque jour dans le prix du fonds : tu ne les vois jamais passer. Un fonds détenu sur deux comptes apparaît dans chacun. Manque à gagner = valeur dans ${t.years} ans sans frais − avec frais, si le fonds rapporte ${formatDecimal(t.growth_pct)} %/an avant frais, sans nouveau versement.${missing}`;
+  $("ter-note").replaceChildren(
+    `Manque à gagner sur ${t.years} ans, si le fonds rapporte ${formatDecimal(t.growth_pct)} %/an avant frais.`,
+    " ",
+    makeTip(`Les frais courants sont prélevés chaque jour dans le prix du fonds : tu ne les vois jamais passer. Manque à gagner = valeur dans ${t.years} ans sans frais − avec frais, sans nouveau versement. Un fonds détenu sur deux comptes apparaît dans chacun.`),
+    missing,
+  );
 }
 
 // --- Allocation cible (D-058) -----------------------------------------------------------
@@ -5472,7 +5481,7 @@ const targetExtras = { ligne: [], categorie: [] };
 async function refreshTargets() {
   const level = targetPref.level;
   for (const b of $("target-level").querySelectorAll("button")) b.classList.toggle("active", b.dataset.level === level);
-  $("target-help").textContent = TARGET_HELP[level];
+  $("target-help").replaceChildren(TARGET_HELP[level][0], " ", makeTip(TARGET_HELP[level][1]));
   $("target-first").querySelector("button").textContent = level === "categorie" ? "Catégorie" : "Ligne";
   const contribution = cleanDecimal($("form-target").contribution.value) ?? "0";
   const data = await api(`/api/targets?level=${level}&contribution=${encodeURIComponent(contribution)}`);

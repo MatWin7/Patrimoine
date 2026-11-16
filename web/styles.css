@@ -551,6 +551,7 @@ dialog .valuation-list { max-height: 260px; margin-top: var(--s-4); }
 
 /* Revenus, allocation cible, fiscalité (D-057 à D-060) */
 .target-form { grid-template-columns: minmax(180px, 240px) 1fr; align-items: end; margin-bottom: var(--s-4); }
+@media (max-width: 720px) { .target-form { grid-template-columns: 1fr; } }
 #target-rows input { width: 80px; text-align: right; padding: var(--s-1) var(--s-2); }
 #target-rows td.buy-on { white-space: normal; min-width: 150px; }
 #target-rows td.buy-on .block { font-weight: 400; }

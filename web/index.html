@@ -185,7 +185,6 @@
     <section class="card" data-card="evolution">
       <div class="card-head">
         <h2>Évolution <button type="button" class="tip" id="history-tip" data-tip="" aria-label="Plus d'infos" hidden>?</button></h2>
-        <span class="muted small">Valeur des titres et argent net placé, en euros</span>
       </div>
       <div class="chart wide-chart"><canvas id="chart-history" aria-label="Évolution de la valeur des titres et de l'argent net placé"></canvas></div>
       <p id="history-status" class="muted small"></p>
@@ -219,7 +218,7 @@
   <div class="page" data-page="performance" hidden>
     <section class="card" id="perf-card" data-card="performance">
       <div class="card-head">
-        <h2>Performance</h2>
+        <h2>Performance <button type="button" class="tip" data-tip="Performance « pondérée par le temps » : un achat ou une vente ne compte ni comme gain ni comme perte. Comptent la variation des cours, les dividendes reçus et les frais payés (droits de garde...)." aria-label="Plus d'infos">?</button></h2>
         <span class="muted small">Gain et performance par période, achats et ventes neutralisés</span>
       </div>
       <div class="perf-controls">
@@ -314,7 +313,7 @@
             <option value="sqrt">Adoucie (petites lignes visibles)</option>
             <option value="value">Proportionnelle à la valeur</option>
           </select>
-         <button type="button" class="tip" data-tip="Adoucie : une très grosse ligne n'écrase plus les petites. La valeur exacte reste dans l'infobulle du graphique." aria-label="Plus d'infos">?</button></label>
+         <button type="button" class="tip" data-tip="Adoucie : une très grosse ligne n'écrase plus les petites, mais paraît moins grosse qu'en réalité. La valeur exacte et le poids restent dans l'infobulle du graphique." aria-label="Plus d'infos">?</button></label>
       </div>
       <div class="chart wide-chart treemap"><canvas id="chart-treemap" aria-label="Carte proportionnelle du portefeuille"></canvas></div>
       <p class="muted small" id="treemap-note"></p>
@@ -344,7 +343,7 @@
     </section>
     <section class="card" data-card="rendements-mensuels">
       <div class="card-head">
-        <h2>Calendrier</h2>
+        <h2>Calendrier <button type="button" class="tip" data-tip="Plus la case est foncée, plus le mois est fort (vert) ou faible (rouge). « Année » cumule les mois." aria-label="Plus d'infos">?</button></h2>
         <span class="muted small">Performance de chaque mois et de chaque année, achats neutralisés</span>
       </div>
       <div class="perf-controls">
@@ -353,7 +352,6 @@
       </div>
       <div class="table-fit"><table class="heatmap" id="calendar"></table></div>
       <p class="muted small" id="cal-note"></p>
-      <p class="muted small">Plus la case est foncée, plus le mois est fort (vert) ou faible (rouge). « Année » cumule les mois.</p>
     </section>
   </div>
 
@@ -458,8 +456,8 @@
   </div>
 
   <div class="page" data-page="fiscalite" hidden>
-    <p class="filter-banner tax-banner">Estimations selon les règles fiscales françaises connues de l'app (<span id="tax-rules"></span>) :
-      un repère pour anticiper, pas un conseil. Les lois de finances changent ces règles chaque année.</p>
+    <p class="filter-banner tax-banner">Estimation selon les règles fiscales françaises connues de l'app (<span id="tax-rules"></span>), pas un conseil fiscal.
+      <button type="button" class="tip" data-tip="Un repère pour anticiper. Les lois de finances changent ces règles chaque année." aria-label="Plus d'infos">?</button></p>
     <form id="form-tax" class="tax-form">
       <label>Année <select name="year"></select></label>
       <label>Taux du prélèvement forfaitaire (%) <input name="pfu" inputmode="decimal"></label>
@@ -486,13 +484,12 @@
       <details class="note"><summary>Règles de calcul</summary><p class="muted small" id="tax-pea-note"></p></details>
     </section>
     <section class="card" data-card="assurance-vie">
-      <div class="card-head"><h2>Assurance-vie</h2><span class="muted small">Abattement sur les gains après 8 ans</span></div>
+      <div class="card-head"><h2>Assurance-vie <button type="button" class="tip" data-tip="Après 8 ans, abattement annuel sur les gains des rachats : 4 600 € (9 200 € en couple). Avant, aucun." aria-label="Plus d'infos">?</button></h2><span class="muted small">Abattement sur les gains après 8 ans</span></div>
       <dl id="tax-av-kpis" class="kpis"></dl>
       <div class="table-scroll"><table id="tax-av-table">
         <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th><th class="num" data-sort="deposits"><button type="button" class="sort">Versements</button></th><th data-sort="milestone"><button type="button" class="sort">8 ans</button></th></tr></thead>
         <tbody id="tax-av"></tbody>
       </table></div>
-      <p class="muted small">Après 8 ans, abattement annuel sur les gains des rachats : 4 600 € (9 200 € en couple). Avant, aucun.</p>
     </section>
     <section class="card" data-card="per">
       <div class="card-head"><h2>PER</h2><span class="muted small">Versements déduits du revenu, bloqués jusqu'à la retraite</span></div>
@@ -741,11 +738,11 @@
     </section>
     <section class="card" id="card-recurring" data-card="achats-programmes">
       <div class="card-head">
-        <h2>Achats programmés</h2>
+        <h2>Achats programmés <button type="button" class="tip" data-tip="Ex. 100 € d'ETF le 5 de chaque mois, semaine ou trimestre. Chaque échéance passée est proposée ici, avec une quantité estimée d'après la clôture du jour (à défaut, le dernier cours connu). Rien n'est enregistré sans ta validation, et rien ne part chez ta banque." aria-label="Plus d'infos">?</button></h2>
         <button type="button" data-add="recurring">+ Ajouter</button>
       </div>
       <div id="recurring-pending" hidden>
-        <p class="muted small">À valider : corrige quantité et prix d'après ton relevé, puis « Valider ». « Ignorer » si l'achat n'a pas eu lieu.</p>
+        <p class="muted small">À valider d'après ton relevé ; « Ignorer » si l'achat n'a pas eu lieu.</p>
         <div class="table-scroll">
           <table class="recurring-table">
             <thead><tr><th>Échéance</th><th>Actif</th><th class="num">Montant visé</th><th>Date</th><th>Quantité</th><th>Prix unitaire</th><th>Frais</th><th></th></tr></thead>
@@ -754,7 +751,6 @@
         </div>
       </div>
       <div class="table-scroll"><table><tbody id="recurring-list"></tbody></table></div>
-      <p class="muted small">Chaque échéance passée est proposée ici, avec une quantité estimée d'après la clôture du jour. <button type="button" class="tip" data-tip="Ex. 100 € d'ETF le 5 de chaque mois, semaine ou trimestre. À défaut de clôture, le dernier cours connu sert. Rien n'est enregistré sans ta validation, et rien ne part chez ta banque." aria-label="Plus d'infos">?</button></p>
     </section>
     <section class="card half" data-card="comptes">
       <div class="card-head">
@@ -780,7 +776,7 @@
         <p class="muted small">Revendus ou envoyés hors de l'app : gardés pour l'historique et la fiscalité. Ils reviennent seuls dès qu'une opération en remet.</p>
         <div class="table-scroll"><table><tbody id="assets-sold"></tbody></table></div>
       </details>
-      <p class="muted small">Un actif = une ligne. Avec un ticker, le cours se met à jour seul ; sans, saisis sa « Valeur ». <button type="button" class="tip" data-tip="Sans ticker : fonds euros, bien immobilier… Supprimer un actif qui a des opérations demande de les déplacer ou de les supprimer aussi." aria-label="Plus d'infos">?</button></p>
+      <p class="muted small">Avec un ticker, le cours se met à jour seul ; sans, saisis sa « Valeur ». <button type="button" class="tip" data-tip="Un actif = une ligne détenue. Sans ticker : fonds euros, bien immobilier… Supprimer un actif qui a des opérations demande de les déplacer ou de les supprimer aussi." aria-label="Plus d'infos">?</button></p>
     </section>
   </div>
 
