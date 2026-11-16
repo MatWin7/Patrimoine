@@ -345,6 +345,11 @@
     dialog.close();
     location.hash = "#gerer";
     requestAnimationFrame(() => {
+      // « Ajouter des opérations » (D-135) : une carte, deux panneaux ; on ouvre le bon.
+      if (cardId === "card-import" || cardId === "card-operation") {
+        document.dispatchEvent(new CustomEvent("operationmode", { detail: cardId === "card-import" ? "import" : "saisie" }));
+        cardId = "card-operation";
+      }
       $(cardId)?.scrollIntoView({ behavior: "smooth", block: "start" });
       showMessage(hint);
     });

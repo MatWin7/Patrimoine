@@ -3206,6 +3206,32 @@ function operationForm(container, onSaved) {
   return form;
 }
 
+// Carte « Ajouter des opérations » (D-135) : saisie une par une ou import d'un relevé, un
+// panneau à la fois ; le dernier choix est gardé dans ce navigateur.
+const OPERATION_MODE_KEY = PREF + "ajout-operations";
+function showOperationMode(mode, keep = false) {
+  const chosen = mode === "import" ? "import" : "saisie";
+  for (const panel of document.querySelectorAll("[data-operation-mode]")) panel.hidden = panel.dataset.operationMode !== chosen;
+  for (const button of $("operation-mode").querySelectorAll("button")) {
+    const active = button.dataset.mode === chosen;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+  if (keep) savePref(OPERATION_MODE_KEY, { mode: chosen });
+}
+$("operation-mode").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-mode]");
+  if (button) showOperationMode(button.dataset.mode, true);
+});
+// Le tutoriel, la vérification d'un compte et le bouton « Nouvelle opération » de Positions
+// ouvrent le bon panneau sans changer le choix gardé.
+document.addEventListener("operationmode", (e) => showOperationMode(e.detail));
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("[data-operation-open]");
+  if (link) showOperationMode(link.dataset.operationOpen);
+});
+showOperationMode(loadPref(OPERATION_MODE_KEY, { mode: "saisie" }).mode);
+
 const newOperation = operationForm($("new-operation"), async (op, form) => {
   const agree = { vente: "e", solde_initial: "s" }[op.op_type] ?? ""; // « Vente enregistrée »
   showMessage(`${TYPES_FULL[op.op_type]} enregistré${agree}.`);
@@ -3493,6 +3519,7 @@ async function applyCorrection(fix) {
 function prefillOperation(type, line) {
   $("dlg-reconcile").close();
   const form = newOperation;
+  showOperationMode("saisie");
   form.op_type.value = type;
   form.account_id.value = reconcileAccount.id;
   form.asset_id.value = line.asset_id;

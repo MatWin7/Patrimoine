@@ -914,3 +914,15 @@ Pour lancer Patrimoine sous Windows sans installer Python ni uv : un dossier `Pa
 **Écarté.** Garder un chemin vers l'image d'origine (l'app lirait un fichier hors de son dossier, cassé au premier déplacement). Envoyer l'original et le réduire sur le serveur (bibliothèque d'images à ajouter, métadonnées à retirer à la main). Un fond par profil (l'écran précède le choix du profil). Appliquer l'image derrière toute l'app (lisibilité des tableaux ; l'utilisateur l'a limitée à cette page).
 
 **Non vérifié.** Fenêtre WebView2 sous Windows et WebKit sous macOS, dont la boîte de choix de fichier : essayé dans Chromium seulement.
+
+## D-135 · 2026-11-16 · Gérer en quatre cartes : ajout d'opérations regroupé, Dettes avec Comptes
+
+**Contexte.** Troisième PR de la refonte (D-133). Après le départ des réglages, Gérer gardait six cartes : deux pleine largeur pour la même intention (« Nouvelle opération », « Importer plusieurs opérations ») et une carte Dettes seule sur sa ligne, à côté d'un vide.
+
+**Décision.**
+- **« Ajouter des opérations »** : une seule carte, avec un sélecteur à segments « Une par une » / « Importer un relevé » dans son en-tête ; un panneau à la fois, dernier choix gardé dans le navigateur (`ajout-operations`). La carte garde `data-card="nouvelle-operation"` et `id="card-operation"`, pour qu'une disposition déjà réglée par « Réorganiser » la laisse à sa place ; le panneau d'import garde `id="card-import"`. Les formulaires eux-mêmes ne changent pas.
+- **Points d'entrée** : le tutoriel (`goTo`), la vérification d'un compte (« Saisir l'achat ») et le bouton « Nouvelle opération » de Positions ouvrent le bon panneau sans toucher au choix gardé (événement `operationmode`, attribut `data-operation-open`).
+- **Dettes** : une partie de la carte Comptes (`card-part`), sous la liste des comptes, avec son bouton « + Ajouter » en bleu teinté (un seul bouton plein par carte). Comptes et dettes sont les deux côtés du patrimoine net, et la colonne de gauche, plus courte que celle des actifs, a la place. La carte `dettes` disparaît de « Réorganiser ».
+- **Textes** (D-091) : les sous-titres des deux anciennes cartes et les deux paragraphes de l'import deviennent une ligne et une infobulle.
+
+**Écarté.** Garder Dettes en carte à part, calée sous Comptes par une carte Actifs sur deux rangées de la grille : fragile dès que l'utilisateur réorganise. Trois colonnes Comptes, Actifs, Dettes : à 1 587 px, les liens Vérifier, Modifier, Supprimer passeraient à la ligne. Onglets à l'intérieur de la carte pour Achats programmés aussi : ses échéances à valider doivent rester visibles sans clic.
