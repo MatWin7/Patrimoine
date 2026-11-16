@@ -926,3 +926,19 @@ Pour lancer Patrimoine sous Windows sans installer Python ni uv : un dossier `Pa
 - **Textes** (D-091) : les sous-titres des deux anciennes cartes et les deux paragraphes de l'import deviennent une ligne et une infobulle.
 
 **Écarté.** Garder Dettes en carte à part, calée sous Comptes par une carte Actifs sur deux rangées de la grille : fragile dès que l'utilisateur réorganise. Trois colonnes Comptes, Actifs, Dettes : à 1 587 px, les liens Vérifier, Modifier, Supprimer passeraient à la ligne. Onglets à l'intérieur de la carte pour Achats programmés aussi : ses échéances à valider doivent rester visibles sans clic.
+
+## D-136 · 2026-11-16 · Textes des onglets allégés : une ligne visible, le reste en infobulle
+
+**Contexte.** Quatrième PR de la refonte (D-133). Relevé des textes visibles onglet par onglet sur le profil Démo : une dizaine de cartes gardaient un paragraphe d'explication de 100 à 335 caractères sous leur graphique ou leur tableau, contre la règle D-091 (une ligne visible au plus sous un titre).
+
+**Décision.**
+- **Vue d'ensemble** : l'état des cours ne garde que la date et le nombre de cours non mis à jour ; le rythme d'actualisation et « où voir pourquoi » passent en infobulle. Le sous-titre d'Évolution, qui répétait la légende du graphique, part.
+- **Performance** : l'explication « pondérée par le temps » passe dans l'infobulle du titre ; sous le graphique ne reste que « Aucune opération sur cette période » ou une erreur. Comparaison : une ligne selon le cas (indice « prix », indice en devise, livret, ce dernier avec une infobulle).
+- **Visualisations** : la note « Surface adoucie » partait en double de l'infobulle du réglage, qui porte maintenant seule la mise en garde ; légende des couleurs raccourcie ; celle du Calendrier dans l'infobulle du titre.
+- **Projection, Revenus et frais** : mode d'emploi de l'allocation cible et règle du manque à gagner des frais courants sur une ligne, détail en infobulle ; la liste « Sans TER saisi » reste visible (c'est une action à faire).
+- **Fiscalité** : bandeau sur une ligne ; le paragraphe de l'assurance-vie, double de son sous-titre, passe en infobulle. Les « Règles de calcul » repliées ne bougent pas (D-091).
+- **Gérer** : Achats programmés et Actifs gardent une ligne, le reste dans l'infobulle.
+- **Téléphone** : sous 720 px, le formulaire de l'allocation cible passe sur une colonne (son aide s'écrasait en colonne d'un mot par ligne).
+- **Mentions de prudence gardées visibles, en une ligne** : « pas un conseil fiscal » (bandeau de Fiscalité), « Simulation à rendement constant, pas une prévision » (Projection), « Affichage seulement : aucun ordre n'est passé » (Allocation cible).
+
+**Écarté.** Retirer tous les sous-titres de carte : une ligne qui dit ce que montre le graphique aide encore, et la règle l'autorise. Raccourcir « Un indice "prix" ne compte pas les dividendes » en « dividendes non comptés » : faux pour un ETF capitalisant comme la référence par défaut.

@@ -56,6 +56,9 @@ la page de la release sur GitHub.
   d'accueil modifiable. Commun à tous les profils de l'ordinateur.
 - Gérer en quatre cartes (D-135) : « Ajouter des opérations » réunit la saisie une par une et
   l'import d'un relevé, au choix par un sélecteur ; les dettes se rangent dans la carte Comptes.
+- Textes des onglets allégés (D-136) : une ligne visible au plus sous un graphique ou un tableau,
+  le détail dans l'infobulle « ? » ; les mentions de prudence (pas un conseil fiscal, simulation
+  et non prévision, aucun ordre passé) restent visibles.
 
 ### Publication
 
