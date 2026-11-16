@@ -384,8 +384,7 @@ def delete(profile_id: str, confirm: str, code: str = "") -> Path:
         raise ProfileError("Profil inconnu.")
     if " ".join(confirm.split()).casefold() != profile.name.casefold():
         raise ProfileError("Retape exactement le nom du profil pour confirmer.")
-    if not _matches(profile, code):
-        raise ProfileError("Code incorrect.")
+    _verify_code(profile, code)
     with _lock:
         profiles = load()
         if len(profiles) < 2:
@@ -463,8 +462,7 @@ def set_code(profile_id: str, new_code: str | None, current_code: str = "") -> P
         raise ProfileError("Profil inconnu.")
     if profile.demo and new_code:
         raise ProfileError("Le profil Démo n'a pas de code : ses données sont fictives.")
-    if profile.has_code and not _matches(profile, current_code):
-        raise ProfileError("Code actuel incorrect.")
+    _verify_code(profile, current_code, "Code actuel incorrect.")
     return _update(profile_id, code=_hash(new_code) if new_code else None)
 
 
@@ -495,6 +493,30 @@ _sessions: dict[str, _Session] = {}
 _failures: dict[str, _Failures] = {}
 
 
+def _verify_code(profile: Profile, code: str, message: str = "Code incorrect.") -> None:
+    """Vérifie le code d'un profil en comptant les essais ratés : cinq de suite ferment toutes
+    les portes une minute (ouvrir, supprimer, changer le code). Avant D-138, seule l'ouverture
+    comptait : la suppression laissait essayer des codes sans limite. Sans code : rien à faire."""
+    if profile.code is None:
+        return
+    now = _now()
+    with _lock:
+        fails = _failures.setdefault(profile.id, _Failures())
+        if fails.until and now < fails.until:
+            seconds = int((fails.until - now).total_seconds()) + 1
+            raise LockedOut(f"Trop d'essais : réessayer dans {seconds} s.")
+        # L'essai est compté avant la comparaison, qui est lente exprès (scrypt) : des essais
+        # lancés en même temps passaient tous avant que le premier échec soit compté.
+        fails.count += 1
+        if fails.count >= MAX_FAILURES:
+            fails.count, fails.until = 0, now + LOCKOUT
+    if _matches(profile, code):
+        with _lock:
+            _failures.pop(profile.id, None)  # bon code : compteur et délai effacés
+        return
+    raise ProfileError(message)
+
+
 def idle_limit() -> timedelta:
     """Verrouillage après ce temps sans activité : .env, sinon carte Réglages (D-130)."""
     from app import settings  # import ici : settings importe ce module
@@ -512,22 +534,12 @@ def open_session(profile_id: str, code: str = "", just_created: bool = False) ->
     profile = get(profile_id)
     if profile is None:
         raise ProfileError("Profil inconnu.")
-    now = _now()
-    with _lock:
-        fails = _failures.setdefault(profile_id, _Failures())
-        if fails.until and now < fails.until:
-            seconds = int((fails.until - now).total_seconds()) + 1
-            raise LockedOut(f"Trop d'essais : réessayer dans {seconds} s.")
-    if not just_created and not _matches(profile, code):
-        with _lock:
-            fails.count += 1
-            if fails.count >= MAX_FAILURES:
-                fails.count, fails.until = 0, now + LOCKOUT
-        raise ProfileError("Code incorrect.")
+    if not just_created:
+        _verify_code(profile, code)
     token = secrets.token_urlsafe(32)
     with _lock:
         _failures.pop(profile_id, None)
-        _sessions[token] = _Session(profile_id, now)
+        _sessions[token] = _Session(profile_id, _now())
     return token
 
 

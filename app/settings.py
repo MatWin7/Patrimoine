@@ -105,6 +105,11 @@ def write_section(name: str, value: dict) -> None:
         path = _file()
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_name(path.name + ".tmp")
+        # Le fichier peut contenir la clé CoinGecko : lisible par son seul propriétaire, comme
+        # profils.json (sans effet sous Windows, où le dossier du compte protège déjà, D-138).
+        # Droits posés avant d'écrire : le contenu n'est jamais lisible par un autre compte.
+        temp.touch(mode=0o600)
+        temp.chmod(0o600)
         temp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         temp.replace(path)  # jamais un fichier à moitié écrit
 
@@ -158,7 +163,8 @@ def check_number(name: str, value: object) -> int | None:
 
 def coingecko_key() -> str | None:
     if value := _env(COINGECKO_ENV):
-        return value
+        # Même contrôle que la clé saisie dans la page : elle part dans un en-tête HTTP (D-138).
+        return value if COINGECKO_KEY.fullmatch(value) else None
     stored = _stored().get("coingecko_api_key")
     return stored if isinstance(stored, str) and COINGECKO_KEY.fullmatch(stored) else None
 

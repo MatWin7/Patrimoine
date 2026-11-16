@@ -99,7 +99,8 @@ depuis le code : `uv run python -m app.datadir --choisir DOSSIER` (copie vérifi
 
 Seulement des demandes publiques, sans montant ni quantité :
 
-- cours de bourse par ticker (Yahoo Finance) et de crypto par identifiant (CoinGecko) ;
+- cours de bourse, et clôtures quotidiennes des cryptos, par ticker (Yahoo Finance) ; cours du
+  jour des cryptos par identifiant (CoinGecko) ;
 - sur un clic, la recherche du ticker d'un ISIN (Yahoo Finance : l'ISIN, puis le nom public du
   titre trouvé) ;
 - taux de change de la BCE (Frankfurter) ;

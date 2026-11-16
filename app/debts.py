@@ -67,8 +67,11 @@ def balance_at(debt: Debt, balances: dict[date, Decimal], day: date) -> Decimal:
     for due in due_dates(debt):
         if start < due <= day:
             balance = balance * (1 + r) - pay
-    # Dernière échéance passée : plus rien à devoir (arrondis compris).
-    if debt.months and day >= add_months(debt.start_date, debt.months):
+    # Dernière échéance passée : plus rien à devoir (arrondis compris), sauf si un capital
+    # restant dû a été saisi après cette date (prêt prolongé, échéances reportées) : il n'y a
+    # plus d'échéance connue, la dette reste à ce montant (D-138).
+    end = add_months(debt.start_date, debt.months)
+    if day >= end and (anchor is None or anchor < end):
         return ZERO
     return max(balance, ZERO)
 

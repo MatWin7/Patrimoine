@@ -129,6 +129,7 @@ from app.schemas import (
     WatchlistIn,
     WatchlistItemIn,
     money,
+    plain,
 )
 from app.version import __version__
 
@@ -746,19 +747,19 @@ def _conflict(err: sqlite3.IntegrityError) -> HTTPException:
 
 def _account_out(account: Account) -> dict:
     out = asdict(account)
-    out["cash"] = str(account.cash)  # jamais de float en JSON
+    out["cash"] = plain(account.cash)  # jamais de float en JSON
     out["cash_date"] = account.cash_date.isoformat() if account.cash_date else None
     out["opened_on"] = account.opened_on.isoformat() if account.opened_on else None
-    out["deposits_before"] = str(account.deposits_before)
-    out["deposits_entered"] = str(account.deposits_entered)
-    out["deposits_implied"] = str(account.deposits_implied)
-    out["deposits"] = str(account.deposits)  # total : champ + opérations + supposés (D-062)
+    out["deposits_before"] = plain(account.deposits_before)
+    out["deposits_entered"] = plain(account.deposits_entered)
+    out["deposits_implied"] = plain(account.deposits_implied)
+    out["deposits"] = plain(account.deposits)  # total : champ + opérations + supposés (D-062)
     return out
 
 
 def _asset_out(asset: Asset) -> dict:
     out = asdict(asset)
-    out["ter"] = None if asset.ter is None else str(asset.ter)  # jamais de float en JSON
+    out["ter"] = None if asset.ter is None else plain(asset.ter)  # jamais de float en JSON
     out["manual"] = asset.manual
     out["category_label"] = category_of(asset)  # catégorie affichée (la classe à défaut)
     return out
@@ -776,7 +777,7 @@ def _operation_out(op: Operation) -> dict:
         "offered",
         "tax_withheld",
     ):
-        out[key] = None if out[key] is None else str(out[key])  # jamais de float en JSON
+        out[key] = None if out[key] is None else plain(out[key])  # jamais de float en JSON
     # Montant de l'opération : titres achetés frais compris, vente nette de frais, ou montant.
     if op.op_type in TRADES:
         out["total"] = money(
@@ -794,7 +795,7 @@ def _price_text(value: Decimal) -> str:
     """Cours en chaîne ; un cours converti d'une autre devise est limité à 8 décimales."""
     if value.as_tuple().exponent < -8:
         value = value.quantize(Decimal("0.00000001"))
-    return str(value)
+    return plain(value)
 
 
 def _pct(value: Decimal | None) -> str | None:
@@ -1047,8 +1048,18 @@ def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
         if account is None:
             raise HTTPException(status_code=404, detail="Compte inconnu.")
         assets = {a.id: a for a in repository.list_assets(conn)}
-        ops = [o for o in repository.list_operations(conn) if o.account_id == account_id]
+        # Arrivées des transferts comprises (D-085) : des titres reçus d'un autre compte de
+        # l'app sont bien détenus ici, et leur vente n'est pas une vente à découvert (D-138).
+        ops = [
+            o
+            for o in with_transfers(repository.list_operations(conn))
+            if o.account_id == account_id
+        ]
     conn.close()
+    try:
+        positions = compute_positions(ops)
+    except PositionError as err:
+        raise HTTPException(status_code=409, detail=str(err)) from err
 
     def qty(d: Decimal) -> str:
         return format(d.normalize(), "f") if d else "0"
@@ -1066,7 +1077,7 @@ def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
             "correction": fix and {"kind": fix["kind"], "amount": money(fix["amount"])},
         }
     lines = []
-    for p in sorted(compute_positions(ops), key=lambda p: list(assets).index(p.asset_id)):
+    for p in sorted(positions, key=lambda p: list(assets).index(p.asset_id)):
         asset = assets[p.asset_id]
         line = {"asset_id": asset.id, "asset": asset.name, "manual": asset.manual}
         line["app"] = qty(p.quantity)
@@ -1371,7 +1382,7 @@ def _recurring_out(r: dict, accounts, assets) -> dict:
     asset = assets[r["asset_id"]]
     return {
         **r,
-        "amount": str(r["amount"]),
+        "amount": plain(r["amount"]),
         "start_date": r["start_date"].isoformat(),
         "last_due": r["last_due"].isoformat() if r["last_due"] else None,
         "account": accounts[r["account_id"]].name,
@@ -1417,10 +1428,10 @@ def list_recurring() -> dict:
                     "due_date": due.isoformat(),
                     "account": accounts[r["account_id"]].name,
                     "asset": asset.name,
-                    "amount": str(r["amount"]),
+                    "amount": plain(r["amount"]),
                     "currency": asset.currency,
                     "price": None if known is None else _price_text(known),
-                    "quantity": None if quantity is None else str(quantity),
+                    "quantity": None if quantity is None else plain(quantity),
                 }
             )
     pending.sort(key=lambda p: (p["due_date"], p["recurring_id"]))
@@ -1571,11 +1582,11 @@ def income_report() -> dict:
     payés par année, et effet des frais courants (TER) des fonds sur 10 ans, par compte."""
     state = _offline_state()
     today = date.today()
-    summary = income.income_summary(state["operations"], state["rates"], today)
+    summary = income.income_summary(state["operations"], state["rates"], today, state["fx"])
     # Bourse seulement : les frais crypto vont dans l'onglet Crypto (D-092).
     accounts, assets = state["accounts"], state["assets"]
     stock_ops = [o for o in state["operations"] if not crypto.in_scope(o, accounts, assets)]
-    fees = income.fees_by_year(stock_ops, state["rates"])
+    fees = income.fees_by_year(stock_ops, state["rates"], state["fx"])
     costs = _by_asset_eur(state, "cost")
     values = _by_asset_eur(state, "value")
     assets = state["assets"]
@@ -1691,8 +1702,8 @@ def crypto_rewards() -> dict:
     months = [f"{d:%Y-%m}" for d in _last_months(today, REWARD_MONTHS)]
     # Frais payés sur la crypto (échanges, frais en BNB...), sortis de « Revenus et frais ».
     crypto_ops = [o for o in operations if crypto.in_scope(o, accounts, assets)]
-    fees = income.fees_by_year(crypto_ops, state["rates"])
-    fees_asset = income.fees_by_asset(crypto_ops, state["rates"])
+    fees = income.fees_by_year(crypto_ops, state["rates"], state["fx"])
+    fees_asset = income.fees_by_asset(crypto_ops, state["rates"], state["fx"])
     # Rendements (D-106) : placements (compte, jeton) et cryptos qui ne rapportent rien.
     positions: dict[tuple[int, int], tuple[Decimal, Decimal | None]] = {}
     for p in state["valued"]:
@@ -1845,7 +1856,7 @@ def _debt_out(d: debts.Debt, balances: dict[date, Decimal], rates, today: date) 
         "institution": d.institution,
         "currency": d.currency,
         "principal": money(d.principal),
-        "rate_pct": None if d.rate is None else str((d.rate * 100).normalize()),
+        "rate_pct": None if d.rate is None else plain((d.rate * 100).normalize()),
         "start_date": d.start_date.isoformat(),
         "months": d.months,
         "balance": money(info["balance"]),
@@ -1995,10 +2006,10 @@ def aave_reserves(client: HttpClient, chain_id: Annotated[int, Query(gt=0)]) -> 
         r
         | {
             "apy_pct": _pct(r["apy"]),
-            "apy": str(r["apy"]),
+            "apy": plain(r["apy"]),
             "borrow_apy_pct": _pct(r["borrow_apy"]),
-            "borrow_apy": None if r["borrow_apy"] is None else str(r["borrow_apy"]),
-            "liquidation_threshold": str(r["liquidation_threshold"]),
+            "borrow_apy": None if r["borrow_apy"] is None else plain(r["borrow_apy"]),
+            "liquidation_threshold": plain(r["liquidation_threshold"]),
         }
         for r in rows
     ]
@@ -2544,7 +2555,7 @@ def _ter_report(state: dict, values: dict[int, Decimal]) -> dict:
             {
                 "asset": assets[p.asset_id].name,
                 "value": value,
-                "ter": str(ter),
+                "ter": plain(ter),
                 "first_year": cost["first_year"],
                 "over_years": cost["over_years"],
             }
@@ -2572,7 +2583,7 @@ def _ter_report(state: dict, values: dict[int, Decimal]) -> dict:
         ],
         "first_year": money(total(every, "first_year")),
         "over_years": money(total(every, "over_years")),
-        "growth_pct": str(TER_GROWTH),
+        "growth_pct": plain(TER_GROWTH),
         "years": TER_YEARS,
         "without_ter": sorted(
             assets[i].name
@@ -2592,7 +2603,7 @@ def _advice_out(a, whole: Decimal, value: Decimal, target) -> dict:
     return {
         "value": money(value),
         "weight_pct": _pct(ratio(value, whole)) if whole else None,
-        "target": None if target is None else str(target),
+        "target": None if target is None else plain(target),
         # Déjà en % (rebalance travaille en parts sur 100).
         "current_pct": money(a.current_pct) if a else None,
         "target_pct": money(a.target_pct) if a else None,
@@ -2640,7 +2651,7 @@ def targets_report(contribution: Decimal = ZERO, level: str = "ligne") -> dict:
         "level": "ligne",
         "rows": rows,
         "addable": addable,
-        "targets_total": str(sum(targets.values(), ZERO)),
+        "targets_total": plain(sum(targets.values(), ZERO)),
         "contribution": money(contribution),
     }
 
@@ -2685,7 +2696,7 @@ def _category_targets(state: dict, contribution: Decimal) -> dict:
         "level": "categorie",
         "rows": rows,
         "addable": sorted((c for c in created if c not in order), key=str.lower),
-        "targets_total": str(sum(targets.values(), ZERO)),
+        "targets_total": plain(sum(targets.values(), ZERO)),
         "contribution": money(contribution),
     }
 
@@ -2789,7 +2800,7 @@ def tax_report(
                     "latent_losses": money(-sum((g for g in latent if g < 0), ZERO)),
                     "dividends": money(sum(dividends, ZERO)),
                     "exit_gain": money(out["gain"]),
-                    "exit_rate_pct": str(out["rate_pct"]),
+                    "exit_rate_pct": plain(out["rate_pct"]),
                     "exit_tax": money(out["tax"]),
                 }
             )
@@ -2827,7 +2838,8 @@ def tax_report(
         row["realized_gains"], row["realized_losses"] = money(one["gains"]), money(one["losses"])
 
     # Prix de revient en EUR aux taux des jours d'achat, prix moyen commun aux comptes-titres.
-    cto_costs = eur_costs([o for o in ops if o.account_id in cto_ids], fx, pooled=True)
+    # Toutes les opérations : des titres reçus d'un autre compte gardent leur coût (D-138).
+    cto_costs = eur_costs(ops, fx, pooled=True, pool=cto_ids)
 
     def latent_of(account_id: int) -> tuple[Decimal, Decimal]:
         """Plus et moins-values latentes au prix de revient réel (part offerte comprise, D-078),
@@ -2887,9 +2899,9 @@ def tax_report(
     )
     return {
         "rules_date": tax.RULES_DATE,
-        "pfu_pct": str(pfu),
-        "pfu_default_pct": str(tax.pfu_default(year)),
-        "pfu_gains_pct": str(pfu_gains),
+        "pfu_pct": plain(pfu),
+        "pfu_default_pct": plain(tax.pfu_default(year)),
+        "pfu_gains_pct": plain(pfu_gains),
         "crypto": _crypto_tax(state, crypto_ids, year, pfu_gains),
         # Comptes à l'étranger à déclarer chaque année (D-104), et comptes crypto dont la garde
         # reste à préciser (un portefeuille personnel ne se déclare pas).
@@ -2910,8 +2922,8 @@ def tax_report(
         "assurance_vie": avs,
         "per": {
             "year": year,
-            "tmi_pct": str(tmi),
-            "pfu_pct": str(pfu),
+            "tmi_pct": plain(tmi),
+            "pfu_pct": plain(pfu),
             "low_tmi": per["low_tmi"],
             "deposits_year": money(per["deposits"]),
             "ceiling": money(per["ceiling"]) if per["ceiling"] is not None else None,
@@ -2936,7 +2948,7 @@ def tax_report(
             "losses": money(est["losses"]),
             "net": money(est["net"]),
             "dividends": money(est["dividends"]),
-            "rate_pct": str(est["rate_pct"]),
+            "rate_pct": plain(est["rate_pct"]),
             "tax": money(est["tax"]),
         },
     }
@@ -2980,11 +2992,11 @@ def _crypto_tax(state: dict, crypto_ids: set[int], year: int, pfu: Decimal) -> d
         "exit_tax": money(out["tax"]),
         "total": money(est["total"]),
         "exempt": est["exempt"],
-        "exempt_limit": str(tax.CRYPTO_EXEMPT),
+        "exempt_limit": plain(tax.CRYPTO_EXEMPT),
         "gains": money(est["gains"]),
         "losses": money(est["losses"]),
         "net": money(est["net"]),
-        "rate_pct": str(pfu),
+        "rate_pct": plain(pfu),
         "tax": money(est["tax"]),
         "estimated": any(s.estimated for s in est["sales"]),
         "swaps": sum(
@@ -3548,9 +3560,13 @@ def check_quote(
     """
     try:
         if coingecko_id and coingecko_id.strip():
-            price = coingecko.get_price(
-                client, coingecko_id.strip().lower(), currency.strip(), config.coingecko_api_key()
-            )
+            coin = coingecko_id.strip().lower()
+            # Même alphabet fermé que l'id enregistré sur un actif (`CoingeckoId`, D-138).
+            if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,99}", coin):
+                raise HTTPException(status_code=422, detail="Id CoinGecko invalide.")
+            if not re.fullmatch(r"[A-Za-z]{3}", currency.strip()):
+                raise HTTPException(status_code=422, detail="Devise invalide.")
+            price = coingecko.get_price(client, coin, currency.strip(), config.coingecko_api_key())
         elif ticker and ticker.strip():
             price = yahoo.get_price(client, ticker.strip().upper())
         else:
@@ -3724,7 +3740,7 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
                 "account": accounts[p.account_id].name,
                 "asset": assets[p.asset_id].name,
                 "ticker": assets[p.asset_id].ticker,
-                "quantity": str(p.quantity),
+                "quantity": plain(p.quantity),
                 "pru": money(p.pru, "0.0001"),
                 "cost": money(p.cost),
                 "last_price": _price_text(p.last_price),
@@ -3897,7 +3913,7 @@ def history(client: HttpClient, keep: Filter, inflation_rate: Decimal = Decimal(
                 "gain": money(value - invested),
                 "inflation_loss": None if e is None else money(e - invested),
                 # Taux annuel que suit la courbe ce jour-là, pour l'infobulle (D-112).
-                "inflation_pct": str(
+                "inflation_pct": plain(
                     yearly_inflation(index, day, inflation_rate).quantize(Decimal("0.1"))
                 ),
             }
@@ -3908,7 +3924,7 @@ def history(client: HttpClient, keep: Filter, inflation_rate: Decimal = Decimal(
         "inflation": {
             "source": "Eurostat, IPCH France",
             "last_month": last_month.strftime("%Y-%m") if last_month else None,
-            "rate": str(inflation_rate),
+            "rate": plain(inflation_rate),
             "error": error,
         },
         "without_history": series["without_history"],
@@ -4108,7 +4124,7 @@ def benchmark(
     my_perf = perf[-1].cumulative_factor - 1 if perf else None
     return {
         "ticker": None if rate is not None else ticker.upper(),
-        "rate": None if rate is None else str(rate),
+        "rate": None if rate is None else plain(rate),
         "currency": currency,
         "start": start.isoformat(),
         "end": end.isoformat(),

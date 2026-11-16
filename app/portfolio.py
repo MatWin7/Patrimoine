@@ -6,7 +6,7 @@ C'est la méthode utilisée pour le PEA et le CTO en France.
 """
 
 from bisect import bisect_right
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -123,9 +123,14 @@ def _apply(state: dict[tuple[int, int], dict], op: Operation) -> None:
             what = "vendues" if op.op_type == "vente" else "transférées"
             raise PositionError(
                 f"{'Vente' if op.op_type == 'vente' else 'Transfert'} du {op.op_date} :"
-                f" {op.quantity} parts {what}, {pos['qty']} détenues."
+                f" {op.quantity:f} parts {what}, {pos['qty']:f} détenues."
             )
-        pos["cost"] -= pos["cost"] * op.quantity / pos["qty"]
+        if op.quantity == pos["qty"]:
+            # Tout part : coût remis à zéro exactement. La division laissait parfois une
+            # poussière (1E-24 €) qui restait dans le prix de revient d'un rachat (D-138).
+            pos["cost"] = ZERO
+        else:
+            pos["cost"] -= pos["cost"] * op.quantity / pos["qty"]
         pos["qty"] -= op.quantity
     else:
         pos["qty"] += op.quantity
@@ -247,22 +252,38 @@ class RateHistory:
 
 
 def eur_costs(
-    operations: Iterable[Operation], history: RateHistory, pooled: bool = False
+    operations: Iterable[Operation],
+    history: RateHistory,
+    pooled: bool = False,
+    pool: Collection[int] | None = None,
 ) -> dict[tuple[int, int], Decimal]:
     """Prix de revient restant de chaque ligne en EUR, chaque achat converti au taux de son jour
     (prix moyen pondéré en euros, D-081). `pooled` : prix moyen commun à tous les comptes pour
     un même actif (comptes-titres, règle fiscale), réparti au prorata des parts de chaque compte.
+    `pool` : les comptes qui partagent ce prix moyen quand la liste contient aussi les
+    opérations d'autres comptes, qui gardent chacun le leur (D-138) ; des titres transférés
+    entre un compte du lot et un autre emportent leur prix de revient.
     Une ligne dont un achat n'a pas de taux est absente."""
+
+    def owner(account_id: int) -> int:
+        shared = pooled and (pool is None or account_id in pool)
+        return 0 if shared else account_id  # aucun compte ne porte l'id 0
+
     qty: dict[tuple[int, int], Decimal] = {}
     cost: dict[tuple[int, int], Decimal | None] = {}
     for op in _trades(operations):
-        key = (0 if pooled else op.account_id, op.asset_id)
+        key = (owner(op.account_id), op.asset_id)
         qty[key] = qty.get(key, ZERO) + (-op.quantity if op.op_type in OUTGOING else op.quantity)
-        dest = op.to_account_id and (0 if pooled else op.to_account_id)
+        dest = None if op.to_account_id is None else owner(op.to_account_id)
+        if dest == key[0] and op.op_type in OUTGOING:
+            # Transfert entre deux comptes au prix moyen commun : les parts repartent puis
+            # reviennent (arrivée du transfert), le prix de revient ne bouge pas. Avant D-138 il
+            # était retiré sans être rendu : la ligne reçue valait zéro de prix de revient.
+            continue
         _add_cost_eur(cost, replace(op, account_id=key[0], to_account_id=dest), qty[key], history)
     out = {}
     for p in compute_positions(operations):
-        key = (0 if pooled else p.account_id, p.asset_id)
+        key = (owner(p.account_id), p.asset_id)
         if cost.get(key) is not None and qty[key] > 0:
             out[(p.account_id, p.asset_id)] = cost[key] * p.quantity / qty[key]
     return out
@@ -368,7 +389,9 @@ def _add_cost_eur(
         moved = None if cost is None else cost * op.quantity / held if held else ZERO
         if cost is not None:
             cost_eur[key] = cost - moved
-        if op.to_account_id:  # transfert vers un compte de l'app : le coût en euros suit
+        # Transfert vers un compte de l'app : le coût en euros suit (0 : le lot des
+        # comptes-titres au prix moyen commun, voir eur_costs).
+        if op.to_account_id is not None:
             dest = (op.to_account_id, op.asset_id)
             before = cost_eur.get(dest, ZERO)
             cost_eur[dest] = None if before is None or moved is None else before + moved

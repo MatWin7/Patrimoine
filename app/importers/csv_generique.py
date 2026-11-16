@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from app.schemas import MAX_DECIMALS, MAX_NUMBER, MIN_DATE
+
 # Champs d'une opération qu'une colonne peut remplir.
 FIELDS = (
     "date",
@@ -145,6 +147,9 @@ def parse_decimal(text: str) -> Decimal | None:
         raise ValueError(f"nombre illisible « {text} »") from None
     if not value.is_finite():
         raise ValueError(f"nombre illisible « {text} »")
+    if abs(value) > MAX_NUMBER or -value.as_tuple().exponent > MAX_DECIMALS:
+        # Mêmes bornes que la saisie (D-138) : un nombre démesuré rendrait les totaux illisibles.
+        raise ValueError(f"nombre hors bornes « {text} »")
     return value
 
 
@@ -156,9 +161,12 @@ def parse_date(text: str) -> date:
     head = text.strip().split(" ")[0].split("T")[0]
     for fmt in DATE_FORMATS:
         try:
-            return datetime.strptime(head, fmt).date()
+            day = datetime.strptime(head, fmt).date()
         except ValueError:
             continue
+        if day < MIN_DATE:  # « 01/02/202 » : l'an 202, une faute de frappe (D-138)
+            break
+        return day
     raise ValueError(f"date illisible « {text} »")
 
 

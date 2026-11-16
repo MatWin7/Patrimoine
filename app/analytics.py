@@ -35,13 +35,20 @@ def xirr(cashflows: Iterable[tuple[date, Decimal]]) -> Decimal | None:
         return sum((a / (ONE + rate) ** t for t, a in years), ZERO)
 
     low, high = Decimal("-0.99"), Decimal("10")
-    if npv(low) * npv(high) > 0:
+    at_low = npv(low)
+    if at_low * npv(high) > 0:
         return None  # pas de solution dans [-99 %, +1000 %] par an
+    if at_low == 0:
+        return low  # la borne basse est la solution (presque tout perdu en un an)
     with localcontext() as ctx:
         ctx.prec = 30
         for _ in range(80):
             mid = (low + high) / 2
-            if npv(mid) > 0:  # trop peu actualisé : le taux est plus haut
+            # On garde la moitié où la somme change de signe. Cas courant (versements d'abord) :
+            # elle est positive en bas, donc positive au milieu = le taux est plus haut. Si
+            # l'argent est sorti avant d'entrer, elle monte avec le taux : le sens est lu sur
+            # la borne basse au lieu d'être supposé (D-138).
+            if (npv(mid) > 0) == (at_low > 0):
                 low = mid
             else:
                 high = mid

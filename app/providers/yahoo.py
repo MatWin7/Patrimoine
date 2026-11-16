@@ -20,16 +20,26 @@ SEARCH = "https://query1.finance.yahoo.com/v1/finance/search"
 KNOWN_CURRENCIES = {"^STOXX50E": "EUR"}
 
 
-def _currency(meta: dict, ticker: str) -> str:
-    """Devise de cotation : celle que donne Yahoo (trois lettres), sinon celle connue de
-    l'indice, sinon une erreur claire plutôt qu'une devise « NONE » qui ferait échouer la
-    conversion plus loin."""
+# Places qui cotent en centièmes de la devise : Londres en pence (« GBp », parfois « GBX »),
+# Johannesburg en cents (« ZAc »), Tel-Aviv en agorot (« ILA »). Yahoo le signale par ce code,
+# relevé le 2026-11-16 sur SHEL.L (3 732,5 « GBp » pour 37,325 livres). Lu sans cette table,
+# le cours passait pour des livres et la ligne valait cent fois trop (D-138).
+MINOR_UNITS = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+HUNDRED = Decimal("100")
+
+
+def _currency(meta: dict, ticker: str) -> tuple[str, Decimal]:
+    """Devise de cotation et diviseur à appliquer aux cours (100 pour une cotation en
+    centièmes, sinon 1) : celle que donne Yahoo (trois lettres), sinon celle connue de l'indice,
+    sinon une erreur claire plutôt qu'une devise « NONE » qui ferait échouer la conversion."""
     value = meta.get("currency")
+    if value in MINOR_UNITS:
+        return MINOR_UNITS[value], HUNDRED
     if isinstance(value, str) and len(value) == 3 and value.isalpha():
-        return value.upper()
+        return value.upper(), Decimal("1")
     known = KNOWN_CURRENCIES.get(ticker.upper())
     if known:
-        return known
+        return known, Decimal("1")
     raise ProviderError(f"devise de {ticker} inconnue chez Yahoo")
 
 
@@ -44,10 +54,10 @@ def get_price(client: httpx2.Client, ticker: str) -> Price:
         price = positive_decimal(meta["regularMarketPrice"])
     except (KeyError, IndexError, TypeError) as err:
         raise ProviderError(f"ticker {ticker} introuvable chez Yahoo") from err
-    currency = _currency(meta, ticker)
+    currency, unit = _currency(meta, ticker)
     previous = meta.get("chartPreviousClose") or meta.get("previousClose")
-    previous = previous if isinstance(previous, Decimal) and previous > 0 else None
-    return Price(price, currency, "yahoo", datetime.now(UTC), previous)
+    previous = previous / unit if isinstance(previous, Decimal) and previous > 0 else None
+    return Price(price / unit, currency, "yahoo", datetime.now(UTC), previous)
 
 
 def get_history(
@@ -75,13 +85,13 @@ def get_history(
         closes = result["indicators"]["quote"][0].get("close") or []
     except (KeyError, IndexError, TypeError, ValueError) as err:
         raise ProviderError(f"historique de {ticker} introuvable chez Yahoo") from err
-    currency = _currency(meta, ticker)
+    currency, unit = _currency(meta, ticker)
     history = {}
     for stamp, close in zip(stamps, closes, strict=False):
         # Jour sans cotation : close vaut null.
         if isinstance(close, Decimal) and close.is_finite() and close > 0:
             day = datetime.fromtimestamp(int(stamp) + offset, UTC).date()
-            history[day] = close
+            history[day] = close / unit
     return currency, sorted(history.items())
 
 

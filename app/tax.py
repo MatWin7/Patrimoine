@@ -4,7 +4,7 @@ Les règles changent avec les lois de finances : chaque chiffre affiché dit la 
 et sa date. Rien n'est déclaré ni envoyé nulle part.
 """
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -168,22 +168,31 @@ class Sale:
 
 
 def realized_sales(
-    operations: Iterable[Operation], history: RateHistory | None = None, pooled: bool = False
+    operations: Iterable[Operation],
+    history: RateHistory | None = None,
+    pooled: bool = False,
+    pool: Collection[int] | None = None,
 ) -> list[Sale]:
     """Ventes avec leur plus-value réalisée, au prix moyen pondéré (méthode fiscale française).
 
     `history` : prix moyen tenu aussi en euros, chaque achat au taux de son jour et la vente au
     sien, comme le retient l'impôt pour un titre en devise (D-081). `pooled` : un seul prix
     moyen par titre pour tous les comptes donnés (tous les comptes-titres du foyer, D-081) ;
-    sinon un par compte (PEA)."""
+    sinon un par compte (PEA). `pool` : les comptes qui partagent ce prix moyen quand la liste
+    contient aussi les opérations d'autres comptes (chacun garde alors le sien, D-138)."""
     state: dict[tuple[int, int], list] = {}
     sales = []
     trades = sorted(
         (o for o in operations if o.op_type in TRADES and o.op_type != "transfert_entrant"),
         key=lambda o: (o.op_date, o.id),
     )
+
+    def key_of(account_id: int, asset_id: int) -> tuple[int, int]:
+        shared = pooled and (pool is None or account_id in pool)
+        return (0 if shared else account_id, asset_id)  # aucun compte ne porte l'id 0
+
     for op in trades:
-        key = (0 if pooled else op.account_id, op.asset_id)
+        key = key_of(op.account_id, op.asset_id)
         qty, cost, cost_eur = state.setdefault(key, [ZERO, ZERO, ZERO])
         if op.op_type == "transfert_sortant":
             # Titres envoyés ailleurs : ils emportent leur part du prix de revient, sans cession ;
@@ -196,7 +205,7 @@ def realized_sales(
                 None if cost_eur is None else cost_eur - moved[2],
             ]
             if op.to_account_id:
-                dest = (0 if pooled else op.to_account_id, op.asset_id)
+                dest = key_of(op.to_account_id, op.asset_id)
                 d_qty, d_cost, d_eur = state.setdefault(dest, [ZERO, ZERO, ZERO])
                 state[dest] = [
                     d_qty + moved[0],
@@ -257,7 +266,12 @@ def cto_estimate(
     gains = losses = dividends = ZERO
     sales = []
     mine = [o for o in operations if o.account_id in account_ids]
-    for sale in realized_sales(mine, history, pooled):
+    # Toutes les opérations, pas seulement celles de ces comptes : des titres transférés depuis
+    # un autre compte de l'app arrivent avec leur prix de revient (D-085). Limité à `mine`, le
+    # calcul les faisait entrer pour zéro et comptait tout le prix de vente en plus-value (D-138).
+    for sale in realized_sales(operations, history, pooled, account_ids):
+        if sale.account_id not in account_ids:
+            continue
         if sale.op_date.year != year or (only is not None and sale.account_id != only):
             continue
         gain = sale.gain_eur
