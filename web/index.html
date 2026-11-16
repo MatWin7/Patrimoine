@@ -817,7 +817,7 @@
     </section>
     <section class="card half" data-card="apparence">
       <div class="card-head">
-        <h2>Apparence <button type="button" class="tip" data-tip="Réglages d'affichage gardés dans ce navigateur, communs à tous les profils." aria-label="Plus d'infos">?</button></h2>
+        <h2>Apparence <button type="button" class="tip" data-tip="Le thème est gardé dans ce navigateur. La page de démarrage (fond, mot d'accueil) est commune à tous les profils de cet ordinateur." aria-label="Plus d'infos">?</button></h2>
       </div>
       <div class="field">
         <span class="field-label" id="theme-label">Thème</span>
@@ -827,6 +827,32 @@
           <button type="button" data-theme-choice="sombre"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Sombre</button>
         </div>
       </div>
+      <div class="field">
+        <span class="field-label" id="fond-label">Fond de la page de démarrage <button type="button" class="tip" data-tip="La page où l'on choisit son profil. Ton image est réduite puis recopiée dans le dossier des données (accueil/fond.jpg), sans ses métadonnées : elle ne quitte pas l'ordinateur. Elle se voit avant la saisie du code d'un profil." aria-label="Plus d'infos">?</button></span>
+        <div class="fond-choice" id="fond-choice" role="group" aria-labelledby="fond-label">
+          <button type="button" class="fond" data-fond="auto"><span class="fond-swatch"></span>Selon le thème</button>
+          <button type="button" class="fond" data-fond="aube"><span class="fond-swatch"></span>Aube</button>
+          <button type="button" class="fond" data-fond="ciel"><span class="fond-swatch"></span>Ciel</button>
+          <button type="button" class="fond" data-fond="dore"><span class="fond-swatch"></span>Doré</button>
+          <button type="button" class="fond" data-fond="crepuscule"><span class="fond-swatch"></span>Crépuscule</button>
+          <button type="button" class="fond" data-fond="nuit"><span class="fond-swatch"></span>Nuit</button>
+          <button type="button" class="fond" data-fond="aucun"><span class="fond-swatch"></span>Uni</button>
+          <button type="button" class="fond" data-fond="image" hidden><span class="fond-swatch"></span>Mon image</button>
+        </div>
+        <div class="fond-actions">
+          <button type="button" class="secondary" id="fond-image-pick">Choisir une image…</button>
+          <button type="button" class="link" id="fond-image-remove" hidden>Retirer mon image</button>
+          <input type="file" id="fond-image-file" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
+        <p id="fond-error" class="ko small" role="alert" hidden></p>
+      </div>
+      <form id="form-accueil" class="field accueil-form" novalidate>
+        <label><span class="field-label">Mot d'accueil <button type="button" class="tip" data-tip="La phrase sous « Bienvenue dans Patrimoine », sur la page de démarrage. 120 caractères au plus ; vide pour remettre le texte d'origine." aria-label="Plus d'infos">?</button></span>
+          <input name="texte" type="text" maxlength="120" autocomplete="off">
+        </label>
+        <div class="form-actions"><button type="submit">Enregistrer</button></div>
+        <p id="accueil-state" class="small" role="status" hidden></p>
+      </form>
     </section>
     <section class="card half" data-card="reglages">
       <div class="card-head">
@@ -1331,6 +1357,8 @@
   <script src="diagnostic.js"></script>
   <!-- Avant profiles.js et sans app.js : le bouton « Fenêtre » marche même si la page plante. -->
   <script src="fenetre.js"></script>
+  <!-- Avant profiles.js : fond et mot d'accueil posés avant l'écran de choix du profil (D-134). -->
+  <script src="accueil.js"></script>
   <!-- profiles.js choisit le profil (D-098) puis charge app.js ; sans profils, tout de suite. -->
   <script src="profiles.js"></script>
   <script src="tutorial.js"></script>

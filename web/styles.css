@@ -757,15 +757,52 @@ button.tip[hidden] { display: none; }
   border-radius: var(--r-lg); white-space: normal;
 }
 .picker-profile .avatar { width: 52px; height: 52px; font-size: var(--t-xl); }
-/* Fonds fournis : cinq ciels, du matin à la nuit. « auto » suit le thème. */
-:root { --picker-bg: linear-gradient(to bottom, #9cc4e8, #f1f5f8); }
-:root[data-theme="dark"] { --picker-bg: linear-gradient(to bottom, #0b1026, #2c3a68); }
-:root[data-fond="aucun"] { --picker-bg: var(--bg); }
-:root[data-fond="aube"] { --picker-bg: linear-gradient(to bottom, #b7b4dc, #f9cfcb); }
-:root[data-fond="ciel"] { --picker-bg: linear-gradient(to bottom, #5ba4ec, #cfe7f8); }
-:root[data-fond="dore"] { --picker-bg: linear-gradient(to bottom, #bfd9e6, #fde3a8); }
-:root[data-fond="crepuscule"] { --picker-bg: linear-gradient(to bottom, #6c63a8, #f8a878); }
-:root[data-fond="nuit"] { --picker-bg: linear-gradient(to bottom, #0b1026, #2c3a68); }
+/* Fonds fournis : cinq ciels, du matin à la nuit ; « auto » suit le thème. Chaque fond est un
+   jeton, lu par la page de démarrage et par sa vignette dans Réglages (D-134). L'image de
+   l'utilisateur arrive par --fond-image, posé par accueil.js. */
+:root {
+  --fond-aucun: var(--bg);
+  --fond-aube: linear-gradient(to bottom, #b7b4dc, #f9cfcb);
+  --fond-ciel: linear-gradient(to bottom, #5ba4ec, #cfe7f8);
+  --fond-dore: linear-gradient(to bottom, #bfd9e6, #fde3a8);
+  --fond-crepuscule: linear-gradient(to bottom, #6c63a8, #f8a878);
+  --fond-nuit: linear-gradient(to bottom, #0b1026, #2c3a68);
+  --fond-auto: linear-gradient(to bottom, #9cc4e8, #f1f5f8);
+  --picker-bg: var(--fond-auto);
+}
+:root[data-theme="dark"] { --fond-auto: var(--fond-nuit); }
+:root[data-fond="aucun"] { --picker-bg: var(--fond-aucun); }
+:root[data-fond="aube"] { --picker-bg: var(--fond-aube); }
+:root[data-fond="ciel"] { --picker-bg: var(--fond-ciel); }
+:root[data-fond="dore"] { --picker-bg: var(--fond-dore); }
+:root[data-fond="crepuscule"] { --picker-bg: var(--fond-crepuscule); }
+:root[data-fond="nuit"] { --picker-bg: var(--fond-nuit); }
+:root[data-fond="image"] { --picker-bg: var(--fond-image, var(--fond-auto)); }
+/* Carte Apparence : une vignette par fond ; le fond choisi porte la pastille des choix actifs. */
+.field + .field { margin-top: var(--s-5); }
+.fond-choice { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--s-2); width: 100%; }
+.fond-choice button {
+  display: flex; flex-direction: column; align-self: stretch; align-items: stretch; justify-content: flex-start; gap: var(--s-1); min-height: 0; padding: var(--s-1) var(--s-1) var(--s-2);
+  border-radius: var(--r-md); background: none; box-shadow: none; color: var(--text-2); font-size: var(--t-xs); font-weight: 500; white-space: normal;
+}
+.fond-choice button:hover { background: var(--hover); color: var(--text); }
+.fond-choice button.active { background: var(--inverse); color: var(--on-inverse); box-shadow: var(--shadow-sm); }
+.fond-choice button[hidden] { display: none; }
+.fond-swatch { display: block; aspect-ratio: 16 / 10; border-radius: var(--r-sm); background: var(--swatch, var(--surface-2)) center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--border); }
+.fond-choice [data-fond="auto"] { --swatch: var(--fond-auto); }
+.fond-choice [data-fond="aucun"] { --swatch: var(--fond-aucun); }
+.fond-choice [data-fond="aube"] { --swatch: var(--fond-aube); }
+.fond-choice [data-fond="ciel"] { --swatch: var(--fond-ciel); }
+.fond-choice [data-fond="dore"] { --swatch: var(--fond-dore); }
+.fond-choice [data-fond="crepuscule"] { --swatch: var(--fond-crepuscule); }
+.fond-choice [data-fond="nuit"] { --swatch: var(--fond-nuit); }
+.fond-choice [data-fond="image"] { --swatch: var(--fond-image, var(--surface-2)); }
+.fond-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); }
+.fond-actions button { align-self: center; }
+.accueil-form { width: 100%; }
+.accueil-form label { display: flex; flex-direction: column; gap: var(--s-2); width: 100%; }
+.accueil-form input { width: 100%; }
+.accueil-form .form-actions { align-self: stretch; }
 .picker-code { display: flex; flex-direction: column; gap: var(--s-3); text-align: left; }
 .picker-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--s-3); }
 .avatar.photo { background-size: cover; background-position: center; color: transparent; }

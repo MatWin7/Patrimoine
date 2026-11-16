@@ -520,6 +520,9 @@
       // serveur injoignable : app.js affichera son propre message
     }
     if (state.enabled && !state.current) {
+      // Fond et mot d'accueil choisis (D-134) : posés avant d'afficher l'écran, sans éclair du
+      // fond par défaut. Lecture en échec : l'écran s'affiche avec le fond du thème.
+      await window.patrimoineAccueil?.ready;
       showPicker(state);
       return;
     }

@@ -51,6 +51,9 @@ la page de la release sur GitHub.
   dentée) : Profils, Apparence, Général, Alertes et mises à jour, Aide ; les cartes citées plus
   haut (Réglages, Mises à jour, Comment ça marche, Signaler un problème) s'y trouvent. « Gérer »
   ne garde que ce qui se saisit : opérations, import, achats programmés, comptes, actifs, dettes.
+- Page de démarrage réglable (Réglages, carte Apparence, D-134) : fond au choix parmi sept, ou
+  une image à toi, réduite et gardée dans le dossier des données sans ses métadonnées ; mot
+  d'accueil modifiable. Commun à tous les profils de l'ordinateur.
 
 ### Publication
 

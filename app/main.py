@@ -43,6 +43,7 @@ from app import (
     reconcile,
     repository,
     settings,
+    startpage,
     tax,
     tickers,
     updates,
@@ -120,6 +121,7 @@ from app.schemas import (
     RecurringSkipIn,
     SettingsIn,
     SplitIn,
+    StartPageIn,
     TargetsIn,
     TradeIn,
     UpdatesIn,
@@ -202,9 +204,12 @@ def _without_profile(request: Request) -> bool:
     """Routes qui servent à choisir un profil, et celles de la fenêtre (D-125, D-127) : elles ne
     lisent aucune base, et le bouton « Fenêtre » marche aussi sur l'écran de choix du profil,
     comme la barre de menu qu'il remplace. Le diagnostic (D-132) aussi : un profil qui ne
-    s'ouvre plus doit pouvoir être signalé ; sans profil ouvert, il ne lit aucune base."""
+    s'ouvre plus doit pouvoir être signalé ; sans profil ouvert, il ne lit aucune base. La page
+    de démarrage (D-134) lit son fond et son mot d'accueil avant le choix du profil."""
     path, method = request.url.path, request.method
     if path in ("/api/health", "/api/profiles", "/api/window", "/api/diagnostic"):
+        return method == "GET"
+    if path in ("/api/start", "/api/start/image"):  # page de démarrage : lecture seule (D-134)
         return method == "GET"
     return method == "POST" and (
         path == "/api/profiles/lock" or path in WINDOW_ACTIONS or bool(OPEN_PROFILE.fullmatch(path))
@@ -400,6 +405,76 @@ def settings_update(body: SettingsIn) -> dict:
             message = f"{len(copied)} sauvegarde(s) recopiée(s)." if copied else "Dossier prêt."
         settings.save(section)
     return {**settings.status(), "message": message}
+
+
+# --- Page de démarrage (D-134) ------------------------------------------------------------------
+# Fond et mot d'accueil, réglages de la machine. La lecture répond sans profil ouvert : c'est
+# l'écran affiché avant le choix du profil, et il ne lit aucune base. Changer le fond, le texte
+# ou l'image demande un profil ouvert, comme les autres réglages.
+
+
+async def _body_up_to(request: Request, limit: int, message: str) -> bytes:
+    """Corps d'une requête, lu morceau par morceau et abandonné dès qu'il dépasse `limit`.
+    L'en-tête Content-Length ne suffit pas : un envoi en morceaux n'en porte pas, et
+    `request.body()` le garderait en entier en mémoire avant tout refus."""
+    try:
+        announced = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        announced = 0
+    if announced > limit:
+        raise HTTPException(413, message)
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise HTTPException(413, message)
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _start_page_error(err: startpage.StartPageError) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(err))
+
+
+@app.get("/api/start")
+def start_page() -> dict:
+    return startpage.status()
+
+
+@app.put("/api/start")
+def start_page_update(body: StartPageIn) -> dict:
+    changes = {name: getattr(body, name) for name in body.model_fields_set}
+    try:
+        return startpage.update(changes)
+    except startpage.StartPageError as err:
+        raise _start_page_error(err) from err
+
+
+@app.get("/api/start/image")
+def start_page_image() -> Response:
+    """L'image personnelle, telle qu'enregistrée. Type fixé ici, jamais deviné par le
+    navigateur (X-Content-Type-Options: nosniff sur toute réponse)."""
+    data = startpage.image_bytes()
+    if data is None:
+        raise HTTPException(404, "Aucune image enregistrée.")
+    return Response(content=data, media_type="image/jpeg")
+
+
+@app.put("/api/start/image")
+async def start_page_set_image(request: Request) -> dict:
+    """Corps de la requête = l'image, déjà réduite et réencodée en JPEG par la page."""
+    data = await _body_up_to(
+        request, startpage.IMAGE_MAX_BYTES, "Image trop lourde : 3 Mo au plus."
+    )
+    try:
+        return await run_in_threadpool(startpage.set_image, data)
+    except startpage.StartPageError as err:
+        raise _start_page_error(err) from err
+
+
+@app.delete("/api/start/image")
+def start_page_remove_image() -> dict:
+    return startpage.remove_image()
 
 
 # --- Comment ça marche et Ce qui sort de cet ordinateur (D-131) ---------------------------------
@@ -638,11 +713,9 @@ async def restore_profile(request: Request, response: Response, name: str = Quer
     vérifiée avant d'être acceptée (D-098). Jamais par-dessus un profil existant."""
     if os.environ.get("PATRIMOINE_DB"):
         raise HTTPException(409, "PATRIMOINE_DB force une base unique : profils indisponibles.")
-    length = int(request.headers.get("content-length") or 0)
-    if length > profiles.RESTORE_MAX_BYTES:
-        raise HTTPException(413, "Fichier trop gros pour une base de l'app.")
+    too_big = "Fichier trop gros pour une base de l'app."
+    data = await _body_up_to(request, profiles.RESTORE_MAX_BYTES, too_big)
     first = not profiles.enabled()
-    data = await request.body()
     try:
         profile = await run_in_threadpool(profiles.restore, name, data)
     except profiles.ProfileError as err:
