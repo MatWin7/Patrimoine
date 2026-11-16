@@ -54,6 +54,8 @@ la page de la release sur GitHub.
 - Page de démarrage réglable (Réglages, carte Apparence, D-134) : fond au choix parmi sept, ou
   une image à toi, réduite et gardée dans le dossier des données sans ses métadonnées ; mot
   d'accueil modifiable. Commun à tous les profils de l'ordinateur.
+- Gérer en quatre cartes (D-135) : « Ajouter des opérations » réunit la saisie une par une et
+  l'import d'un relevé, au choix par un sélecteur ; les dettes se rangent dans la carte Comptes.
 
 ### Publication
 

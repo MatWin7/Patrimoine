@@ -709,34 +709,35 @@
       <input type="search" id="positions-search" placeholder="Rechercher une ligne, un ticker…" aria-label="Rechercher une position ou une opération">
       <select id="positions-account" aria-label="Afficher un seul compte"><option value="">Tous les comptes</option></select>
       <span id="positions-count" class="muted small"></span>
-      <a class="button" href="#gerer">Nouvelle opération</a>
+      <a class="button" href="#gerer" data-operation-open="saisie">Nouvelle opération</a>
     </div>
     <div id="account-blocks"></div>
   </div>
 
   <div class="page" data-page="gerer" hidden>
+    <!-- Une seule carte pour ajouter des opérations (D-135) : une par une, ou tout un relevé. -->
     <section class="card" id="card-operation" data-card="nouvelle-operation">
       <div class="card-head">
-        <h2>Nouvelle opération</h2>
-        <span class="muted small">Achat, vente, versement ou retrait : les espèces du compte suivent</span>
-      </div>
-      <div id="new-operation"></div>
-    </section>
-    <section class="card" id="card-import" data-card="importer-plusieurs-operations">
-      <div class="card-head">
-        <h2>Importer plusieurs opérations</h2>
-        <span class="muted small">Relevé de ton courtier, ou lignes copiées depuis Excel</span>
-      </div>
-      <form id="form-import-start" class="import-start">
-        <label>Compte <select name="account_id"></select></label>
-        <label>Fichier CSV <input type="file" name="file" accept=".csv,.txt,text/csv"></label>
-        <div class="form-actions">
-          <button type="submit">Lire le fichier</button>
-          <button type="button" id="import-paste-open">Coller depuis un tableur</button>
+        <h2>Ajouter des opérations <button type="button" class="tip" data-tip="Une par une : achat, vente, versement, retrait, dividende… les espèces du compte suivent. Importer : le relevé de ton courtier ou des lignes copiées depuis un tableur, pour beaucoup d'opérations d'un coup." aria-label="Plus d'infos">?</button></h2>
+        <div class="segmented" id="operation-mode" role="group" aria-label="Façon d'ajouter des opérations">
+          <button type="button" data-mode="saisie">Une par une</button>
+          <button type="button" data-mode="import">Importer un relevé</button>
         </div>
-      </form>
-      <p class="muted small">Beaucoup d'opérations ? <a href="#" id="import-template">Télécharge le modèle</a>, remplis-le (une ligne par opération), puis colle les lignes ici ou importe le CSV. <button type="button" class="tip" data-tip="Le fichier ou le texte collé est lu sur ton ordinateur, puis oublié : seules les opérations validées sont enregistrées. Un même relevé importé deux fois ne crée pas de doublons." aria-label="Plus d'infos">?</button></p>
-      <p class="muted small">Relevé reconnu (Trade Republic, Binance « Historique des transactions ») : l'app trouve les comptes et plans qu'il contient et propose de créer ceux qui manquent. Première utilisation : commence par là.</p>
+      </div>
+      <div data-operation-mode="saisie">
+        <div id="new-operation"></div>
+      </div>
+      <div id="card-import" data-operation-mode="import" hidden>
+        <form id="form-import-start" class="import-start">
+          <label>Compte <select name="account_id"></select></label>
+          <label>Fichier CSV <input type="file" name="file" accept=".csv,.txt,text/csv"></label>
+          <div class="form-actions">
+            <button type="submit">Lire le fichier</button>
+            <button type="button" id="import-paste-open">Coller depuis un tableur</button>
+          </div>
+        </form>
+        <p class="muted small">Relevé Trade Republic ou Binance reconnu tout seul ; sinon, <a href="#" id="import-template">télécharge le modèle</a>. <button type="button" class="tip" data-tip="Relevé reconnu (Trade Republic, Binance « Historique des transactions ») : l'app trouve les comptes et plans qu'il contient et propose de créer ceux qui manquent ; première utilisation, commence par là. Modèle : une ligne par opération, à coller ici ou à importer en CSV. Le fichier ou le texte collé est lu sur ton ordinateur, puis oublié : seules les opérations validées sont enregistrées. Un même relevé importé deux fois ne crée pas de doublons." aria-label="Plus d'infos">?</button></p>
+      </div>
     </section>
     <section class="card" id="card-recurring" data-card="achats-programmes">
       <div class="card-head">
@@ -762,6 +763,11 @@
       </div>
       <div class="table-scroll"><table><tbody id="accounts-list"></tbody></table></div>
       <p class="muted small">Total du compte, titres et espèces compris. <button type="button" class="tip" data-tip="Survole un montant pour voir les espèces (et les versements d'un PEA, d'une assurance-vie ou d'un PER). PEA, assurance-vie, PER : espèces = versements + ventes + dividendes − achats − frais − retraits. Compte-titres, crypto, livret, autre : espèces saisies comme les affiche la banque, puis les opérations suivantes." aria-label="Plus d'infos">?</button></p>
+          <div class="card-part part-head">
+        <h3>Dettes <button type="button" class="tip" data-tip="Crédit immobilier, prêt conso… Le capital restant dû est calculé chaque mois d'après le montant, le taux et la durée (mensualités constantes, hors assurance). Saisis le capital lu sur un relevé pour recaler le calcul. Patrimoine net = patrimoine total − capital restant dû." aria-label="Plus d'infos">?</button></h3>
+        <button type="button" class="secondary" data-add="debt">+ Ajouter</button>
+      </div>
+      <div class="table-scroll"><table><tbody id="debts-list"></tbody></table></div>
     </section>
     <section class="card half" data-card="actifs">
       <div class="card-head">
@@ -775,13 +781,6 @@
         <div class="table-scroll"><table><tbody id="assets-sold"></tbody></table></div>
       </details>
       <p class="muted small">Un actif = une ligne. Avec un ticker, le cours se met à jour seul ; sans, saisis sa « Valeur ». <button type="button" class="tip" data-tip="Sans ticker : fonds euros, bien immobilier… Supprimer un actif qui a des opérations demande de les déplacer ou de les supprimer aussi." aria-label="Plus d'infos">?</button></p>
-    </section>
-    <section class="card half" data-card="dettes">
-      <div class="card-head">
-        <h2>Dettes <button type="button" class="tip" data-tip="Crédit immobilier, prêt conso… Le capital restant dû est calculé chaque mois d'après le montant, le taux et la durée (mensualités constantes, hors assurance). Saisis le capital lu sur un relevé pour recaler le calcul. Patrimoine net = patrimoine total − capital restant dû." aria-label="Plus d'infos">?</button></h2>
-        <button type="button" data-add="debt">+ Ajouter</button>
-      </div>
-      <div class="table-scroll"><table><tbody id="debts-list"></tbody></table></div>
     </section>
   </div>
 
