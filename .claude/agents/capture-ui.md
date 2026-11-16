@@ -10,8 +10,11 @@ sujet (ex. `retouches-serie-7`).
 
 1. Base fictive seulement : `uv run python -m app.demo` (ou `--grand` si la demande parle de
    beaucoup de lignes). Jamais `data/patrimoine.db`.
-2. Lance l'app en arrière-plan : `PATRIMOINE_DB=data/demo.db uv run python -m app`, attends que
-   `http://localhost:8000/api/health` réponde.
+2. Lance l'app en arrière-plan, avec un dossier des données jetable en plus de la base de démo :
+   `PATRIMOINE_DATA_DIR="$(mktemp -d)" PATRIMOINE_DB=data/demo.db uv run python -m app`, attends
+   que `http://localhost:8000/api/health` réponde. Sans ce dossier jetable, les réglages de la
+   machine (image et mot d'accueil de la page de démarrage, D-134) seraient ceux du vrai dossier
+   des données et finiraient dans les captures.
 3. Écris le script Playwright dans le dossier temporaire de la session (pas dans le dépôt).
    Playwright et Chromium sont déjà installés : `require('playwright')`, `chromium.launch()`,
    ne rien installer. Pour chaque onglet : 1440 px clair, 1440 px sombre
