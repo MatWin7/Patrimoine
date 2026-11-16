@@ -65,6 +65,19 @@ la page de la release sur GitHub.
   et non prévision, aucun ordre passé) restent visibles.
 - Comparaison à l'Euro Stoxx 50 réparée : Yahoo ne donne plus la devise de cet indice, l'app la
   connaît désormais (euro). Un autre indice sans devise affiche une erreur claire.
+- Audit avant publication (D-138). Chiffres corrigés : un titre coté à Londres en pence valait
+  cent fois trop ; une crypto connue de Yahoo a maintenant un cours par jour (Évolution et
+  Performance ne mettent plus tout son gain sur le dernier jour, et l'aide au formulaire 2086
+  estime la valeur du portefeuille au cours du jour de la cession) ; dividendes et frais en
+  devise convertis au taux du jour de l'opération, comme dans Fiscalité ; plus-values d'un PEA
+  reçu d'un autre compte ; plus-value latente de titres transférés entre deux comptes-titres
+  (leur prix de revient était compté pour zéro) ; dette dont le capital restant dû est saisi
+  après la fin prévue.
+- Bugs corrigés : très petites quantités de crypto affichées « 1.2E-7 » ; un nombre démesuré ou
+  une date de l'an 202 saisis par erreur bloquaient toutes les pages (refusés désormais, à la
+  saisie comme à l'import) ; la base grossissait d'un cours par actif toutes les 5 minutes ; la
+  comparaison au relevé oubliait les titres reçus par transfert ; quand Yahoo ne répond pas, la
+  page n'attend plus dix secondes par titre.
 
 ### Publication
 
@@ -81,6 +94,9 @@ la page de la release sur GitHub.
 
 - L'app refuse toute requête vers une adresse qui n'est pas déclarée dans la liste « Ce qui sort
   de cet ordinateur », ou qui n'est pas en https (D-131).
+- Code d'un profil : cinq essais ratés ferment le profil une minute, aussi pour le supprimer ou
+  changer son code (avant, seulement pour l'ouvrir) ; fichier des réglages lisible par son seul
+  propriétaire (D-138).
 - `opentelemetry-api` 1.45.2 (alerte Dependabot) ; télémétrie native de FastAPI coupée d'office
   (D-122).
 - Dépendances à jour (FastAPI 0.162, Starlette 1.10, httpx2 2.16...) et revues chaque semaine

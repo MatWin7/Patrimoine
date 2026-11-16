@@ -55,7 +55,7 @@ app/profiles.py    profils (D-098) : data/profils.json, une base par profil, cod
 app/schema.sql     schéma de référence (tables account, asset, operation, price, price_history, fx_rate, benchmark, recurring, target, category_target, watchlist, watchlist_item, defi_line, defi_rate, defi_check, debt, debt_balance, defi_borrow, defi_borrow_flow, defi_borrow_check, defi_reserve)
 app/migrations/    NNN_nom.sql : passage d'une version de schéma à la suivante (app/migrate.py : au lancement, copie vérifiée avant, refus d'une base plus récente, D-120)
 app/models.py      dataclasses du domaine (Account, Asset, Operation, Position)
-app/schemas.py     validation Pydantic des entrées de l'API ; Decimal renvoyés en chaînes
+app/schemas.py     validation Pydantic des entrées de l'API (tout format hérite de `Entree` : nombres et dates bornés, D-138) ; Decimal renvoyés en chaînes par `plain` ou `money`, jamais `str` (notation scientifique)
 app/repository.py  SQL des comptes, actifs, opérations
 app/portfolio.py   positions (PRU au prix moyen pondéré), conversion et total EUR, performance par période, fonctions pures
 app/recurring.py   échéances des achats programmés, quantité proposée (fonctions pures)
@@ -70,7 +70,7 @@ app/income.py      dividendes reçus, frais payés, coût des frais courants (TE
 app/rebalance.py   allocation cible : répartition d'un versement sans vente (fonction pure)
 app/tax.py         repères fiscaux FR en estimation : plafond et 5 ans PEA, 8 ans AV, PER (plafond, sortie), plus-values CTO, crypto (portefeuille global)
 app/reconcile.py   comparaison d'un compte au relevé de la banque : écarts, causes, correction (D-063)
-app/prices.py      cache des prix et taux dans SQLite, choix de la source, repli si panne
+app/prices.py      cache des prix et taux dans SQLite (un seul cours en ligne gardé par actif, D-138), choix de la source, repli si panne ; clôtures quotidiennes Yahoo, cryptos comprises par leur ticker Yahoo
 app/demo.py        remplit data/demo.db avec des données fictives
 app/valuations.py  valeurs saisies à la main (actifs sans cours public), conversion montant -> parts
 app/backup.py      sauvegarde de la base (API backup de SQLite), du jour au lancement puis chaque heure, relue, rotation 14 j + 12 mois + 1/an, profils.json, copie hors de WSL (BACKUP_COPY_DIR, D-114)

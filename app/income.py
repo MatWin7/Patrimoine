@@ -1,7 +1,8 @@
 """Revenus (dividendes, coupons) et frais payés, fonctions pures (D-057, D-060).
 
-Montants convertis en EUR au taux du jour connu (même approximation que l'historique, D-020) ;
-une opération dans une devise sans taux est laissée de côté.
+Montants convertis en EUR au taux de change du jour de l'opération quand l'historique des
+taux est fourni (`history`, D-081 : les mêmes euros que dans Fiscalité, D-138), sinon au dernier
+taux connu ; une opération dans une devise sans taux est laissée de côté.
 """
 
 from collections import defaultdict
@@ -10,17 +11,30 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.models import Operation
-from app.portfolio import convert
+from app.portfolio import RateHistory, convert
 
 ZERO = Decimal("0")
 HUNDRED = Decimal("100")
 
 
-def _eur(amount: Decimal, currency: str, rates: dict[str, Decimal]) -> Decimal | None:
+def _eur(
+    amount: Decimal,
+    currency: str,
+    rates: dict[str, Decimal],
+    history: RateHistory | None = None,
+    day: date | None = None,
+) -> Decimal | None:
+    if history is not None and day is not None:
+        return history.to_eur(amount, currency, day)
     return convert(amount, currency, "EUR", rates)
 
 
-def income_summary(operations: Iterable[Operation], rates: dict[str, Decimal], today: date) -> dict:
+def income_summary(
+    operations: Iterable[Operation],
+    rates: dict[str, Decimal],
+    today: date,
+    history: RateHistory | None = None,
+) -> dict:
     """Dividendes reçus en EUR : par mois (et par ligne dans le mois), par année, par ligne ;
     12 derniers mois, les 12 mois d'avant et année en cours. `by_asset` = {id d'actif: (total,
     12 derniers mois)} ; `withheld` = impôt retenu à la source par actif (D-076)."""
@@ -35,7 +49,7 @@ def income_summary(operations: Iterable[Operation], rates: dict[str, Decimal], t
     for op in operations:
         if op.op_type != "dividende":
             continue
-        amount = _eur(op.amount, op.currency, rates)
+        amount = _eur(op.amount, op.currency, rates, history, op.op_date)
         if amount is None:
             continue
         month = f"{op.op_date:%Y-%m}"
@@ -45,7 +59,9 @@ def income_summary(operations: Iterable[Operation], rates: dict[str, Decimal], t
         by_asset[op.asset_id][0] += amount
         total += amount
         if op.tax_withheld:
-            withheld[op.asset_id] += _eur(op.tax_withheld, op.currency, rates) or ZERO
+            withheld[op.asset_id] += (
+                _eur(op.tax_withheld, op.currency, rates, history, op.op_date) or ZERO
+            )
         if op.op_date > since:
             last_12m += amount
             by_asset[op.asset_id][1] += amount
@@ -88,7 +104,11 @@ def fees_paid(op: Operation) -> Decimal:
     return op.fees
 
 
-def fees_by_year(operations: Iterable[Operation], rates: dict[str, Decimal]) -> dict[int, Decimal]:
+def fees_by_year(
+    operations: Iterable[Operation],
+    rates: dict[str, Decimal],
+    history: RateHistory | None = None,
+) -> dict[int, Decimal]:
     """Frais payés en EUR par année : frais des achats et ventes (sauf ceux payés par la
     plateforme, D-078), plus les opérations « frais » (droits de garde, frais de gestion)."""
     out: dict[int, Decimal] = defaultdict(lambda: ZERO)
@@ -96,20 +116,22 @@ def fees_by_year(operations: Iterable[Operation], rates: dict[str, Decimal]) -> 
         paid = fees_paid(op)
         if not paid:
             continue
-        amount = _eur(paid, op.currency, rates)
+        amount = _eur(paid, op.currency, rates, history, op.op_date)
         if amount is not None:
             out[op.op_date.year] += amount
     return dict(sorted(out.items()))
 
 
 def fees_by_asset(
-    operations: Iterable[Operation], rates: dict[str, Decimal]
+    operations: Iterable[Operation],
+    rates: dict[str, Decimal],
+    history: RateHistory | None = None,
 ) -> dict[int | None, Decimal]:
     """Frais payés en EUR par actif (None : frais sans actif, droits de garde d'un compte)."""
     out: dict[int | None, Decimal] = defaultdict(lambda: ZERO)
     for op in operations:
         paid = fees_paid(op)
-        amount = _eur(paid, op.currency, rates) if paid else None
+        amount = _eur(paid, op.currency, rates, history, op.op_date) if paid else None
         if amount is not None:
             out[op.asset_id] += amount
     return dict(out)

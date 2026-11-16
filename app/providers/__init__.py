@@ -22,6 +22,11 @@ class ProviderError(Exception):
     """Prix indisponible : réseau coupé, ticker inconnu, réponse inattendue..."""
 
 
+class Unreachable(ProviderError):
+    """La source n'a pas répondu du tout (réseau coupé, délai dépassé) : inutile de lui
+    redemander les titres suivants dans la foulée, chacun attendrait le même délai (D-138)."""
+
+
 @dataclass(frozen=True)
 class Price:
     price: Decimal
@@ -51,7 +56,7 @@ def get_json(client: httpx2.Client, url: str, **kwargs) -> object:
     except httpx2.HTTPStatusError as err:
         raise ProviderError(f"réponse HTTP {err.response.status_code}") from err
     except httpx2.HTTPError as err:
-        raise ProviderError(f"source injoignable ({type(err).__name__})") from err
+        raise Unreachable(f"source injoignable ({type(err).__name__})") from err
     except ValueError as err:
         raise ProviderError("réponse illisible") from err
 

@@ -15,7 +15,15 @@ import httpx2
 from app import crypto_tickers
 from app.db import conn_key, from_db, to_db
 from app.models import Asset
-from app.providers import Price, ProviderError, coingecko, eurostat, frankfurter, yahoo
+from app.providers import (
+    Price,
+    ProviderError,
+    Unreachable,
+    coingecko,
+    eurostat,
+    frankfurter,
+    yahoo,
+)
 
 ONE = Decimal("1")
 TIMESTAMP = "%Y-%m-%dT%H:%M:%SZ"
@@ -71,16 +79,21 @@ def latest_price(conn: sqlite3.Connection, asset_id: int) -> Price | None:
 
 
 def save_price(conn: sqlite3.Connection, asset_id: int, price: Price) -> None:
+    """Range le dernier cours d'un actif et efface les cours en ligne plus anciens (D-138).
+
+    Seul le dernier sert (`latest_price`) ; l'historique jour par jour est dans `price_history`.
+    Sans ce ménage, une ligne s'ajoutait par actif à chaque rafraîchissement (toutes les
+    5 minutes, page ouverte) : la base et chacune de ses sauvegardes grossissaient sans fin.
+    Une valeur saisie à la main (source « manuel », D-056) n'est jamais effacée ici."""
+    stamp = price.fetched_at.strftime(TIMESTAMP)
+    conn.execute(
+        "DELETE FROM price WHERE asset_id = ? AND source != 'manuel' AND fetched_at < ?",
+        (asset_id, stamp),
+    )
     conn.execute(
         "INSERT OR REPLACE INTO price (asset_id, fetched_at, price, currency, source)"
         " VALUES (?, ?, ?, ?, ?)",
-        (
-            asset_id,
-            price.fetched_at.strftime(TIMESTAMP),
-            to_db(price.price),
-            price.currency,
-            price.source,
-        ),
+        (asset_id, stamp, to_db(price.price), price.currency, price.source),
     )
 
 
@@ -97,6 +110,7 @@ def get_quotes(
     """Prix de chaque actif : le cache s'il a moins de `ttl`, sinon un appel à la source."""
     quotes = {}
     scope = conn_key(conn)
+    down = None  # Yahoo n'a pas répondu : les titres suivants gardent leur dernier cours (D-138)
     for asset in assets:
         cached = latest_price(conn, asset.id)
         if cached:
@@ -107,10 +121,15 @@ def get_quotes(
         if cached and not force and now - cached.fetched_at < ttl:
             quotes[asset.id] = Quote(cached)
             continue
+        if down and not asset.coingecko_id:
+            quotes[asset.id] = Quote(cached, error=down)
+            continue
         try:
             price = fetch_price(client, asset, coingecko_key)
         except ProviderError as err:
             quotes[asset.id] = Quote(cached, error=str(err))
+            if isinstance(err, Unreachable) and not asset.coingecko_id:
+                down = str(err)
             continue
         save_price(conn, asset.id, price)
         if price.previous_close is not None:
@@ -269,6 +288,25 @@ def close_on(conn: sqlite3.Connection, asset_id: int, day: date) -> tuple[Decima
     return (from_db(row["close"]), row["currency"]) if row else None
 
 
+def history_ticker(asset: Asset) -> str | None:
+    """Ticker Yahoo dont viennent les clôtures d'un actif : le sien ; pour une crypto, celui
+    saisi dans « Gérer », sinon celui de la table des cryptos courantes (D-111). None : pas
+    d'historique (valeur saisie, crypto inconnue de Yahoo)."""
+    return crypto_tickers.yahoo_ticker(asset.ticker, asset.coingecko_id)
+
+
+def _stored_in_hundredths(conn: sqlite3.Connection, asset_id: int, day: date, close: Decimal):
+    """La clôture en base de ce jour vaut-elle cent fois celle que Yahoo donne maintenant ?
+    C'est la trace d'un historique lu en pence avant D-138 (place de Londres) : il est alors
+    redemandé en entier."""
+    row = conn.execute(
+        "SELECT close FROM price_history WHERE asset_id = ? AND price_date = ?"
+        " AND source = 'yahoo'",
+        (asset_id, day.isoformat()),
+    ).fetchone()
+    return row is not None and from_db(row["close"]) == close * 100
+
+
 def update_history(
     conn: sqlite3.Connection,
     assets: list[tuple[Asset, date]],
@@ -280,33 +318,45 @@ def update_history(
 
     Seuls le ticker et deux dates partent sur le réseau (règle 3). On ne redemande que les
     derniers jours, sauf si une opération plus ancienne que l'historique stocké est apparue.
+    Cryptos comprises depuis D-138, par leur ticker Yahoo (`history_ticker`) : sans clôtures,
+    leur courbe restait au prix des opérations et tout le gain tombait sur le dernier jour.
+    Si Yahoo ne répond pas du tout, les actifs suivants ne sont pas demandés : chacun attendrait
+    le même délai de 10 s avant d'échouer (D-138).
     """
     errors = {}
     scope = conn_key(conn)
+    down = None  # Yahoo n'a pas répondu : on ne lui redemande pas les actifs suivants
     for asset, start in assets:
-        if (
-            not asset.ticker
-            or asset.coingecko_id
-            or _history_checked.get((scope, asset.id)) == today
-        ):
+        ticker = history_ticker(asset)
+        key = (scope, asset.id)
+        if not ticker or _history_checked.get(key) == today:
+            continue
+        if down:
+            errors[asset.id] = down
             continue
         span = conn.execute(
-            "SELECT min(price_date), max(price_date) FROM price_history WHERE asset_id = ?",
+            "SELECT min(price_date), max(price_date) FROM price_history"
+            " WHERE asset_id = ? AND source = 'yahoo'",  # jamais la date d'une valeur saisie
             (asset.id,),
         ).fetchone()
         first, last = (date.fromisoformat(d) if d else None for d in span)
-        begin = history_begin(start) if first is None or first > start else last - OVERLAP
+        whole = first is None or first > start
+        begin = history_begin(start) if whole else last - OVERLAP
         try:
-            currency, closes = yahoo.get_history(client, asset.ticker, begin, today)
+            currency, closes = yahoo.get_history(client, ticker, begin, today)
+            if closes and not whole and _stored_in_hundredths(conn, asset.id, *closes[0]):
+                currency, closes = yahoo.get_history(client, ticker, history_begin(start), today)
         except ProviderError as err:
             errors[asset.id] = str(err)
+            if isinstance(err, Unreachable):
+                down = str(err)
             continue
         conn.executemany(
             "INSERT OR REPLACE INTO price_history (asset_id, price_date, close, currency, source)"
             " VALUES (?, ?, ?, ?, 'yahoo')",
             [(asset.id, day.isoformat(), to_db(close), currency) for day, close in closes],
         )
-        _history_checked[(scope, asset.id)] = today
+        _history_checked[key] = today
     return errors
 
 

@@ -40,15 +40,19 @@ SERVICES: tuple[Service, ...] = (
             "Quand une page s'affiche et que le dernier cours a plus de quelques minutes ; "
             "historique une fois par jour ; recherche seulement sur clic."
         ),
-        stop="Un actif sans ticker devient une valeur saisie à la main : rien ne part.",
+        stop=(
+            "Un actif sans ticker ni identifiant CoinGecko devient une valeur saisie à la "
+            "main : rien ne part."
+        ),
     ),
     Service(
         key="coingecko",
         name="CoinGecko",
         hosts=("api.coingecko.com",),
         purpose=(
-            "Cours des cryptos qui ont un identifiant CoinGecko (Yahoo en repli), listes de "
-            "suivi ; cours passés à l'import Binance et aux dépôts Aave."
+            "Cours du jour des cryptos qui ont un identifiant CoinGecko (Yahoo pour leurs "
+            "clôtures quotidiennes et en repli), listes de suivi ; cours passés à l'import "
+            "Binance et aux dépôts Aave."
         ),
         sent=(
             "L'identifiant du jeton (bitcoin) et la devise ; ta clé CoinGecko si tu en as "

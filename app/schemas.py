@@ -5,7 +5,7 @@ float côté JSON : c'est le navigateur qui les formate pour l'affichage.
 """
 
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -23,6 +23,47 @@ from pydantic import (
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
+# Bornes communes à tout ce qui est saisi (D-138). Un nombre ou une date absurde, tapé par
+# erreur (« 1E+40 », l'an 202 au lieu de 2026), était enregistré : le total ne tenait plus dans
+# la précision des Decimal et chaque page répondait ensuite par une erreur, ou les calculs jour
+# par jour remontaient dix-huit siècles.
+MAX_NUMBER = Decimal("1e15")  # un million de milliards : quantité d'un jeton à très petit prix
+MAX_DECIMALS = 18  # la plus petite unité d'un jeton Ethereum (wei)
+MIN_DATE = date(1900, 1, 1)
+MAX_DATE = date(2200, 12, 31)
+
+
+def _check_bounds(value: object) -> None:
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError("Nombre invalide.")
+        if abs(value) > MAX_NUMBER:
+            raise ValueError("Nombre trop grand (au plus un million de milliards).")
+        if -value.as_tuple().exponent > MAX_DECIMALS:
+            raise ValueError(f"Trop de décimales ({MAX_DECIMALS} au plus).")
+    elif isinstance(value, date):
+        if not MIN_DATE <= value <= MAX_DATE:
+            raise ValueError("Date invalide (entre 1900 et 2200).")
+    elif isinstance(value, dict):
+        for item in value.values():
+            _check_bounds(item)
+    elif isinstance(value, list | tuple):
+        for item in value:
+            _check_bounds(item)
+    elif isinstance(value, BaseModel):
+        for _, item in value:
+            _check_bounds(item)
+
+
+class Entree(BaseModel):
+    """Base de tous les formats d'entrée : chaque nombre et chaque date sont bornés (D-138)."""
+
+    @model_validator(mode="after")
+    def bornes(self):
+        for _, value in self:
+            _check_bounds(value)
+        return self
+
 
 # Nettoyage avant validation : Pydantic applique le motif (pattern) au texte brut, donc
 # " fr0000000001 " serait refusé sans ce passage préalable en majuscules.
@@ -30,13 +71,24 @@ Upper = BeforeValidator(lambda v: v.strip().upper() if isinstance(v, str) else v
 Currency = Annotated[str, Upper, StringConstraints(pattern=r"^[A-Z]{3}$")]
 Isin = Annotated[str, Upper, StringConstraints(pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")]
 Ticker = Annotated[str, Upper, StringConstraints(min_length=1, max_length=20)]
-CoingeckoId = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, min_length=1)]
+# Id CoinGecko (« bitcoin », « usd-coin ») : il part dans l'adresse d'une requête, d'où un
+# alphabet fermé et une longueur bornée (D-138).
+CoingeckoId = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        to_lower=True,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
+    ),
+]
 # Catégorie personnelle (D-061) : texte libre court ; vide = aucune (la classe sert alors).
 Blank = BeforeValidator(lambda v: (v.strip() or None) if isinstance(v, str) else v)
 Category = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(Entree):
     """Champs changés dans la carte Réglages (D-130) ; un champ absent ne bouge pas, null remet
     la valeur par défaut. Valeurs vérifiées par app/settings.py, dont les messages ne
     reprennent jamais la clé reçue."""
@@ -50,7 +102,7 @@ class SettingsIn(BaseModel):
     coingecko_api_key: StrictStr | None = None
 
 
-class StartPageIn(BaseModel):
+class StartPageIn(Entree):
     """Page de démarrage (D-134) : fond et mot d'accueil ; un champ absent ne bouge pas, un
     texte vide ou null remet celui d'origine. Valeurs vérifiées par app/startpage.py."""
 
@@ -60,19 +112,19 @@ class StartPageIn(BaseModel):
     texte: StrictStr | None = Field(default=None, max_length=400)
 
 
-class UpdatesIn(BaseModel):
+class UpdatesIn(Entree):
     """Réponse à « Prévenir des nouvelles versions ? » (D-129)."""
 
     enabled: StrictBool
 
 
-class OrderIn(BaseModel):
+class OrderIn(Entree):
     """Ordre choisi des comptes ou des actifs (D-070) : tous leurs id, du premier au dernier."""
 
     ids: list[int] = Field(max_length=10_000)
 
 
-class AccountIn(BaseModel):
+class AccountIn(Entree):
     name: Text
     kind: Literal["pea", "cto", "crypto", "assurance_vie", "per", "livret", "immobilier", "autre"]
     institution: Text | None = None
@@ -94,7 +146,7 @@ class AccountIn(BaseModel):
         return value
 
 
-class AssetIn(BaseModel):
+class AssetIn(Entree):
     name: Text
     asset_class: Literal[
         "action",
@@ -147,7 +199,7 @@ def _keep_transfer(body, op_type: str) -> None:
         body.destination = None
 
 
-class TradeIn(BaseModel):
+class TradeIn(Entree):
     """Achat, vente, titres déjà détenus (solde_initial) ou envoyés ailleurs (transfert_sortant,
     D-082). Devise : celle de cotation de l'actif.
 
@@ -214,7 +266,7 @@ class TradeIn(BaseModel):
         return value
 
 
-class CashIn(BaseModel):
+class CashIn(Entree):
     """Montant seul : versement ou retrait (argent qui entre sur le compte ou en sort), frais
     (droits de garde...) ou dividende d'une ligne (D-057), crédité aux espèces du compte."""
 
@@ -252,7 +304,7 @@ class CashIn(BaseModel):
         return TradeIn.nombre_fini(value)
 
 
-class TargetsIn(BaseModel):
+class TargetsIn(Entree):
     """Allocation cible (D-058) : {id d'actif: part visée en %} ; total de 100 % au plus."""
 
     targets: dict[int, Annotated[Decimal, Field(ge=0, le=100, allow_inf_nan=False)]]
@@ -264,7 +316,7 @@ class TargetsIn(BaseModel):
         return self
 
 
-class CategoryTargetsIn(BaseModel):
+class CategoryTargetsIn(Entree):
     """Allocation cible par catégorie (D-061) : {catégorie: part visée en %}, 100 % au plus."""
 
     targets: dict[Category, Annotated[Decimal, Field(ge=0, le=100, allow_inf_nan=False)]]
@@ -274,7 +326,7 @@ class CategoryTargetsIn(BaseModel):
         return TargetsIn.total(self)
 
 
-class RecurringIn(BaseModel):
+class RecurringIn(Entree):
     """Achat programmé (D-055) : montant visé (devise de l'actif), fréquence et jour."""
 
     account_id: int
@@ -294,7 +346,7 @@ class RecurringIn(BaseModel):
         return self
 
 
-class RecurringConfirmIn(BaseModel):
+class RecurringConfirmIn(Entree):
     """Échéance validée avec le prix et la quantité réellement exécutés."""
 
     due_date: date  # échéance traitée (la plus ancienne en attente)
@@ -309,7 +361,7 @@ class RecurringConfirmIn(BaseModel):
         return TradeIn.pas_dans_le_futur(value)
 
 
-class ValuationIn(BaseModel):
+class ValuationIn(Entree):
     """Valeur totale d'une ligne à valeur saisie (D-056), à une date."""
 
     value_date: date
@@ -321,11 +373,11 @@ class ValuationIn(BaseModel):
         return TradeIn.pas_dans_le_futur(value)
 
 
-class RecurringSkipIn(BaseModel):
+class RecurringSkipIn(Entree):
     due_date: date
 
 
-class SplitIn(BaseModel):
+class SplitIn(Entree):
     """Part d'un retrait envoyée à un compte de l'app (D-087) : quantité du jeton, ou montant
     en euros pour un retrait d'espèces."""
 
@@ -333,7 +385,7 @@ class SplitIn(BaseModel):
     value: Annotated[Decimal, Field(gt=0, max_digits=40, allow_inf_nan=False)]
 
 
-class ImportIn(BaseModel):
+class ImportIn(Entree):
     """Fichier CSV à lire (D-053) : son texte, le compte visé et la correspondance des colonnes
     ({champ: numéro de colonne}, proposée par le serveur si absente). Rien n'est gardé."""
 
@@ -356,7 +408,7 @@ class ImportIn(BaseModel):
     splits: dict[int, Annotated[list[SplitIn], Field(max_length=12)]] | None = None
 
 
-class BenchmarkIn(BaseModel):
+class BenchmarkIn(Entree):
     """Entrée de la liste de comparaison : un indice (ticker Yahoo) ou un livret (taux en %)."""
 
     kind: Literal["indice", "livret"]
@@ -382,12 +434,26 @@ class BenchmarkIn(BaseModel):
 OperationIn = Annotated[TradeIn | CashIn, Field(discriminator="op_type")]
 
 
+def plain(value: Decimal) -> str:
+    """Decimal en chaîne pour l'API, toujours en écriture décimale (D-138).
+
+    `str()` passe en notation scientifique dès qu'un nombre est très petit ou porte un exposant
+    (« 1.2E-7 » pour 0,00000012 jeton, « 0E-8 », « 1E+1 ») : la page, qui découpe la chaîne
+    autour du point sans jamais passer par un float, ne sait pas la lire."""
+    return format(value, "f")
+
+
 def money(value: Decimal, places: str = "0.01") -> str:
-    """Arrondi d'affichage (au centime par défaut), renvoyé en chaîne."""
-    return str(value.quantize(Decimal(places), rounding=ROUND_HALF_UP))
+    """Arrondi d'affichage (au centime par défaut), renvoyé en chaîne.
+
+    Arrondi fait avec une précision large : celle par défaut (28 chiffres) refuse d'arrondir au
+    centime un total de plus de 26 chiffres, et la page entière tombait en erreur (D-138)."""
+    with localcontext() as context:
+        context.prec = 80
+        return plain(value.quantize(Decimal(places), rounding=ROUND_HALF_UP))
 
 
-class ReconcileIn(BaseModel):
+class ReconcileIn(Entree):
     """Chiffres du relevé de la banque, saisis pour comparer (D-063) ; jamais enregistrés.
     Un champ laissé vide n'est pas vérifié."""
 
@@ -409,13 +475,13 @@ class ReconcileIn(BaseModel):
         return value
 
 
-class WatchlistIn(BaseModel):
+class WatchlistIn(Entree):
     """Liste de suivi (D-072) : seulement un nom."""
 
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 
 
-class WatchlistItemIn(BaseModel):
+class WatchlistItemIn(Entree):
     """Actif suivi : un nom et son ticker Yahoo public (action, ETF, indice, crypto « BTC-EUR »).
 
     `crypto` (D-111) : le texte peut aussi être un id CoinGecko (« bitcoin ») ou un symbole
@@ -433,7 +499,7 @@ EvmAddress = Annotated[
 ]
 
 
-class DefiMoveIn(BaseModel):
+class DefiMoveIn(Entree):
     """Dépôt sur Aave ou retrait (D-096). `other_account_id` : compte de l'app d'où viennent
     les jetons (dépôt) ou où ils vont (retrait), transfert au prix de revient ; vide = hors de
     l'app. `unit_price` vide : cours du jeton ce jour-là, sinon dernier cours connu."""
@@ -452,7 +518,7 @@ class DefiMoveIn(BaseModel):
         return value
 
 
-class DefiLineIn(BaseModel):
+class DefiLineIn(Entree):
     """Ligne (compte, jeton) reliée à un marché Aave public : chaîne, pool et jeton choisis
     dans la liste renvoyée par /api/aave/reserves. Aucune adresse de portefeuille."""
 
@@ -464,7 +530,7 @@ class DefiLineIn(BaseModel):
     deposit: DefiMoveIn | None = None  # premier dépôt, facultatif
 
 
-class DefiCheckIn(BaseModel):
+class DefiCheckIn(Entree):
     """Solde lu dans Aave à une date (« Vérifier ») : il recale l'estimation des intérêts."""
 
     check_date: date
@@ -482,7 +548,7 @@ ProfileName = Annotated[str, StringConstraints(strip_whitespace=True, min_length
 ProfileCode = Annotated[str, StringConstraints(max_length=64)]
 
 
-class ProfileIn(BaseModel):
+class ProfileIn(Entree):
     """Nouveau profil (D-098) : un nom, et un code facultatif."""
 
     name: ProfileName
@@ -491,36 +557,36 @@ class ProfileIn(BaseModel):
     adopt_empty: bool = False
 
 
-class ProfileOpenIn(BaseModel):
+class ProfileOpenIn(Entree):
     code: ProfileCode = ""
 
 
-class ProfilePatchIn(BaseModel):
+class ProfilePatchIn(Entree):
     name: ProfileName | None = None
     tutorial_done: bool | None = None
 
 
-class ProfilePhotoIn(BaseModel):
+class ProfilePhotoIn(Entree):
     """Photo du profil en data URL (vignette réduite par le navigateur) ; vide pour la retirer."""
 
     photo: str | None = Field(default=None, max_length=70_000)
 
 
-class ProfileCodeIn(BaseModel):
+class ProfileCodeIn(Entree):
     """Poser, changer (`current` = code actuel) ou retirer (`new` vide) le code de son profil."""
 
     current: ProfileCode = ""
     new: ProfileCode | None = None
 
 
-class ProfileDeleteIn(BaseModel):
+class ProfileDeleteIn(Entree):
     """Supprimer un profil (D-098) : son nom retapé, et son code s'il en a un."""
 
     confirm: ProfileName
     code: ProfileCode = ""
 
 
-class DebtIn(BaseModel):
+class DebtIn(Entree):
     """Dette (D-107) : montant emprunté au départ ; taux annuel en % et durée en mois
     facultatifs (sans durée, la dette ne baisse qu'avec un capital restant dû saisi)."""
 
@@ -541,7 +607,7 @@ class DebtIn(BaseModel):
         return value
 
 
-class DebtBalanceIn(BaseModel):
+class DebtBalanceIn(Entree):
     """Capital restant dû lu sur un relevé (D-107) : il recale le calcul à cette date."""
 
     balance_date: date
@@ -555,7 +621,7 @@ class DebtBalanceIn(BaseModel):
         return value
 
 
-class DefiBorrowIn(BaseModel):
+class DefiBorrowIn(Entree):
     """Emprunt Aave suivi (D-108) : marché et jeton choisis dans la liste publique, premier
     emprunt en jetons. Aucune adresse de portefeuille."""
 
@@ -574,7 +640,7 @@ class DefiBorrowIn(BaseModel):
         return value
 
 
-class DefiBorrowMoveIn(BaseModel):
+class DefiBorrowMoveIn(Entree):
     """Nouvel emprunt ou remboursement, en jetons (D-108)."""
 
     direction: Literal["emprunt", "remboursement"]

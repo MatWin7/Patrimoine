@@ -57,6 +57,7 @@ COLUMNS = {
 ZERO = Decimal("0")
 STABLE_USD = {"USDT", "USDC", "BUSD", "FDUSD", "TUSD", "USDP", "DAI"}  # 1 jeton ≈ 1 $
 STABLE_EUR = {"EURC", "EURI"}  # 1 jeton ≈ 1 €
+MIN_YEAR = 2009  # première crypto : aucune opération possible avant
 FEE_RATE = Decimal("0.00075")  # frais Binance payés en BNB : 0,1 % moins 25 %
 CLUSTER_SECONDS = 2  # lignes d'un même échange : à la même seconde, ou presque (Convert)
 NEAR_DAYS = 3  # cours jugé « du jour » s'il date d'au plus 3 jours
@@ -159,9 +160,12 @@ def _time(text: str) -> datetime:
     """« 2025-01-31 18:02:03 » (ou « 25-01-31 ... » dans les anciens exports), en UTC."""
     for fmt in ("%Y-%m-%d %H:%M:%S", "%y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
         try:
-            return datetime.strptime(text.strip()[:19], fmt)
+            moment = datetime.strptime(text.strip()[:19], fmt)
         except ValueError:
             continue
+        if moment.year < MIN_YEAR:  # jamais une date d'avant Binance : faute de frappe (D-138)
+            break
+        return moment
     raise ValueError(f"date illisible « {text} »")
 
 
