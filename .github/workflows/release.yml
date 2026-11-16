@@ -5,6 +5,8 @@
 # avec les notes du journal. Aucune donnée de l'utilisateur n'existe sur la machine de GitHub.
 # Patrimoine.exe (D-126) : construit et essayé sous Windows par exe-windows.yml, puis joint à
 # la release en dossier zippé (Patrimoine-X.Y.Z-windows.zip), avec son empreinte.
+# Patrimoine.app (D-137) : construite et essayée sous macOS par app-macos.yml, jointe en image
+# disque (Patrimoine-X.Y.Z-macos.dmg), avec son empreinte.
 # Actions figées par empreinte (SHA), comme dans ci.yml.
 name: Release
 
@@ -51,8 +53,12 @@ jobs:
     needs: controles
     uses: ./.github/workflows/exe-windows.yml
 
+  app-macos:
+    needs: controles
+    uses: ./.github/workflows/app-macos.yml
+
   release:
-    needs: [controles, exe-windows]
+    needs: [controles, exe-windows, app-macos]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -71,6 +77,11 @@ jobs:
         with:
           name: Patrimoine-windows
           path: ${{ runner.temp }}/exe
+      - name: Récupérer Patrimoine.app
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: Patrimoine-macos
+          path: ${{ runner.temp }}/mac
       - name: Archive et empreintes
         run: |
           version="${TAG#v}"
@@ -90,6 +101,9 @@ jobs:
             echo "Fichier interdit dans Patrimoine.exe" >&2
             exit 1
           fi
+          # Patrimoine.app : l'image disque construite sous macOS (contenu contrôlé là-bas).
+          test -f "$RUNNER_TEMP/mac/Patrimoine-$version-macos.dmg"
+          cp "$RUNNER_TEMP/mac/Patrimoine-$version-macos.dmg" dist/
           (cd dist && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
       - name: Publier la release
         env:

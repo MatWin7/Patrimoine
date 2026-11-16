@@ -290,6 +290,18 @@ def run(display: str = WINDOW) -> int:
         return 0
 
     backups = BackupWorker(lambda: backup.daily(profiles.databases()))
+    finished: list[bool] = []
+
+    def finish() -> None:
+        """Rangement final, une seule fois : en sortie normale, ou sous macOS quand l'app est
+        quittée par Cmd+Q (window.watch_app_quit), où le `finally` ne tournerait pas."""
+        if finished:
+            return
+        finished.append(True)
+        backups.stop()  # une sauvegarde en cours va jusqu'au bout, au plus 30 s
+        lock.release()
+        print("Patrimoine arrêté.")
+
     try:
         if not forced:
             print(f"Dossier des données ({profiles.DATA_ORIGIN}) : {profiles.DATA_DIR}")
@@ -319,7 +331,7 @@ def run(display: str = WINDOW) -> int:
         if display == WINDOW:
             print(f"Patrimoine {__version__} : {url} (fermer la fenêtre pour arrêter)")
             storage = window.storage_dir(profiles.DATA_DIR, forced)
-            return _serve_with_window(server, sock, url, storage, profiles.DATA_DIR)
+            return _serve_with_window(server, sock, url, storage, profiles.DATA_DIR, finish)
         threading.Thread(
             target=_open_when_ready,
             args=(server, url, display == BROWSER),
@@ -333,9 +345,7 @@ def run(display: str = WINDOW) -> int:
             pass  # uvicorn a déjà fermé le serveur, puis relancé le Ctrl+C reçu
         return 0
     finally:
-        backups.stop()  # une sauvegarde en cours va jusqu'au bout, au plus 30 s
-        lock.release()
-        print("Patrimoine arrêté.")
+        finish()
 
 
 def _exit_cleanly_on_sigterm() -> None:
@@ -361,7 +371,14 @@ def _wait_started(server, alive: Callable[[], bool] = lambda: True) -> bool:
     return False
 
 
-def _serve_with_window(server, sock: socket.socket, url: str, storage: Path, data_dir: Path) -> int:
+def _serve_with_window(
+    server,
+    sock: socket.socket,
+    url: str,
+    storage: Path,
+    data_dir: Path,
+    finish: Callable[[], None] = lambda: None,
+) -> int:
     """Fenêtre au premier plan du programme : elle occupe le fil principal (exigence de macOS),
     le serveur tourne à côté. La fermer arrête le serveur. Si elle ne s'ouvre pas (moteur web
     absent), le navigateur prend le relais et le serveur tourne jusqu'au Ctrl+C."""
@@ -375,7 +392,15 @@ def _serve_with_window(server, sock: socket.socket, url: str, storage: Path, dat
         if not _wait_started(server, thread.is_alive):
             return fail("Le serveur n'a pas démarré.")
         try:
-            shown = window.run(url, storage, data_dir, open_in_browser=open_browser)
+
+            def on_quit() -> None:  # macOS, Cmd+Q : le processus s'arrête juste après
+                server.should_exit = True
+                thread.join(10)
+                finish()
+
+            shown = window.run(
+                url, storage, data_dir, open_in_browser=open_browser, on_quit=on_quit
+            )
         except Exception as err:  # noqa: BLE001 : moteur web en panne, l'app reste utilisable
             print(f"Fenêtre impossible : {err}")
             from app import diagnostic

@@ -45,9 +45,35 @@ UNSUPPORTED_RENDERERS = {"mshtml"}
 # d'environnement remplace les arguments posés par pywebview et Chromium ne garde qu'un
 # --disable-features : celui de pywebview (ElasticOverscroll) est donc repris ici.
 WEBVIEW2_ARGS = "--disable-features=msSmartScreenProtection,ElasticOverscroll"
+# Textes de pywebview en français (D-137) : boutons des boîtes confirm(), titre de la boîte
+# « Enregistrer », et sous macOS les menus de la barre du haut (Patrimoine, Présentation,
+# Édition), que le système affiche toujours. Le menu Édition porte Cmd+C / Cmd+V.
+LOCALIZATION = {
+    "global.quitConfirmation": "Quitter Patrimoine ?",
+    "global.ok": "OK",
+    "global.quit": "Quitter",
+    "global.cancel": "Annuler",
+    "global.saveFile": "Enregistrer le fichier",
+    "cocoa.menu.about": "À propos de",
+    "cocoa.menu.services": "Services",
+    "cocoa.menu.view": "Présentation",
+    "cocoa.menu.edit": "Édition",
+    "cocoa.menu.hide": "Masquer",
+    "cocoa.menu.hideOthers": "Masquer les autres",
+    "cocoa.menu.showAll": "Tout afficher",
+    "cocoa.menu.quit": "Quitter",
+    "cocoa.menu.fullscreen": "Passer en plein écran",
+    "cocoa.menu.cut": "Couper",
+    "cocoa.menu.copy": "Copier",
+    "cocoa.menu.paste": "Coller",
+    "cocoa.menu.selectAll": "Tout sélectionner",
+    "windows.fileFilter.allFiles": "Tous les fichiers",
+    "windows.fileFilter.otherFiles": "Autres types de fichiers",
+}
 _current: Any = None  # fenêtre ouverte par ce processus, ramenée devant par un second lancement
 _size_state: dict[str, bool] = {}  # agrandie, réduite : suivis pour la ramener telle quelle
 _actions: dict[str, Any] = {}  # adresse, dossier des données, ouverture du navigateur (D-127)
+_quit_observers: list[Any] = []  # macOS : abonnements à la fin de l'app (gardés en vie)
 
 
 def unblock_bundled_dlls(root: Path) -> int:
@@ -129,10 +155,12 @@ def run(
     data_dir: Path,
     open_in_browser: Callable[[str], bool],
     gui: str | None = None,
+    on_quit: Callable[[], None] | None = None,
 ) -> bool:
     """Ouvre la fenêtre et rend la main quand elle est fermée. À appeler depuis le fil
     principal (exigence de macOS). False : aucune fenêtre n'a pu s'ouvrir (moteur absent ou
-    refusé), au lanceur d'ouvrir le navigateur."""
+    refusé), au lanceur d'ouvrir le navigateur. `on_quit` : rangement final, appelé sous
+    macOS quand l'app est quittée sans rendre la main (voir watch_app_quit)."""
     if sys.platform == "win32" and hasattr(sys, "_MEIPASS"):  # Patrimoine.exe (PyInstaller)
         if count := unblock_bundled_dlls(Path(sys._MEIPASS)):
             print(f"Marque « venu d'Internet » retirée de {count} DLL de l'app.")
@@ -209,17 +237,59 @@ def run(
     window.events.maximized += on_maximized
     window.events.minimized += on_minimized
     window.events.restored += on_restored
+    if sys.platform == "darwin" and on_quit is not None:
+        watch_app_quit(on_quit)
 
     try:
         webview.start(
             gui=gui,
             private_mode=False,  # sinon préférences et session perdues à chaque fermeture
             storage_path=str(storage),
+            localization=LOCALIZATION,
         )
     finally:
         _current = None
         _actions.clear()
+        forget_app_quit()
     return state["shown"]
+
+
+def watch_app_quit(callback: Callable[[], None]) -> bool:
+    """macOS : Cmd+Q, « Quitter » du Dock ou la fermeture de session passent par
+    NSApplication terminate:, qui finit le processus par exit() sans revenir dans Python : les
+    `finally` du lanceur (arrêt du serveur, sauvegarde en cours menée à son terme, verrou)
+    ne tourneraient pas. Le rangement est donc aussi branché sur l'avis « l'app va se
+    terminer », envoyé juste avant, sur le fil principal. Fermer la fenêtre, lui, rend la main
+    normalement. False si AppKit manque (hors macOS)."""
+    try:
+        import AppKit
+        import Foundation
+    except ImportError:
+        return False
+
+    def on_terminate(notification: Any) -> None:
+        try:
+            callback()
+        except Exception as err:  # noqa: BLE001 : une exception ne doit pas remonter dans Cocoa
+            print(f"Arrêt incomplet : {err}")
+
+    center = Foundation.NSNotificationCenter.defaultCenter()
+    _quit_observers.append(
+        center.addObserverForName_object_queue_usingBlock_(
+            AppKit.NSApplicationWillTerminateNotification, None, None, on_terminate
+        )
+    )
+    return True
+
+
+def forget_app_quit() -> None:
+    if not _quit_observers:
+        return
+    import Foundation
+
+    center = Foundation.NSNotificationCenter.defaultCenter()
+    while _quit_observers:
+        center.removeObserver_(_quit_observers.pop())
 
 
 def window_url(url: str) -> str:

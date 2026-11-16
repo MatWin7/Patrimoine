@@ -23,6 +23,10 @@ la page de la release sur GitHub.
 - `Patrimoine.exe` pour Windows : un dossier zippé à dézipper puis lancer par double-clic, sans
   installer Python ni ouvrir de console. Les données restent dans leur dossier, d'une version à
   l'autre ; messages dans un journal, erreur de démarrage montrée à l'écran (D-126).
+- `Patrimoine.app` pour Mac à puce Apple : une image disque `.dmg`, glisser l'app dans
+  Applications. Pas encore notarisée par Apple : au premier lancement, « Ouvrir quand même » dans
+  Réglages Système > Confidentialité et sécurité (README). Menus de macOS en français ; quitter
+  par Cmd+Q arrête proprement le serveur et la sauvegarde en cours (D-137).
 
 - Avis de mise à jour : au premier lancement, Patrimoine demande s'il doit prévenir quand une
   nouvelle version sort. Si oui, il demande à GitHub le numéro de la dernière version une fois par

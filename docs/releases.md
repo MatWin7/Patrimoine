@@ -3,8 +3,9 @@
 Une **étiquette** (tag) est un nom fixe posé sur un commit, par exemple `v0.2.0`. Quand elle
 arrive sur GitHub, le workflow `.github/workflows/release.yml` publie la **release** : une page
 GitHub avec les notes du journal, l'archive du code, `Patrimoine-X.Y.Z-windows.zip` (le dossier de
-`Patrimoine.exe`, construit et essayé sous Windows par `exe-windows.yml`, D-126) et les empreintes
-SHA-256 (D-121).
+`Patrimoine.exe`, construit et essayé sous Windows par `exe-windows.yml`, D-126),
+`Patrimoine-X.Y.Z-macos.dmg` (`Patrimoine.app`, construite et essayée sous macOS par
+`app-macos.yml`, D-137) et les empreintes SHA-256 (D-121).
 
 ## 1. PR de version
 
@@ -57,3 +58,12 @@ dossier `Patrimoine/`. En local, sous Windows : `uv sync --group build` puis
 
 Tant que l'exe n'est pas signé (étape 15), Windows affiche au premier lancement « Windows a
 protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ».
+
+## 5. Patrimoine.app hors d'une release
+
+Même chemin : workflow « Patrimoine.app », **Run workflow** (ou le passage lancé par la PR), puis
+l'artefact `Patrimoine-macos` (gardé 7 jours) : un zip qui contient `Patrimoine-X.Y.Z-macos.dmg`.
+En local, sur un Mac : `uv sync --group build` puis
+`uv run --group build pyinstaller packaging/patrimoine.spec` (résultat : `dist/Patrimoine.app`).
+L'app construite sur sa propre machine n'est pas marquée « téléchargée » : macOS l'ouvre sans
+avertissement. Celle de GitHub demande « Ouvrir quand même » une fois (README).
