@@ -1,0 +1,192 @@
+# Construit Patrimoine.app sous macOS (puce Apple) avec PyInstaller, la lance pour de vrai, puis
+# la range dans une image disque Patrimoine-X.Y.Z-macos.dmg (D-137).
+# - sur une PR qui touche la recette, le lanceur ou les dépendances ;
+# - à la main (onglet Actions, « Run workflow ») ;
+# - appelé par release.yml, qui joint le .dmg à la release.
+# Signature « ad hoc » seulement (gratuite, sans compte Apple) : pas de notarisation, macOS
+# demande une confirmation au premier lancement (README, « Ouvrir quand même »).
+# Le .dmg est gardé 7 jours comme « artefact » du passage. Aucune donnée réelle : la machine de
+# GitHub est vierge et les essais tournent sur des dossiers vides.
+name: Patrimoine.app
+
+on:
+  pull_request:
+    paths:
+      - "packaging/**"
+      - ".github/workflows/app-macos.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - "app/__main__.py"
+      - "app/console.py"
+      - "app/launcher.py"
+      - "app/window.py"
+      - "app/config.py"
+      - "app/datadir.py"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  UV_MANAGED_PYTHON: "1" # dernier Python 3.12 publié, comme ci.yml (D-124)
+
+jobs:
+  app:
+    runs-on: macos-latest # puce Apple (arm64)
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Installer l'environnement et PyInstaller (versions figées par uv.lock)
+        run: uv sync --locked --group build
+      - name: Construire dist/Patrimoine.app
+        run: uv run --group build pyinstaller packaging/patrimoine.spec --noconfirm --clean
+
+      - name: Signature, processeur, réglages et contenu de l'app
+        run: |
+          set -euo pipefail
+          app=dist/Patrimoine.app
+          # Signature ad hoc intacte : sinon macOS dirait l'app « endommagée » au lieu de
+          # proposer « Ouvrir quand même ».
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | tee "$RUNNER_TEMP/signature.txt"
+          grep -q 'Signature=adhoc' "$RUNNER_TEMP/signature.txt"
+          # Pas de notarisation : Gatekeeper refuse l'évaluation, c'est attendu (affiché seulement).
+          spctl --assess --type execute -vv "$app" || true
+          lipo -archs "$app/Contents/MacOS/Patrimoine" | tee /dev/stderr | grep -qw arm64
+          version="$(uv run python -m app.version)"
+          test "$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")" = "$version"
+          test "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.matwin7.patrimoine
+          test "$(plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw "$app/Contents/Info.plist")" = true
+          if plutil -extract NSAppTransportSecurity.NSAllowsArbitraryLoads raw "$app/Contents/Info.plist" 2>/dev/null; then
+            echo "Chargements http arbitraires permis" >&2; exit 1
+          fi
+          # Licences dans l'app (D-128), sans les outils de construction.
+          grep -q 'GNU GENERAL PUBLIC LICENSE' "$app/Contents/Resources/LICENCE.txt"
+          for nom in pywebview pyobjc fastapi 'PYTHON SOFTWARE FOUNDATION LICENSE'; do
+            grep -qF "$nom" "$app/Contents/Resources/LICENCES-TIERCES.txt" || { echo "Licence de $nom absente" >&2; exit 1; }
+          done
+          if grep -E '^- (pyinstaller|pytest|ruff) ' "$app/Contents/Resources/LICENCES-TIERCES.txt"; then
+            echo "Outil de construction listé" >&2; exit 1
+          fi
+          # Garde-fou : aucune base, aucun .env, aucun relevé dans l'app.
+          if find "$app" -type f | grep -E '\.(db|sqlite3?|bak|log|csv|pdf|xlsx?|ods|ofx|qif)$|/\.env$'; then
+            echo "Fichier interdit dans Patrimoine.app" >&2; exit 1
+          fi
+
+      # Essai 1 : sans fenêtre (--sans-navigateur), le serveur répond, la page et l'API aussi.
+      - name: Lancer l'app et interroger le serveur
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          data="$RUNNER_TEMP/donnees-essai"
+          mkdir -p "$data"
+          PATRIMOINE_DATA_DIR="$data" dist/Patrimoine.app/Contents/MacOS/Patrimoine --sans-navigateur &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          port=""
+          for _ in $(seq 120); do
+            kill -0 $pid 2>/dev/null || { echo "L'app s'est arrêtée" >&2; exit 1; }
+            if [ -f "$data/lancement.lock.port" ]; then
+              candidat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$data/lancement.lock.port")"
+              if [[ "$(curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null)" == *'"patrimoine"'* ]]; then
+                port="$candidat"; break
+              fi
+            fi
+            sleep 0.5
+          done
+          test -n "$port" || { echo "Le serveur n'a pas répondu en 60 s" >&2; exit 1; }
+          version="$(uv run python -m app.version)"
+          # Réponse lue en entier avant d'être cherchée : avec pipefail, `curl | grep -q` échoue
+          # dès que grep a trouvé et ferme le tuyau (curl : erreur 23).
+          [[ "$(curl -fsS "http://127.0.0.1:$port/api/health")" == *"\"$version\""* ]]
+          [[ "$(curl -fsS "http://127.0.0.1:$port/")" == *'<title>'* ]]
+          for chemin in /styles.css /app.js /vendor/chart.umd.js /api/portfolio; do
+            curl -fsS -o /dev/null "http://127.0.0.1:$port$chemin"
+          done
+          test -f "$data/patrimoine.db" || { echo "Base non créée" >&2; exit 1; }
+          echo "OK : Patrimoine $version répond sur le port $port"
+
+      # Essai 2 : comme un double-clic dans le Finder (open, donc LaunchServices) : la fenêtre
+      # WebKit s'ouvre, le journal est écrit (pas de terminal), Cmd+Q arrête tout proprement.
+      # Dossier des données par défaut de la machine de GitHub, vierge.
+      - name: Ouvrir l'app comme un double-clic (fenêtre WebKit)
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          data="$HOME/Library/Application Support/Patrimoine"
+          # Journal de l'essai 1 (« Ouvrir ... dans le navigateur ») mis de côté : il ne doit
+          # rester que celui de ce lancement.
+          rm -f "$data/lancement.lock.port" "$data/journal.txt"
+          # pgrep rend 1 quand rien ne tourne : sans « || true », pipefail arrêterait l'essai.
+          moteurs() { { pgrep -f com.apple.WebKit.WebContent || true; } | wc -l | tr -d ' '; }
+          avant="$(moteurs)"
+          open -n dist/Patrimoine.app
+          port=""
+          for _ in $(seq 120); do
+            if [ -f "$data/lancement.lock.port" ]; then
+              candidat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$data/lancement.lock.port")"
+              if [[ "$(curl -fsS "http://127.0.0.1:$candidat/api/health" 2>/dev/null)" == *'"patrimoine"'* ]]; then
+                port="$candidat"; break
+              fi
+            fi
+            sleep 0.5
+          done
+          test -n "$port" || { echo "L'app n'a pas répondu en 60 s" >&2; cat "$data/journal.txt" || true; exit 1; }
+          sleep 10 # le temps que la page se charge dans la fenêtre
+          fenetre="$(curl -fsS "http://127.0.0.1:$port/api/window")"
+          echo "$fenetre"
+          [[ "$fenetre" == *'"window":true'* ]]
+          apres="$(moteurs)"
+          echo "Processus WebKit : $avant avant, $apres après"
+          test "$apres" -gt "$avant" || { echo "Aucun moteur WebKit lancé" >&2; exit 1; }
+          if grep -E 'navigateur|Fenêtre impossible|Pas de fenêtre' "$data/journal.txt"; then
+            echo "Repli sur le navigateur" >&2; exit 1
+          fi
+          screencapture -x "$RUNNER_TEMP/fenetre.png" || true
+          # « Quitter » (Cmd+Q, Dock) : Cocoa finit le processus par exit() ; le rangement
+          # branché sur l'avis de fin (window.watch_app_quit) arrête le serveur et le verrou.
+          osascript -e 'tell application "Patrimoine" to quit' || true
+          for _ in $(seq 40); do
+            grep -q 'Patrimoine arrêté.' "$data/journal.txt" && break
+            sleep 0.5
+          done
+          grep -q 'Patrimoine arrêté.' "$data/journal.txt" || { echo "Arrêt non propre" >&2; exit 1; }
+          echo "OK : fenêtre WebKit ouverte, puis app quittée proprement"
+
+      - name: Journal de l'app
+        if: always()
+        run: cat "$HOME/Library/Application Support/Patrimoine/journal.txt" 2>/dev/null || true
+
+      - name: Image disque Patrimoine-X.Y.Z-macos.dmg
+        run: |
+          set -euo pipefail
+          version="$(uv run python -m app.version)"
+          codesign --verify --deep --strict dist/Patrimoine.app # rien n'a changé pendant les essais
+          stage="$RUNNER_TEMP/dmg"
+          mkdir -p "$stage" dmg
+          ditto dist/Patrimoine.app "$stage/Patrimoine.app" # garde liens et attributs
+          ln -s /Applications "$stage/Applications" # glisser l'app sur ce raccourci l'installe
+          cp dist/Patrimoine.app/Contents/Resources/LICENCE.txt dist/Patrimoine.app/Contents/Resources/LICENCES-TIERCES.txt "$stage/"
+          hdiutil create -volname "Patrimoine $version" -srcfolder "$stage" -fs HFS+ -format UDZO -ov "dmg/Patrimoine-$version-macos.dmg"
+          hdiutil verify "dmg/Patrimoine-$version-macos.dmg"
+          ls -l dmg
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Patrimoine-macos
+          path: dmg/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        continue-on-error: true
+        with:
+          name: capture-fenetre-macos
+          path: ${{ runner.temp }}/fenetre.png
+          retention-days: 7
+          if-no-files-found: ignore

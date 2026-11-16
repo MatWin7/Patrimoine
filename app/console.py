@@ -1,17 +1,20 @@
-"""Patrimoine.exe sans console (D-126) : journal local et message d'erreur à l'écran.
+"""Patrimoine.exe et Patrimoine.app sans console (D-126, D-137) : journal local et message
+d'erreur à l'écran.
 
 Lancé par Patrimoine.exe, le programme n'a pas de fenêtre noire : sys.stdout et sys.stderr
-valent None. Les messages du lanceur (dossier des données, bases, sauvegardes) et ceux du
-serveur vont alors dans un journal, un simple fichier texte dans le dossier de données par
-défaut de l'utilisateur. Il n'en sort jamais (règle 2) et ne contient aucun montant : les
-messages n'affichent que des chemins, des nombres d'opérations et des erreurs.
+valent None. Patrimoine.app ouverte depuis le Finder ou le Dock écrit dans le vide (/dev/null).
+Les messages du lanceur (dossier des données, bases, sauvegardes) et ceux du serveur vont alors
+dans un journal, un simple fichier texte dans le dossier de données par défaut de l'utilisateur.
+Il n'en sort jamais (règle 2) et ne contient aucun montant : les messages n'affichent que des
+chemins, des nombres d'opérations et des erreurs.
 
 Une erreur qui empêche le démarrage (dossier des données introuvable, base plus récente que
-l'app...) serait sinon invisible : elle est montrée dans une boîte de dialogue Windows.
+l'app...) serait sinon invisible : elle est montrée dans une boîte de dialogue (Windows, macOS).
 """
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -23,8 +26,23 @@ MAX_LOG_BYTES = 1_000_000  # au-delà, le journal repart de zéro (l'ancien est 
 
 
 def needs_log() -> bool:
-    """Vrai sans console (Patrimoine.exe) : print() n'afficherait rien nulle part."""
-    return sys.stdout is None or sys.stderr is None
+    """Vrai sans console : print() n'afficherait rien nulle part. Patrimoine.exe n'a pas de
+    sortie ; Patrimoine.app en a une, mais vers le vide, sauf lancée depuis un Terminal."""
+    if sys.stdout is None or sys.stderr is None:
+        return True
+    return is_mac_app() and not _is_terminal(sys.stdout)
+
+
+def is_mac_app() -> bool:
+    """Patrimoine.app (PyInstaller sous macOS), pas `python -m app`."""
+    return sys.platform == "darwin" and bool(getattr(sys, "frozen", False))
+
+
+def _is_terminal(stream: IO[str]) -> bool:
+    try:
+        return stream.isatty()
+    except (AttributeError, ValueError, OSError):
+        return False
 
 
 def open_log(folder: Path) -> IO[str]:
@@ -65,9 +83,31 @@ def startup_error_text(errors: list[str], log: Path | None) -> str:
     return "\n".join(lines)
 
 
+# AppleScript de la boîte d'erreur macOS : le texte arrive en argument (argv), jamais collé
+# dans le script, pour qu'aucun caractère du message ne puisse en changer le sens.
+MAC_ALERT_SCRIPT = (
+    "on run argv",
+    'display alert "Patrimoine" message (item 1 of argv) as critical buttons {"OK"}',
+    "end run",
+)
+
+
+def mac_alert_command(text: str) -> list[str]:
+    command = ["/usr/bin/osascript"]
+    for line in MAC_ALERT_SCRIPT:
+        command += ["-e", line]
+    return [*command, text]
+
+
 def alert(text: str) -> bool:
-    """Boîte de dialogue « erreur » de Windows (rien ailleurs). False si elle n'a pas pu
-    s'afficher. MessageBoxW est une fonction du système : aucune dépendance ajoutée."""
+    """Boîte de dialogue « erreur » de Windows ou de macOS (rien ailleurs). False si elle n'a
+    pas pu s'afficher. MessageBoxW et osascript font partie du système : aucune dépendance."""
+    if sys.platform == "darwin":
+        try:
+            done = subprocess.run(mac_alert_command(text), check=False, timeout=600)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return done.returncode == 0
     if sys.platform != "win32":
         return False
     try:

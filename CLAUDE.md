@@ -30,7 +30,7 @@ uv run python -m app.profiles [sans-code <id>]  # liste les profils ; retire un 
 uv run python -m app.datadir [--choisir DOSSIER] # dossier des données ; copie vérifiée vers un autre (D-119)
 uv run python -m app.version [--verifier-etiquette vX.Y.Z]  # version ; contrôle d'une étiquette de release (D-121)
 uv run python -m app.diagnostic                 # diagnostic sans montant ni chemin, quand l'app ne démarre pas (D-132)
-uv run --group build pyinstaller packaging/patrimoine.spec   # Windows : dist/Patrimoine/Patrimoine.exe, sans console (D-126)
+uv run --group build pyinstaller packaging/patrimoine.spec   # Windows : dist/Patrimoine/Patrimoine.exe, sans console (D-126) ; macOS : dist/Patrimoine.app (D-137)
 uv run pytest                                  # tests
 uv run ruff check . && uv run ruff format .    # lint + formatage
 for f in web/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
@@ -47,7 +47,7 @@ app/version.py     __version__ (source lue par l'app, = pyproject.toml et uv.loc
 app/main.py        FastAPI, API JSON sous /api/..., sert web/
 app/__main__.py    point d'entrée (options) ; app/launcher.py : verrou d'instance, port libre, navigateur, arrêt propre, sauvegarde horaire (D-118)
 app/window.py      fenêtre d'application pywebview (Windows, macOS), repli sur le navigateur, taille gardée, actions du bouton « Fenêtre » (D-125, D-127)
-app/console.py     Patrimoine.exe sans console : journal.txt dans le dossier de données par défaut, erreur de démarrage en boîte de dialogue (D-126)
+app/console.py     Patrimoine.exe / .app sans console : journal.txt dans le dossier de données par défaut, erreur de démarrage en boîte de dialogue (D-126, D-137)
 app/config.py      lecture de .env (sans écraser l'environnement ; à côté de Patrimoine.exe une fois empaqueté, APP_DIR) ; PRICE_TTL_MINUTES, clé CoinGecko... lus par app/settings.py (.env, puis carte Réglages)
 app/datadir.py     dossier des données hors du code (D-119) : défaut par système, dossier choisi, copie vérifiée de l'ancien data/
 app/db.py          connexion SQLite (PRAGMA foreign_keys=ON à chaque connexion), base du profil de la requête (ContextVar), Decimal, migrations (user_version)
@@ -83,9 +83,9 @@ web/accueil.js     page de démarrage réglable (D-134) : pose le fond et le mot
 web/tutorial.js    tutoriel de premier lancement en 6 étapes (D-099), relançable depuis Réglages, carte Aide ; « Comment ça marche » et fenêtre « Ce qui sort de cet ordinateur » (D-131)
 web/               index.html (pages par onglets #apercu, #performance...), theme.js (thème auto, clair ou sombre posé sur `<html>` avant l'affichage, D-133), profiles.js (page de démarrage et choix du profil, puis charge app.js, D-098), app.js, tips.js (infobulles « ? »), styles.css, logo.svg ; icônes Lucide en symboles SVG dans index.html (`<use href="#i-nom">`, D-133) ; web/vendor/ : Chart.js, chartjs-chart-treemap, police Inter et licence Lucide copiés (pas de CDN, D-117)
 .github/ISSUE_TEMPLATE/ formulaires « Signaler un problème » (diagnostic obligatoire) et « Proposer une idée », faille en privé (D-132)
-.github/workflows/ CI : tests sous Linux, Windows et macOS, lint et syntaxe du front à chaque PR ; release.yml : étiquette vX.Y.Z → contrôles, archive, Patrimoine.exe zippé, SHA256SUMS, page de release (actions figées par SHA, D-121) ; exe-windows.yml : construit et lance Patrimoine.exe (D-126) ; dependabot.yml : dépendances chaque semaine en une PR, 7 j de recul sauf alerte (D-123)
+.github/workflows/ CI : tests sous Linux, Windows et macOS, lint et syntaxe du front à chaque PR ; release.yml : étiquette vX.Y.Z → contrôles, archive, Patrimoine.exe zippé, SHA256SUMS, page de release (actions figées par SHA, D-121) ; exe-windows.yml : construit et lance Patrimoine.exe (D-126) ; app-macos.yml : Patrimoine.app et son .dmg (D-137) ; dependabot.yml : dépendances chaque semaine en une PR, 7 j de recul sauf alerte (D-123)
 .claude/           réglages Claude Code (D-079, D-113) : hooks garde-fou données réelles (bases des profils comprises) et ruff après édition, sous-agents, skills /avant-pr et nouvelle-migration
-packaging/         Patrimoine.exe (D-126) : recette PyInstaller patrimoine.spec (dossier zippé), icône dessinée par icone.py, essai de la fenêtre en CI, licences tierces relevées par licences.py (D-128)
+packaging/         Patrimoine.exe (D-126) et Patrimoine.app (D-137, signée ad hoc, .dmg) : recette PyInstaller patrimoine.spec, icônes .ico/.icns dessinées par icone.py, essai de la fenêtre en CI, licences tierces relevées par licences.py (D-128)
 scripts/           lancement en un clic : patrimoine.sh (WSL), Patrimoine.bat (Bureau Windows via WSL), Patrimoine-sans-WSL.bat
 tests/fixtures/    données FICTIVES uniquement
 data/              ignoré par git : demo.db, demo-grand.db (les vraies données sont dans le dossier des données, D-119)
@@ -95,7 +95,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
 
 ## Modèle (résumé, détail dans app/schema.sql)
 - Dossier des données (D-119) : hors du code (`%LOCALAPPDATA%\Patrimoine`, `~/Library/Application Support/Patrimoine`, `~/.local/share/patrimoine`), ou choisi (`--choisir`, `PATRIMOINE_DATA_DIR`) ; l'ancien `data/` du code est copié et vérifié au premier lancement, jamais effacé. Ci-dessous, `data/` désigne ce dossier.
-- Fenêtre (D-125) : pywebview (WebView2 / WebKit), seulement Windows et macOS ; sous Windows réglages de la page et cookie de session dans `data/fenetre/` (jamais copié ; magasin WebKit par défaut sous macOS) ; API en `Cache-Control: no-store` ; aucun `js_api` ; SmartScreen coupé ; `POST /api/window/focus` ramène la fenêtre devant ; pas de barre de menu : bouton « Fenêtre » de la page (`web/fenetre.js`, adresse `/?fenetre`), routes fixes `/api/window/browser|folder|zoom` sans profil ni paramètre (D-127).
+- Fenêtre (D-125) : pywebview (WebView2 / WebKit), seulement Windows et macOS (menus macOS en français, Cmd+Q range tout via `window.watch_app_quit`, D-137) ; sous Windows réglages de la page et cookie de session dans `data/fenetre/` (jamais copié ; magasin WebKit par défaut sous macOS) ; API en `Cache-Control: no-store` ; aucun `js_api` ; SmartScreen coupé ; `POST /api/window/focus` ramène la fenêtre devant ; pas de barre de menu : bouton « Fenêtre » de la page (`web/fenetre.js`, adresse `/?fenetre`), routes fixes `/api/window/browser|folder|zoom` sans profil ni paramètre (D-127).
 - Avis de mise à jour (D-129) : question au premier lancement (bandeau), aucune requête avant la réponse ; `GET /api/updates` vérifie au plus une fois par jour (échec compris), `PUT` le choix, `POST /api/updates/check` « Vérifier maintenant » ; bandeau « Version X disponible » + lien vers la page de la release construit à partir du numéro validé ; carte « Alertes et mises à jour » de la page Réglages ; réglage de la machine, pas du profil.
 - Page Réglages (D-133, roue dentée, `#reglages`, hors des onglets) : cartes Profils, Apparence (thème ; fond et mot d'accueil de la page de démarrage, D-134), Général, Alertes et mises à jour, Aide (Comment ça marche, tutoriel, Ce qui sort, diagnostic).
 - Page de démarrage (D-134) : réglage de la machine dans `data/reglages.json` (clé `accueil`) ; `GET /api/start` et `GET /api/start/image` répondent sans profil ouvert, `PUT /api/start` (fond, texte), `PUT` et `DELETE /api/start/image` avec un profil ; image réduite et réencodée en JPEG par la page, 3 Mo au plus, `data/accueil/fond.jpg`, hors sauvegardes.

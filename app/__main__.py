@@ -3,8 +3,8 @@
 S'ouvre dans une fenêtre d'application sous Windows et macOS (D-125), sinon dans le navigateur.
 Options : `--navigateur` (toujours le navigateur), `--sans-navigateur` (ne rien ouvrir),
 `--version` (D-121). Le serveur reste lié à 127.0.0.1.
-Patrimoine.exe (D-126) lance ce même programme, sans console : messages dans un journal,
-erreur de démarrage montrée dans une boîte de dialogue.
+Patrimoine.exe (D-126) et Patrimoine.app (D-137) lancent ce même programme, sans console :
+messages dans un journal, erreur de démarrage montrée dans une boîte de dialogue.
 """
 
 import argparse

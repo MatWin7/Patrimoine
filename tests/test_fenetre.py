@@ -129,6 +129,18 @@ def test_fenetre_impossible_donne_le_navigateur(monkeypatch, capsys):
     assert launcher.choose_display(launcher.NOTHING) == launcher.NOTHING
 
 
+def test_textes_de_pywebview_en_francais():
+    """Clés connues de pywebview (vérifié contre la bibliothèque là où elle est installée :
+    CI Windows et macOS), toutes traduites."""
+    assert window.LOCALIZATION["cocoa.menu.edit"] == "Édition"
+    assert all(texte.strip() for texte in window.LOCALIZATION.values())
+    try:
+        from webview.localization import original_localization
+    except ImportError:
+        return
+    assert set(window.LOCALIZATION) <= set(original_localization)
+
+
 def test_dossier_de_la_fenetre(tmp_path):
     assert window.storage_dir(tmp_path, None) == tmp_path / "fenetre"
     demo = tmp_path / "demo.db"
@@ -169,6 +181,7 @@ def test_reglages_de_la_fenetre(faux_webview, tmp_path, monkeypatch):
     # Préférences et session gardées dans le dossier des données, pas dans un dossier temporaire.
     assert faux_webview.demarrage["private_mode"] is False
     assert faux_webview.demarrage["storage_path"] == str(stockage)
+    assert faux_webview.demarrage["localization"] is window.LOCALIZATION  # menus en français
     assert faux_webview.settings["ALLOW_DOWNLOADS"] is True
     assert faux_webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] is True
     # SmartScreen coupé : ni adresse ni fichier exporté envoyé à Microsoft (règle 3).
@@ -378,9 +391,13 @@ def _lancer_avec_fenetre(tmp_path, monkeypatch, fenetre_ouverte):
     monkeypatch.setenv("PATRIMOINE_DB", str(tmp_path / "test.db"))
     monkeypatch.setattr(backup, "daily", lambda paths: [])
     monkeypatch.setattr(launcher, "choose_display", lambda wanted: launcher.WINDOW)
-    monkeypatch.setattr(
-        window, "run", lambda url, storage, data_dir, open_in_browser: fenetre_ouverte(url)
-    )
+
+    def lancer(url, storage, data_dir, open_in_browser, on_quit):
+        if getattr(fenetre_ouverte, "quitter", False):
+            return fenetre_ouverte(url, on_quit)
+        return fenetre_ouverte(url)
+
+    monkeypatch.setattr(window, "run", lancer)
     return launcher.run(display=launcher.WINDOW)
 
 
@@ -399,6 +416,33 @@ def test_fermer_la_fenetre_arrete_l_app(tmp_path, monkeypatch):
     assert verrou.acquire()  # verrou relâché : l'app est bien arrêtée
     verrou.release()
     assert not any(t.name == "serveur" and t.is_alive() for t in threading.enumerate())
+
+
+def test_cmd_q_sous_macos_range_tout_avant_la_fin(tmp_path, monkeypatch, capsys):
+    """Cmd+Q : Cocoa finit le processus sans revenir dans Python. Le rangement appelé par
+    l'avis de fin arrête le serveur et rend le verrou à lui seul ; le `finally` qui suit (ici,
+    parce que le test continue) ne refait rien."""
+    verrou = launcher.InstanceLock(launcher.lock_path(tmp_path, str(tmp_path / "test.db")))
+    vu = []
+
+    def fenetre(url, on_quit):
+        on_quit()  # l'avis « l'app va se terminer »
+        vu.append(not any(t.name == "serveur" and t.is_alive() for t in threading.enumerate()))
+        vu.append(verrou.acquire())  # verrou déjà rendu
+        verrou.release()
+        return True
+
+    fenetre.quitter = True
+    assert _lancer_avec_fenetre(tmp_path, monkeypatch, fenetre) == 0
+    assert vu == [True, True]
+    assert capsys.readouterr().out.count("Patrimoine arrêté.") == 1
+
+
+def test_avis_de_fin_hors_macos_sans_effet():
+    if sys.platform == "darwin":
+        pytest.skip("AppKit présent : l'abonnement serait réel")
+    assert window.watch_app_quit(lambda: None) is False
+    window.forget_app_quit()
 
 
 def test_fenetre_ratee_ouvre_le_navigateur(tmp_path, monkeypatch):

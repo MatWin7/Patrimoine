@@ -73,9 +73,48 @@ def test_texte_de_l_erreur_de_demarrage(tmp_path):
     assert str(tmp_path / "journal.txt") in texte
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="ouvrirait une vraie boîte de dialogue")
-def test_boite_de_dialogue_seulement_sous_windows():
+@pytest.mark.skipif(
+    sys.platform in ("win32", "darwin"), reason="ouvrirait une vraie boîte de dialogue"
+)
+def test_boite_de_dialogue_seulement_sous_windows_et_macos():
     assert console.alert("essai") is False
+
+
+def test_boite_de_dialogue_macos_texte_en_argument(monkeypatch):
+    """Le message passe en argument d'osascript, jamais dans le script : un guillemet ou une
+    commande AppleScript dans un chemin reste du texte."""
+    appels = []
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(
+        console.subprocess,
+        "run",
+        lambda commande, **_: appels.append(commande) or subprocess.CompletedProcess(commande, 0),
+    )
+    texte = 'Dossier « /Users/x/a"b » introuvable." & do shell script "id'
+    assert console.alert(texte) is True
+    (commande,) = appels
+    assert commande[0] == "/usr/bin/osascript" and commande[-1] == texte
+    assert all(texte not in morceau for morceau in commande[:-1])
+
+
+def test_app_mac_sans_terminal_ecrit_un_journal(monkeypatch):
+    class Sortie(io.StringIO):
+        def __init__(self, terminal):
+            super().__init__()
+            self.terminal = terminal
+
+        def isatty(self):
+            return self.terminal
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "stdout", Sortie(False))
+    assert console.needs_log()  # ouverte depuis le Finder : sortie vers /dev/null
+    monkeypatch.setattr(sys, "stdout", Sortie(True))
+    assert not console.needs_log()  # lancée depuis un Terminal : les messages s'y affichent
+    monkeypatch.setattr(sys, "frozen", False)
+    monkeypatch.setattr(sys, "stdout", Sortie(False))
+    assert not console.needs_log()  # `python -m app` redirigé : inchangé
 
 
 def test_erreur_de_demarrage_montree_sans_console(tmp_path, monkeypatch, couper_console):
@@ -163,6 +202,41 @@ def test_dossier_de_l_exe_pour_env_et_bases_relatives(tmp_path):
         check=True,
     )
     assert sortie.stdout.strip() == "REFUS"
+
+
+def test_icone_mac_valide():
+    sys.path.insert(0, str(RACINE / "packaging"))
+    try:
+        import icone
+    finally:
+        sys.path.pop(0)
+    types = ((b"icp4", 16), (b"ic11", 32), (b"ic07", 128))
+    donnees = icone.icns(types)
+    assert donnees[:4] == b"icns" and struct.unpack(">I", donnees[4:8])[0] == len(donnees)
+    debut = 8
+    for code, cote in types:
+        taille = struct.unpack(">I", donnees[debut + 4 : debut + 8])[0]
+        assert donnees[debut : debut + 4] == code
+        image = donnees[debut + 8 : debut + taille]
+        assert image[:8] == b"\x89PNG\r\n\x1a\n"
+        assert struct.unpack(">II", image[16:24]) == (cote, cote)
+        debut += taille
+    assert debut == len(donnees)
+
+
+def test_recette_mac():
+    """Patrimoine.app : bundle signé ad hoc, adresses locales seules sans https, licences
+    rangées dans l'app avant la signature."""
+    for morceau in (
+        "BUNDLE(",
+        '"Patrimoine.app"',
+        "icone.icns()",
+        "codesign_identity=None",
+        '"NSAllowsLocalNetworking": True',
+        'datas += [(str(LICENCE), "."), (str(TIERCES), ".")]',
+    ):
+        assert morceau in RECETTE
+    assert "NSAllowsArbitraryLoads" not in RECETTE
 
 
 def test_icone_valide():

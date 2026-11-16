@@ -47,6 +47,41 @@ l'empreinte si vous voulez être sûr du fichier.
 Vos données ne sont jamais dans ce dossier : la nouvelle version les retrouve et, si besoin, met la
 base à jour après en avoir fait une copie.
 
+## Installer sur Mac
+
+Pour un Mac à puce Apple (M1 et suivants). Sur un Mac Intel, lancer l'app depuis le code (plus bas).
+
+1. Sur la page [Releases](../../releases/latest), télécharger `Patrimoine-X.Y.Z-macos.dmg`.
+2. Facultatif mais conseillé : vérifier l'empreinte dans le Terminal et la comparer à la ligne du
+   même nom dans `SHA256SUMS.txt`.
+   ```bash
+   shasum -a 256 ~/Downloads/Patrimoine-X.Y.Z-macos.dmg
+   ```
+3. Ouvrir le `.dmg`, puis glisser **Patrimoine** sur le raccourci **Applications**.
+4. Lancer Patrimoine depuis Applications (ou le Launchpad).
+
+**Premier lancement.** L'app n'est pas notarisée par Apple (un compte développeur payant serait
+nécessaire) : macOS affiche « Patrimoine » n'a pas été ouvert, Apple n'a pas pu vérifier qu'il ne
+contient pas de logiciel malveillant.
+
+1. Cliquer sur **Terminé** (pas sur « Placer dans la corbeille »).
+2. Menu  > **Réglages Système** > **Confidentialité et sécurité**, descendre jusqu'à la partie
+   **Sécurité** : « Patrimoine » a été bloqué… Cliquer sur **Ouvrir quand même**, confirmer avec
+   le mot de passe ou Touch ID, puis **Ouvrir quand même** encore une fois.
+
+C'est à faire une seule fois par version. Si vous êtes à l'aise avec le Terminal, cette commande
+fait la même chose (elle retire la marque « téléchargé d'Internet » de l'app) :
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Patrimoine.app
+```
+
+Si macOS dit que l'app est **endommagée**, ne la lancez pas : le fichier a été abîmé ou modifié en
+route. Retéléchargez-le et vérifiez son empreinte.
+
+**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : glisser la nouvelle version dans
+Applications et accepter de remplacer l'ancienne ; vos données restent où elles sont.
+
 ## Où sont vos données
 
 | Système | Dossier par défaut |
@@ -146,5 +181,5 @@ Composants d'autres auteurs, chacun sous sa licence :
 - `web/vendor/` : Chart.js et chartjs-chart-treemap (MIT), police Inter (SIL Open Font License),
   licences à côté des fichiers ;
 - bibliothèques Python (FastAPI, Starlette, uvicorn, httpx2, pydantic, pywebview...) : licences
-  MIT, BSD, Apache 2.0 ou PSF ; `Patrimoine.exe` les livre dans `LICENCES-TIERCES.txt`
+  MIT, BSD, Apache 2.0 ou PSF ; `Patrimoine.exe` et `Patrimoine.app` les livrent dans `LICENCES-TIERCES.txt`
   (`uv run python packaging/licences.py` pour la liste depuis le code).
