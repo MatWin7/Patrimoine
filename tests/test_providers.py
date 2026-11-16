@@ -51,6 +51,33 @@ def test_yahoo_prix_nul_refuse():
         yahoo.get_price(serve(payload), "FAKE.PA")
 
 
+def test_yahoo_devise_absente():
+    """Yahoo renvoie parfois `currency` nul pour un indice (Euro Stoxx 50, 2026-11-16) :
+    devise connue de l'indice, sinon une erreur claire, jamais une devise « NONE »."""
+    from datetime import date
+
+    payload = {
+        "chart": {
+            "result": [
+                {
+                    "meta": {"currency": None, "regularMarketPrice": 4000, "gmtoffset": 0},
+                    "timestamp": [1748736000],
+                    "indicators": {"quote": [{"close": [4000]}]},
+                }
+            ]
+        }
+    }
+    assert yahoo.get_price(serve(payload), "^stoxx50e").currency == "EUR"
+    currency, closes = yahoo.get_history(
+        serve(payload), "^STOXX50E", date(2025, 6, 1), date(2025, 6, 2)
+    )
+    assert currency == "EUR" and closes == [(date(2025, 6, 1), D("4000"))]
+    with pytest.raises(ProviderError, match="devise de \\^FAKE inconnue"):
+        yahoo.get_price(serve(payload), "^FAKE")
+    with pytest.raises(ProviderError, match="devise de \\^FAKE inconnue"):
+        yahoo.get_history(serve(payload), "^FAKE", date(2025, 6, 1), date(2025, 6, 2))
+
+
 def test_reseau_coupe():
     with pytest.raises(ProviderError, match="injoignable"):
         yahoo.get_price(fake_client(), "FAKE.PA")

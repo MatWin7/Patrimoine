@@ -15,6 +15,22 @@ from app.providers import Price, ProviderError, get_json, positive_decimal
 
 URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 SEARCH = "https://query1.finance.yahoo.com/v1/finance/search"
+# Indices dont Yahoo ne donne pas la devise (`currency` nul dans sa réponse, relevé le
+# 2026-11-16) : devise connue de l'indice, pour ne pas le refuser.
+KNOWN_CURRENCIES = {"^STOXX50E": "EUR"}
+
+
+def _currency(meta: dict, ticker: str) -> str:
+    """Devise de cotation : celle que donne Yahoo (trois lettres), sinon celle connue de
+    l'indice, sinon une erreur claire plutôt qu'une devise « NONE » qui ferait échouer la
+    conversion plus loin."""
+    value = meta.get("currency")
+    if isinstance(value, str) and len(value) == 3 and value.isalpha():
+        return value.upper()
+    known = KNOWN_CURRENCIES.get(ticker.upper())
+    if known:
+        return known
+    raise ProviderError(f"devise de {ticker} inconnue chez Yahoo")
 
 
 def get_price(client: httpx2.Client, ticker: str) -> Price:
@@ -26,9 +42,9 @@ def get_price(client: httpx2.Client, ticker: str) -> Price:
     try:
         meta = data["chart"]["result"][0]["meta"]
         price = positive_decimal(meta["regularMarketPrice"])
-        currency = str(meta["currency"]).upper()
     except (KeyError, IndexError, TypeError) as err:
         raise ProviderError(f"ticker {ticker} introuvable chez Yahoo") from err
+    currency = _currency(meta, ticker)
     previous = meta.get("chartPreviousClose") or meta.get("previousClose")
     previous = previous if isinstance(previous, Decimal) and previous > 0 else None
     return Price(price, currency, "yahoo", datetime.now(UTC), previous)
@@ -53,12 +69,13 @@ def get_history(
     )
     try:
         result = data["chart"]["result"][0]
-        currency = str(result["meta"]["currency"]).upper()
-        offset = int(result["meta"].get("gmtoffset") or 0)
+        meta = result["meta"]
+        offset = int(meta.get("gmtoffset") or 0)
         stamps = result.get("timestamp") or []
         closes = result["indicators"]["quote"][0].get("close") or []
     except (KeyError, IndexError, TypeError, ValueError) as err:
         raise ProviderError(f"historique de {ticker} introuvable chez Yahoo") from err
+    currency = _currency(meta, ticker)
     history = {}
     for stamp, close in zip(stamps, closes, strict=False):
         # Jour sans cotation : close vaut null.

@@ -59,6 +59,8 @@ la page de la release sur GitHub.
 - Textes des onglets allégés (D-136) : une ligne visible au plus sous un graphique ou un tableau,
   le détail dans l'infobulle « ? » ; les mentions de prudence (pas un conseil fiscal, simulation
   et non prévision, aucun ordre passé) restent visibles.
+- Comparaison à l'Euro Stoxx 50 réparée : Yahoo ne donne plus la devise de cet indice, l'app la
+  connaît désormais (euro). Un autre indice sans devise affiche une erreur claire.
 
 ### Publication
 
