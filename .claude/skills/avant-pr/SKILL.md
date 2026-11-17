@@ -18,7 +18,7 @@ Passer chaque point et dire à l'utilisateur ceux qui ne sont pas remplis.
    - vu en clair et en sombre, et à 390 px de large.
 4. **Confidentialité** : `git diff origin/main --stat` puis relire le diff ; aucun montant,
    ISIN de position ou nom de compte réel de l'utilisateur, captures faites sur `data/demo.db`.
-5. **Sécurité** : `/security-review` sur le diff si la PR touche `app/main.py`, `app/importers/`,
+5. **Sécurité** : `/security-review` sur le diff si la PR touche `app/main.py`, `app/api/`, `app/importers/`,
    `app/providers/` ou une route qui écrit ou supprime.
    Relecture indépendante : sous-agent `relecteur-calculs` si `app/portfolio.py`, `analytics.py`,
    `income.py`, `tax.py`, `rebalance.py`, `reconcile.py` ou `app/importers/` changent ;

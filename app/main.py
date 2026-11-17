@@ -2,7 +2,6 @@
 
 import contextvars
 import json
-import os
 import queue
 import re
 import sqlite3
@@ -21,7 +20,6 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.concurrency import run_in_threadpool
 
 from app import (
     backup,
@@ -35,18 +33,14 @@ from app import (
     defi_sync,
     diagnostic,
     income,
-    outbound,
     prices,
     profiles,
     providers,
     rebalance,
     reconcile,
     repository,
-    settings,
-    startpage,
     tax,
     tickers,
-    updates,
     valuations,
 )
 from app import recurring as dca
@@ -66,6 +60,13 @@ from app.analytics import (
     yearly_inflation,
     yearly_returns,
 )
+from app.api import machine
+from app.api import profiles as profiles_routes
+from app.api.deps import SESSION_COOKIE, HttpClient, unready_profiles
+
+# Les tests remplacent ce client par `app.dependency_overrides[http_client]` : le nom reste
+# importable d'ici.
+from app.api.deps import http_client as http_client
 from app.importers import binance, csv_generique, preparation, trade_republic
 from app.models import CASH_ENTERED, Account, Asset, Operation
 from app.portfolio import (
@@ -109,29 +110,19 @@ from app.schemas import (
     ImportIn,
     OperationIn,
     OrderIn,
-    ProfileCodeIn,
-    ProfileDeleteIn,
-    ProfileIn,
-    ProfileOpenIn,
-    ProfilePatchIn,
-    ProfilePhotoIn,
     ReconcileIn,
     RecurringConfirmIn,
     RecurringIn,
     RecurringSkipIn,
-    SettingsIn,
     SplitIn,
-    StartPageIn,
     TargetsIn,
     TradeIn,
-    UpdatesIn,
     ValuationIn,
     WatchlistIn,
     WatchlistItemIn,
     money,
     plain,
 )
-from app.version import __version__
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 CLASS_LABELS = {
@@ -152,11 +143,6 @@ LIVRETS = "Livrets"  # espèces d'un compte de type livret : une classe à part 
 def category_of(asset: Asset) -> str:
     """Catégorie personnelle de l'actif, sinon sa classe (« ETF », « Actions »...), D-061."""
     return asset.category or CLASS_LABELS.get(asset.asset_class, "Autres")
-
-
-# Profils dont la base n'a pas pu être ouverte au lancement (version du schéma en retard...) :
-# leur page dit quoi faire au lieu d'empêcher les autres profils de démarrer.
-unready_profiles: dict[str, str] = {}
 
 
 @asynccontextmanager
@@ -189,7 +175,6 @@ app = FastAPI(
 # à l'ouverture d'un profil, qui désigne sa base. Sans profil valide, seules les routes qui
 # servent à en choisir un répondent. Ce middleware est déclaré en premier : il passe après les
 # contrôles du nom de site et de l'origine.
-SESSION_COOKIE = "patrimoine_session"
 OPEN_PROFILE = re.compile(r"/api/profiles/[^/]+/open")
 
 
@@ -333,411 +318,10 @@ async def unexpected_error(request: Request, exc: Exception):
     )
 
 
-def http_client() -> Iterator[httpx2.Client]:
-    """Client HTTP des sources de prix. Les tests le remplacent (app.dependency_overrides)."""
-    with providers.new_client() as client:
-        yield client
-
-
-HttpClient = Annotated[httpx2.Client, Depends(http_client)]
-
-
-@app.get("/api/health")
-def health(request: Request) -> dict:
-    """« app » : le lanceur reconnaît une instance déjà ouverte de Patrimoine (D-118) ;
-    « version » : numéro de l'app, affiché dans la barre du haut (D-121)."""
-    base = {"status": "ok", "app": "patrimoine", "version": __version__}
-    if profiles.enabled() and getattr(request.state, "profile", None) is None:
-        return {**base, "profile_required": True}
-    with db.connect() as conn:
-        version = db.schema_version(conn)
-    conn.close()
-    return {**base, "schema_version": version}
-
-
-# --- Avis de mise à jour (D-129) ---------------------------------------------------------------
-# Réglage de la machine, pas d'un profil. GET vérifie une fois par jour au plus, et seulement
-# si l'utilisateur l'a accepté : avant sa réponse à la question du premier lancement, aucun appel.
-
-
-@app.get("/api/updates")
-def updates_status(client: HttpClient) -> dict:
-    return updates.status(updates.check(client, date.today()))
-
-
-@app.put("/api/updates")
-def updates_choice(body: UpdatesIn) -> dict:
-    return updates.status(updates.set_enabled(body.enabled))
-
-
-@app.post("/api/updates/check")
-def updates_check_now(client: HttpClient) -> dict:
-    """Clic sur « Vérifier maintenant » : passe outre la limite d'une fois par jour."""
-    return updates.status(updates.check(client, date.today(), force=True))
-
-
-# --- Carte Réglages (D-130) ---------------------------------------------------------------------
-# Réglages de la machine (tous les profils), rangés dans reglages.json. La clé CoinGecko n'est
-# jamais renvoyée ; un réglage fixé par .env est montré sans pouvoir être changé ici.
-
-
-@app.get("/api/settings")
-def settings_status() -> dict:
-    return settings.status()
-
-
-@app.put("/api/settings")
-def settings_update(body: SettingsIn) -> dict:
-    changes = {name: getattr(body, name) for name in body.model_fields_set}
-    with settings.file_lock:  # rien d'autre n'écrit reglages.json entre la lecture et l'écriture
-        try:
-            section = settings.prepare(changes)
-        except settings.SettingsError as err:
-            raise HTTPException(status_code=400, detail=str(err)) from err
-        message = None
-        dest = section.get("backup_copy_dir")
-        if "backup_copy_dir" in changes and dest:
-            # Première copie tout de suite : un dossier où l'on ne peut pas écrire est refusé
-            # avant d'être retenu, et l'utilisateur voit que la copie marche sans attendre.
-            try:
-                copied = backup.copy_out(Path(dest))
-            except (OSError, sqlite3.Error, RuntimeError) as err:
-                raise HTTPException(status_code=400, detail=f"Copie impossible : {err}") from err
-            message = f"{len(copied)} sauvegarde(s) recopiée(s)." if copied else "Dossier prêt."
-        settings.save(section)
-    return {**settings.status(), "message": message}
-
-
-# --- Page de démarrage (D-134) ------------------------------------------------------------------
-# Fond et mot d'accueil, réglages de la machine. La lecture répond sans profil ouvert : c'est
-# l'écran affiché avant le choix du profil, et il ne lit aucune base. Changer le fond, le texte
-# ou l'image demande un profil ouvert, comme les autres réglages.
-
-
-async def _body_up_to(request: Request, limit: int, message: str) -> bytes:
-    """Corps d'une requête, lu morceau par morceau et abandonné dès qu'il dépasse `limit`.
-    L'en-tête Content-Length ne suffit pas : un envoi en morceaux n'en porte pas, et
-    `request.body()` le garderait en entier en mémoire avant tout refus."""
-    try:
-        announced = int(request.headers.get("content-length") or 0)
-    except ValueError:
-        announced = 0
-    if announced > limit:
-        raise HTTPException(413, message)
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > limit:
-            raise HTTPException(413, message)
-        chunks.append(chunk)
-    return b"".join(chunks)
-
-
-def _start_page_error(err: startpage.StartPageError) -> HTTPException:
-    return HTTPException(status_code=400, detail=str(err))
-
-
-@app.get("/api/start")
-def start_page() -> dict:
-    return startpage.status()
-
-
-@app.put("/api/start")
-def start_page_update(body: StartPageIn) -> dict:
-    changes = {name: getattr(body, name) for name in body.model_fields_set}
-    try:
-        return startpage.update(changes)
-    except startpage.StartPageError as err:
-        raise _start_page_error(err) from err
-
-
-@app.get("/api/start/image")
-def start_page_image() -> Response:
-    """L'image personnelle, telle qu'enregistrée. Type fixé ici, jamais deviné par le
-    navigateur (X-Content-Type-Options: nosniff sur toute réponse)."""
-    data = startpage.image_bytes()
-    if data is None:
-        raise HTTPException(404, "Aucune image enregistrée.")
-    return Response(content=data, media_type="image/jpeg")
-
-
-@app.put("/api/start/image")
-async def start_page_set_image(request: Request) -> dict:
-    """Corps de la requête = l'image, déjà réduite et réencodée en JPEG par la page."""
-    data = await _body_up_to(
-        request, startpage.IMAGE_MAX_BYTES, "Image trop lourde : 3 Mo au plus."
-    )
-    try:
-        return await run_in_threadpool(startpage.set_image, data)
-    except startpage.StartPageError as err:
-        raise _start_page_error(err) from err
-
-
-@app.delete("/api/start/image")
-def start_page_remove_image() -> dict:
-    return startpage.remove_image()
-
-
-# --- Comment ça marche et Ce qui sort de cet ordinateur (D-131) ---------------------------------
-# Lecture seule, sans réseau : où sont les données, les sauvegardes du profil ouvert, le choix
-# des mises à jour (lu, jamais vérifié ici) et la liste des services joints avec leur compteur.
-
-
-@app.get("/api/about")
-def about() -> dict:
-    try:
-        copy_dir, copy_error = settings.copy_dir(), None
-    except RuntimeError as err:
-        copy_dir, copy_error = None, str(err)
-    return {
-        "version": __version__,
-        "data_dir": str(profiles.DATA_DIR),
-        "backups": {
-            "folder": str(backup.backup_dir()),
-            "keep": config.backup_keep(),
-            "months": backup.MONTHS_KEPT,
-            "last": backup.last_auto_day(db.db_path().stem),
-            "copy_dir": str(copy_dir) if copy_dir else None,
-            "copy_error": copy_error,
-        },
-        "updates": updates.load().enabled,
-        "outbound": outbound.summary(),
-    }
-
-
-# --- Diagnostic à copier dans un signalement (D-132) --------------------------------------------
-# Lecture seule, sans réseau, sans montant ni nom ni chemin. Répond aussi sans profil ouvert
-# (écran de choix, profil qui ne s'ouvre plus) : la base n'est alors pas lue.
-
-
-@app.get("/api/diagnostic")
-def diagnostic_report(request: Request) -> dict:
-    opened = not profiles.enabled() or getattr(request.state, "profile", None) is not None
-    path = db.db_path() if opened else None
-    text = diagnostic.report(path, unready=len(unready_profiles))
-    return {"text": text, "report_url": diagnostic.REPORT_URL}
-
-
-@app.post("/api/window/focus")
-def window_focus() -> dict:
-    """Second lancement de l'app (D-125) : ramène devant la fenêtre déjà ouverte. Ne lit ni
-    n'écrit aucune donnée ; « focused » faux : l'app tourne dans le navigateur."""
-    from app import window
-
-    return {"focused": window.bring_to_front()}
-
-
-# Ce que faisait la barre de menu de la fenêtre, retirée (D-127). Actions fixes : rien ne vient
-# de la requête (ni adresse, ni chemin) ; refusées par check_origin si un autre site les envoie.
-
-
-@app.get("/api/window")
-def window_info() -> dict:
-    """La page s'affiche-t-elle dans la fenêtre de l'app, et peut-elle remettre le zoom à 100 %."""
-    from app import window
-
-    return window.info()
-
-
-@app.post("/api/window/browser")
-def window_browser() -> dict:
-    from app import window
-
-    return {"done": window.open_app_in_browser()}
-
-
-@app.post("/api/window/folder")
-def window_folder() -> dict:
-    from app import window
-
-    return {"done": window.open_data_folder()}
-
-
-@app.post("/api/window/zoom")
-def window_zoom() -> dict:
-    from app import window
-
-    return {"done": window.reset_current_zoom()}
-
-
-# --- Profils (D-098) -------------------------------------------------------------------------
-
-
-def _set_session(response: Response, token: str) -> None:
-    # HttpOnly : le JavaScript de la page ne lit pas le jeton ; SameSite=Strict : un autre site
-    # ne peut pas l'envoyer. Cookie de session : oublié à la fermeture du navigateur.
-    response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="strict", path="/")
-
-
-def _current(request: Request) -> profiles.Profile | None:
-    return getattr(request.state, "profile", None)
-
-
-def _profile_error(err: profiles.ProfileError) -> HTTPException:
-    return HTTPException(
-        status_code=429 if isinstance(err, profiles.LockedOut) else 400, detail=str(err)
-    )
-
-
-@app.get("/api/profiles")
-def list_profiles(request: Request) -> dict:
-    """Profils de l'ordinateur (nom, couleur, code ou non) : jamais d'empreinte ni de chemin."""
-    current = _current(request)
-    return {
-        "enabled": profiles.enabled(),
-        "current": current.public() if current else None,
-        "profiles": [p.public() for p in profiles.load()] if profiles.enabled() else [],
-        "lock_minutes": int(profiles.idle_limit().total_seconds() // 60),
-    }
-
-
-@app.post("/api/profiles", status_code=201)
-def create_profile(body: ProfileIn, request: Request, response: Response) -> dict:
-    """Ajoute un profil. Il faut être dans un profil ouvert, sauf au tout premier ajout : la base
-    actuelle devient alors le profil « Principal », ouvert d'office pour ce navigateur."""
-    if os.environ.get("PATRIMOINE_DB"):
-        raise HTTPException(409, "PATRIMOINE_DB force une base unique : profils indisponibles.")
-    first = not profiles.enabled()
-    try:
-        profile = profiles.create(body.name, body.code or None, adopt_empty=body.adopt_empty)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    if first:
-        _set_session(response, profiles.open_session(profiles.load()[0].id, just_created=True))
-    return profile.public()
-
-
-@app.post("/api/profiles/demo", status_code=201)
-def create_demo_profile(response: Response) -> dict:
-    """Ajoute le profil Démo (données fictives), ou le remet à neuf s'il existe (D-098)."""
-    if os.environ.get("PATRIMOINE_DB"):
-        raise HTTPException(409, "PATRIMOINE_DB force une base unique : profils indisponibles.")
-    first = not profiles.enabled()
-    try:
-        profile = profiles.create_demo()
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    if first:
-        _set_session(response, profiles.open_session(profiles.load()[0].id))
-    return profile.public()
-
-
-@app.post("/api/profiles/{profile_id}/open")
-def open_profile(profile_id: str, body: ProfileOpenIn, request: Request, response: Response):
-    if not profiles.enabled():
-        raise HTTPException(404, "Profils non activés.")
-    try:
-        token = profiles.open_session(profile_id, body.code)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    profiles.close_session(request.cookies.get(SESSION_COOKIE))  # l'ancien jeton ne sert plus
-    _set_session(response, token)
-    return profiles.get(profile_id).public()
-
-
-@app.post("/api/profiles/lock", status_code=204)
-def lock_profile(request: Request, response: Response) -> None:
-    """Verrouiller : le jeton est oublié par le serveur et effacé du navigateur."""
-    profiles.close_session(request.cookies.get(SESSION_COOKIE))
-    response.delete_cookie(SESSION_COOKIE, path="/")
-
-
-@app.patch("/api/profiles/{profile_id}")
-def patch_profile(profile_id: str, body: ProfilePatchIn, request: Request) -> dict:
-    """Renommer un profil (depuis n'importe quel profil ouvert : le nom n'est pas secret) ;
-    « tutoriel vu » seulement pour son propre profil."""
-    current = _current(request)
-    try:
-        if body.tutorial_done is not None:
-            if current is None or current.id != profile_id:
-                raise HTTPException(403, "Seul le profil ouvert peut changer ce réglage.")
-            profiles.set_tutorial_done(profile_id, body.tutorial_done)
-        if body.name is not None:
-            profiles.rename(profile_id, body.name)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    return profiles.get(profile_id).public()
-
-
-@app.put("/api/profiles/{profile_id}/code")
-def set_profile_code(profile_id: str, body: ProfileCodeIn, request: Request) -> dict:
-    """Seul le profil ouvert change son code ; l'ancien est redemandé. Un code oublié se retire
-    dans le terminal (`uv run python -m app.profiles sans-code <id>`), jamais depuis l'app."""
-    _profile_or_403(request, profile_id, "changer son code")
-    try:
-        profile = profiles.set_code(profile_id, body.new or None, body.current)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    return profile.public()
-
-
-@app.put("/api/profiles/{profile_id}/photo")
-def set_profile_photo(profile_id: str, body: ProfilePhotoIn, request: Request) -> dict:
-    """Seul le profil ouvert change sa photo."""
-    _profile_or_403(request, profile_id, "changer sa photo")
-    try:
-        profile = profiles.set_photo(profile_id, body.photo)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    return profile.public()
-
-
-def _profile_or_403(request: Request, profile_id: str, action: str) -> None:
-    current = _current(request)
-    if current is None or current.id != profile_id:
-        raise HTTPException(403, f"Seul le profil ouvert peut {action}.")
-
-
-@app.get("/api/profiles/{profile_id}/export")
-def export_profile(profile_id: str, request: Request) -> Response:
-    """Copie de la base de son propre profil, téléchargée par le navigateur : elle reste sur la
-    machine tant que la personne ne la déplace pas. Jamais celle d'un autre profil."""
-    _profile_or_403(request, profile_id, "exporter ses données")
-    try:
-        data = profiles.export(profile_id)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    name = f"patrimoine-{profile_id}-{date.today().isoformat()}.db"
-    return Response(
-        data,
-        media_type="application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{name}"',
-            "Cache-Control": "no-store",
-        },
-    )
-
-
-@app.post("/api/profiles/restore", status_code=201)
-async def restore_profile(request: Request, response: Response, name: str = Query(max_length=40)):
-    """Nouveau profil à partir d'une base exportée (corps de la requête = le fichier .db),
-    vérifiée avant d'être acceptée (D-098). Jamais par-dessus un profil existant."""
-    if os.environ.get("PATRIMOINE_DB"):
-        raise HTTPException(409, "PATRIMOINE_DB force une base unique : profils indisponibles.")
-    too_big = "Fichier trop gros pour une base de l'app."
-    data = await _body_up_to(request, profiles.RESTORE_MAX_BYTES, too_big)
-    first = not profiles.enabled()
-    try:
-        profile = await run_in_threadpool(profiles.restore, name, data)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    if first:
-        _set_session(response, profiles.open_session(profiles.load()[0].id))
-    return profile.public()
-
-
-@app.delete("/api/profiles/{profile_id}", status_code=204)
-def delete_profile(
-    profile_id: str, body: ProfileDeleteIn, request: Request, response: Response
-) -> None:
-    """Supprimer un profil : nom retapé et code demandés ; sauvegarde puis corbeille (D-098)."""
-    current = _current(request)
-    try:
-        profiles.delete(profile_id, body.confirm, body.code)
-    except profiles.ProfileError as err:
-        raise _profile_error(err) from err
-    if current is not None and current.id == profile_id:
-        response.delete_cookie(SESSION_COOKIE, path="/")
+# Routes de la machine puis des profils (app/api/, D-139), branchées avant celles de ce fichier
+# pour garder l'ordre de déclaration d'origine.
+app.include_router(machine.router)
+app.include_router(profiles_routes.router)
 
 
 def _conflict(err: sqlite3.IntegrityError) -> HTTPException:
