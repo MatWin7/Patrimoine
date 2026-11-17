@@ -4,7 +4,8 @@ import sqlite3
 from datetime import date, timedelta
 from decimal import Decimal as D
 
-from app import db, defi, main
+from app import db, defi
+from app.api.debts import debts_total_eur
 from tests.test_aave import BORROW_APY, MARKET, START, TODAY, TOKEN, client, post, setup_line
 
 __all__ = ["client"]  # fixture partagée avec test_aave
@@ -81,7 +82,7 @@ def test_api_emprunt_sante_et_patrimoine_net(client, db_file):
         owed(debts["aave"][0]["value_eur"]) and debts["total_eur"] == debts["aave"][0]["value_eur"]
     )
     with db.connect() as conn:
-        assert main._debts_total_eur(conn, {"EUR": D("1")}, TODAY) == D("310")
+        assert debts_total_eur(conn, {"EUR": D("1")}, TODAY) == D("310")
     conn.close()
     overview = client.get("/api/crypto/rewards").json()["overview"]
     assert abs(D(overview["borrow_cost"]) - D("310") * BORROW_APY) <= D("0.02")

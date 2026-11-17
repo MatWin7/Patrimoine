@@ -4,13 +4,22 @@ glisser-déposer, sauvegarde avant une suppression, catégorie d'un actif."""
 
 import sqlite3
 from dataclasses import asdict
+from datetime import date
 from decimal import Decimal
 
 from fastapi import HTTPException
 
-from app import backup, db, profiles, repository
+from app import backup, db, prices, profiles, repository
 from app.models import Account, Asset, Operation
-from app.portfolio import TRADES, cash_movement
+from app.portfolio import (
+    TRADES,
+    ZERO,
+    RateHistory,
+    cash_movement,
+    compute_positions,
+    convert,
+    with_market_prices,
+)
 from app.schemas import OrderIn, money, plain
 
 CLASS_LABELS = {
@@ -120,3 +129,51 @@ def backup_before_delete() -> None:
         raise HTTPException(
             status_code=500, detail=f"Sauvegarde impossible, rien n'est supprimé : {err}"
         ) from err
+
+
+def offline_state() -> dict:
+    """Comptes, actifs, opérations et positions valorisées au dernier cours en cache."""
+    with db.connect() as conn:
+        accounts = {a.id: a for a in repository.list_accounts(conn)}
+        assets = {a.id: a for a in repository.list_assets(conn)}
+        operations = repository.list_operations(conn)
+        positions = compute_positions(operations)
+        latest = {p.asset_id: prices.latest_price(conn, p.asset_id) for p in positions}
+        currencies = {o.currency for o in operations} | {a.currency for a in accounts.values()}
+        currencies |= {q.currency for q in latest.values() if q}
+        rates = prices.stored_rates(conn, currencies)
+        fx = RateHistory(rates, prices.rate_series(conn, currencies))
+        targets = repository.list_targets(conn)
+        category_targets = repository.list_category_targets(conn)
+    conn.close()
+    market = {i: (q.price, q.currency) for i, q in latest.items() if q}
+    return {
+        "accounts": accounts,
+        "assets": assets,
+        "operations": operations,
+        "valued": with_market_prices(positions, market, rates),
+        "rates": rates,
+        "fx": fx,
+        "targets": targets,
+        "category_targets": category_targets,
+    }
+
+
+def by_asset_eur(state: dict, attr: str) -> dict[int, Decimal]:
+    """Somme par actif (tous comptes) de la valeur ou du coût des positions, en EUR."""
+    out: dict[int, Decimal] = {}
+    for p in state["valued"]:
+        amount = convert(getattr(p, attr), p.currency, "EUR", state["rates"])
+        if amount is not None:
+            out[p.asset_id] = out.get(p.asset_id, ZERO) + amount
+    return out
+
+
+def quantity_text(value: Decimal) -> str:
+    """Quantité de jetons, 8 décimales au plus, sans notation « 1E+1 »."""
+    return format(value.quantize(Decimal("1e-8")).normalize(), "f")
+
+
+def last_months(today: date, count: int) -> list[date]:
+    index = today.year * 12 + today.month - 1
+    return [date((index - k) // 12, (index - k) % 12 + 1, 1) for k in range(count - 1, -1, -1)]

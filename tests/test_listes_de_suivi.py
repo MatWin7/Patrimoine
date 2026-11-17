@@ -151,7 +151,7 @@ def test_crypto_sans_historique_garde_le_cours_du_jour(db_file, monkeypatch):
 
     monkeypatch.setattr("app.prices.coin_history", lambda *a, **k: [])
     monkeypatch.setattr(
-        "app.main.coingecko.get_price",
+        "app.providers.coingecko.get_price",
         lambda *a, **k: Price(D("110"), "EUR", "coingecko", datetime.now(UTC), D("100")),
     )
     app.dependency_overrides[http_client] = lambda: fake_client(FakeHistory(None))
