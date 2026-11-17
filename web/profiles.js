@@ -49,10 +49,41 @@
     return el;
   }
 
+  // La page de l'app, en plusieurs fichiers (D-139) : app.js (formats, API, tri, questions) puis
+  // un fichier par partie de l'écran, dans web/app/. Ils partagent leurs fonctions comme un seul
+  // script et s'exécutent dans cet ordre (`async = false`) : un fichier ne se sert, à son
+  // chargement, que de ce que les précédents définissent. demarrage.js, le dernier, lance le
+  // premier affichage une fois que tout est défini.
+  const APP_FILES = [
+    "app.js",
+    "app/positions.js",
+    "app/graphiques.js",
+    "app/performance.js",
+    "app/filtre.js",
+    "app/comparaison.js",
+    "app/visualisations.js",
+    "app/projection.js",
+    "app/pages.js",
+    "app/saisie.js",
+    "app/verification.js",
+    "app/reglages.js",
+    "app/import.js",
+    "app/programmes.js",
+    "app/revenus.js",
+    "app/crypto.js",
+    "app/cibles.js",
+    "app/fiscalite.js",
+    "app/dettes.js",
+    "app/demarrage.js",
+  ];
+
   function loadApp() {
-    const script = document.createElement("script");
-    script.src = "app.js";
-    document.body.append(script);
+    for (const src of APP_FILES) {
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = false;
+      document.body.append(script);
+    }
   }
 
   // --- Écran « Qui consulte ? » -----------------------------------------------------------

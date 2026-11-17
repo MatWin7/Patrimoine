@@ -11,7 +11,7 @@ l'auteur a pu manquer.
 
 Méthode :
 1. `git diff origin/main -- app/ tests/` ; lis seulement les fonctions touchées et leurs appelants
-   (`grep -n`), jamais `web/app.js` ni `docs/decisions.md` en entier.
+   (`grep -n`), jamais `web/app.js`, `web/app/*.js` ni `docs/decisions.md` en entier.
 2. Pour chaque règle de calcul changée, retrouve la décision citée (`grep -n "D-0xx" docs/decisions.md`
    puis lis la zone) et vérifie que le code la suit.
 3. Points à vérifier : `Decimal` partout (aucun `float`, aucun arrondi avant la fin) ; signe et ordre

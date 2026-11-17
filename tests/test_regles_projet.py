@@ -128,3 +128,16 @@ def test_base_migree_identique_a_une_base_neuve(db_file, tmp_path):
     neuve = tmp_path / "neuve.db"
     db.init_db(neuve)
     assert structure(db_file) == structure(neuve)
+
+
+def test_fichiers_de_la_page_tous_charges_dans_l_ordre():
+    """D-139 : la page est faite de web/app.js puis des fichiers de web/app/, chargés dans l'ordre
+    de la liste APP_FILES de web/profiles.js. Un fichier oublié ne serait jamais chargé ; le
+    démarrage (premier affichage) doit venir après tous les autres."""
+    source = (RACINE / "web" / "profiles.js").read_text(encoding="utf-8")
+    liste = re.search(r"const APP_FILES = \[(.*?)\];", source, re.S).group(1)
+    charges = re.findall(r'"([^"]+)"', liste)
+    sur_disque = {f"app/{p.name}" for p in (RACINE / "web" / "app").glob("*.js")}
+    assert charges[0] == "app.js" and charges[-1] == "app/demarrage.js"
+    assert len(charges) == len(set(charges))
+    assert set(charges[1:]) == sur_disque
