@@ -8,20 +8,21 @@
 
 Le fichier contient la table des routes (dans l'ordre où elles sont déclarées), la description
 OpenAPI de chaque route (paramètres, formats d'entrée) et la réponse de chaque route de lecture
-sur `data/demo.db` et `data/demo-grand.db` (données fictives). Réseau coupé, travail sur une
-copie des bases dans un dossier temporaire : rien n'est lu ni écrit ailleurs.
+sur les deux bases de démo (données fictives de `app/demo.py`), recréées à chaque passage dans
+un dossier temporaire : leurs prix sont donc toujours frais, et deux passages le même jour
+donnent le même fichier. Réseau coupé ; rien n'est lu ni écrit ailleurs.
 """
 
 import json
 import os
-import shutil
+import re
 import sys
 import tempfile
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RACINE))
-BASES = ("demo.db", "demo-grand.db")
+BASES = {"demo.db": "fill_demo", "demo-grand.db": "fill_grand"}  # fonction de app/demo.py
 
 # Routes de lecture appelées telles quelles, puis avec quelques paramètres qui changent le calcul.
 VARIANTES = [
@@ -106,24 +107,22 @@ def _lectures(client, app) -> dict:
     return sorties
 
 
+HEURE = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)?")
+
+
 def _sans_chemins(valeur, dossier: str):
-    """Le dossier temporaire change à chaque passage : il est remplacé par un nom fixe."""
+    """Le dossier temporaire et l'heure des prix (celle de la création des bases) changent à
+    chaque passage : ils sont remplacés par un nom fixe. Les dates seules sont gardées."""
     if isinstance(valeur, dict):
         return {k: _sans_chemins(v, dossier) for k, v in valeur.items()}
     if isinstance(valeur, list):
         return [_sans_chemins(v, dossier) for v in valeur]
     if isinstance(valeur, str):
-        return valeur.replace(dossier, "<dossier>")
+        return HEURE.sub("<heure>", valeur.replace(dossier, "<dossier>"))
     return valeur
 
 
 def main(sortie: Path) -> None:
-    manquantes = [b for b in BASES if not (RACINE / "data" / b).exists()]
-    if manquantes:
-        raise SystemExit(
-            f"Base(s) de démo absente(s) : {', '.join(manquantes)}. "
-            "Lancer `uv run python -m app.demo` et `uv run python -m app.demo --grand`."
-        )
     with tempfile.TemporaryDirectory() as dossier:
         # Posé avant d'importer l'app : dossier des données jetable, aucune vraie base lue.
         os.environ["PATRIMOINE_DATA_DIR"] = dossier
@@ -134,6 +133,7 @@ def main(sortie: Path) -> None:
         import httpx2
         from fastapi.testclient import TestClient
 
+        from app import db, demo
         from app import main as api
         from app.main import app, http_client
 
@@ -146,10 +146,13 @@ def main(sortie: Path) -> None:
         api.ALLOWED_HOSTS = api.ALLOWED_HOSTS | {"testserver"}
 
         resultat = {"routes": _routes(app), "openapi": app.openapi(), "bases": {}}
-        for base in BASES:
-            copie = Path(dossier) / base
-            shutil.copyfile(RACINE / "data" / base, copie)
-            os.environ["PATRIMOINE_DB"] = str(copie)
+        for base, remplir in BASES.items():
+            chemin = Path(dossier) / base
+            db.init_db(chemin)
+            with db.connect(chemin) as conn:
+                getattr(demo, remplir)(conn)
+            conn.close()
+            os.environ["PATRIMOINE_DB"] = str(chemin)
             with TestClient(app) as client:
                 resultat["bases"][base] = _lectures(client, app)
         texte = json.dumps(_sans_chemins(resultat, dossier), ensure_ascii=False, indent=1)
