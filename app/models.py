@@ -7,6 +7,7 @@ from decimal import Decimal
 # Comptes dont on saisit les espèces actuelles, lues chez la banque (D-041, D-075) : un livret,
 # et les comptes où les versements ne servent à aucun calcul fiscal (CTO, crypto, Autre). Les
 # autres (PEA, assurance-vie, PER, immobilier) déduisent leurs espèces des versements (D-062).
+FICTIVE_MARK = "~"  # dans le ticker d'un actif des démos (D-140)
 CASH_ENTERED = ("livret", "cto", "crypto", "autre")
 
 
@@ -58,6 +59,12 @@ class Asset:
     def manual(self) -> bool:
         """Sans identifiant de prix : valeur saisie à la main (D-056), aucun appel réseau."""
         return self.ticker is None and self.coingecko_id is None
+
+    @property
+    def fictive(self) -> bool:
+        """Actif des démos (« ~ » dans le ticker, absent de tout ticker Yahoo) : cours générés en
+        local, jamais demandés en ligne, où ils n'existent pas (D-140)."""
+        return FICTIVE_MARK in (self.ticker or "")
 
 
 @dataclass(frozen=True)

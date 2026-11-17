@@ -115,7 +115,14 @@ def get_quotes(
         cached = latest_price(conn, asset.id)
         if cached:
             cached = replace(cached, previous_close=_previous_close.get((scope, asset.id)))
-        if asset.manual:  # valeur saisie (D-056) : rien à demander en ligne
+        if asset.fictive and cached:  # démo (D-140) : veille = avant-dernière clôture générée
+            row = conn.execute(
+                "SELECT close FROM price_history WHERE asset_id = ? ORDER BY price_date DESC"
+                " LIMIT 1 OFFSET 1",
+                (asset.id,),
+            ).fetchone()
+            cached = replace(cached, previous_close=from_db(row["close"]) if row else None)
+        if asset.manual or asset.fictive:  # valeur saisie (D-056), démo (D-140) : rien en ligne
             quotes[asset.id] = Quote(cached)
             continue
         if cached and not force and now - cached.fetched_at < ttl:
@@ -291,7 +298,9 @@ def close_on(conn: sqlite3.Connection, asset_id: int, day: date) -> tuple[Decima
 def history_ticker(asset: Asset) -> str | None:
     """Ticker Yahoo dont viennent les clôtures d'un actif : le sien ; pour une crypto, celui
     saisi dans « Gérer », sinon celui de la table des cryptos courantes (D-111). None : pas
-    d'historique (valeur saisie, crypto inconnue de Yahoo)."""
+    d'historique (valeur saisie, crypto inconnue de Yahoo, actif des démos, D-140)."""
+    if asset.fictive:
+        return None
     return crypto_tickers.yahoo_ticker(asset.ticker, asset.coingecko_id)
 
 

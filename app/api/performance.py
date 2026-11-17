@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 import httpx2
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from app import crypto_tickers, db, prices, providers, repository
+from app import db, prices, providers, repository
 from app.analytics import (
     blend,
     livret_closes,
@@ -305,7 +305,7 @@ def _months_before(client: httpx2.Client, series: dict, first: date) -> dict[str
     for p in compute_positions(series["operations"]):
         asset = assets[p.asset_id]
         # Crypto : son ticker Yahoo, saisi ou connu (D-111).
-        ticker = crypto_tickers.yahoo_ticker(asset.ticker, asset.coingecko_id)
+        ticker = prices.history_ticker(asset)  # rien pour une ligne des démos (D-140)
         if not ticker:
             continue  # crypto inconnue de Yahoo : pas d'historique d'avant l'achat
         try:

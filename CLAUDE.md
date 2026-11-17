@@ -20,7 +20,7 @@ Environnement : Windows + WSL 2 (Ubuntu), projet dans `~/patrimoine`, app sur `h
 uv sync                                        # installe l'environnement (.venv)
 uv run python -m app                           # Windows/macOS/Linux : sauvegarde, port libre (8000 de préférence), fenêtre d'application sous Windows/macOS sinon navigateur (D-125), ramène l'instance déjà lancée (D-118) ; --navigateur, --sans-navigateur
 ./scripts/patrimoine.sh                        # idem depuis WSL (Patrimoine.bat : double-clic Windows via WSL ; Patrimoine-sans-WSL.bat : sans WSL)
-uv run python -m app.demo                      # crée data/demo.db avec des données fictives
+uv run python -m app.demo                      # crée data/demo.db : démo complète fictive, celle du profil Démo (D-140)
 uv run python -m app.demo --grand              # crée data/demo-grand.db : 3 comptes, 30 lignes fictives
 PATRIMOINE_DB=data/demo.db uv run python -m app   # même chose sur la base de démo
 uv run python -m app.backup                     # sauvegarde la base dans data/sauvegardes/
@@ -72,7 +72,7 @@ app/rebalance.py   allocation cible : répartition d'un versement sans vente (fo
 app/tax.py         repères fiscaux FR en estimation : plafond et 5 ans PEA, 8 ans AV, PER (plafond, sortie), plus-values CTO, crypto (portefeuille global)
 app/reconcile.py   comparaison d'un compte au relevé de la banque : écarts, causes, correction (D-063)
 app/prices.py      cache des prix et taux dans SQLite (un seul cours en ligne gardé par actif, D-138), choix de la source, repli si panne ; clôtures quotidiennes Yahoo, cryptos comprises par leur ticker Yahoo
-app/demo.py        remplit data/demo.db avec des données fictives
+app/demo.py        remplit data/demo.db (démo complète) et data/demo-grand.db ; app/demo_complet.py : sept ans fictifs sur toutes les enveloppes, cours générés, tickers `DEMO~` jamais demandés en ligne (D-140)
 app/valuations.py  valeurs saisies à la main (actifs sans cours public), conversion montant -> parts
 app/backup.py      sauvegarde de la base (API backup de SQLite), du jour au lancement puis chaque heure, relue, rotation 14 j + 12 mois + 1/an, profils.json, copie hors de WSL (BACKUP_COPY_DIR, D-114)
 app/providers/     une source par fichier (yahoo, coingecko, frankfurter, eurostat, aave), get_price(client, id) -> Price
@@ -103,7 +103,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
 - Page de démarrage (D-134) : réglage de la machine dans `data/reglages.json` (clé `accueil`) ; `GET /api/start` et `GET /api/start/image` répondent sans profil ouvert, `PUT /api/start` (fond, texte), `PUT` et `DELETE /api/start/image` avec un profil ; image réduite et réencodée en JPEG par la page, 3 Mo au plus, `data/accueil/fond.jpg`, hors sauvegardes.
 - Gérer (D-135) : quatre cartes. « Ajouter des opérations » (`data-card="nouvelle-operation"`) : sélecteur « Une par une » / « Importer un relevé », un panneau à la fois (`data-operation-mode`), choix gardé dans le navigateur ; ouverture d'un panneau depuis ailleurs par l'événement `operationmode` ou l'attribut `data-operation-open`. Puis Achats programmés, Comptes (avec la partie Dettes), Actifs.
 - Réglages (D-130, carte « Général ») : `GET/PUT /api/settings`, réglage de la machine dans `data/reglages.json` (clé `reglages`) ; ordre : environnement/.env, carte, défaut ; un réglage de .env est grisé dans la carte.
-- Profils (D-098) : une base par personne (`data/profils/<id>.db`, liste `data/profils.json`), choisie à chaque requête par un jeton de session (cookie HttpOnly) ; sans profils.json, base unique `data/patrimoine.db` ; `PATRIMOINE_DB` force une base unique. Une mémoire de processus qui décrit une base se range par `db.conn_key(conn)`. Code facultatif (anti-curiosité, la base n'est pas chiffrée). Réglages, carte Profils : renommer, exporter (son profil), restaurer (base vérifiée, nouveau profil), supprimer vers `data/corbeille/` ; profil Démo (`app.demo.fill_demo`).
+- Profils (D-098) : une base par personne (`data/profils/<id>.db`, liste `data/profils.json`), choisie à chaque requête par un jeton de session (cookie HttpOnly) ; sans profils.json, base unique `data/patrimoine.db` ; `PATRIMOINE_DB` force une base unique. Une mémoire de processus qui décrit une base se range par `db.conn_key(conn)`. Code facultatif (anti-curiosité, la base n'est pas chiffrée). Réglages, carte Profils : renommer, exporter (son profil), restaurer (base vérifiée, nouveau profil), supprimer vers `data/corbeille/` ; profil Démo (`app.demo.fill_demo`, démo complète D-140 : une fonctionnalité nouvelle s'y ajoute, avec une ligne dans `tests/test_demo_complet.py`).
 - Positions **calculées** à partir des opérations, jamais stockées.
 - Espèces **calculées** (D-062) pour PEA, AV, PER ; **saisies** pour CTO, crypto, Autre (solde du jour + opérations suivantes, D-075). Calcul D-062 : champ « Versements » du compte + opérations rejouées dans l'ordre (versements, ventes, dividendes − achats, frais, retraits) ; un achat qui les rendrait négatives compte un versement supposé. Livret : solde saisi + opérations suivantes (D-041).
 - Valorisation = quantité × dernier prix, convertie en EUR via `fx_rate` (1 EUR = `rate` devise) ; coût et plus-values en devise aux taux BCE du jour de chaque opération (`RateHistory`, D-081).

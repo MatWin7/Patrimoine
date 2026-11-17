@@ -152,6 +152,10 @@ def _watch_row(
             return _coin_today_row(client, row, coin, key)
     if not closes:
         return row | {"error": error}
+    return _with_returns(row, currency, closes, today)
+
+
+def _with_returns(row: dict, currency: str, closes, today: date) -> dict:
     returns = watch.period_returns(closes, today)
     row |= {k: pct(v) for k, v in returns.items()}
     last_day, last = closes[-1]
@@ -172,10 +176,19 @@ def lines_performance(client: HttpClient) -> dict:
     with db.connect() as conn:
         assets = {a.id: a for a in repository.list_assets(conn)}
         held = {p.asset_id for p in compute_positions(repository.list_operations(conn))}
+        # Actifs des démos : leurs clôtures générées, rien en ligne (D-140).
+        local = {a.id: prices.load_history(conn, a.id) for a in assets.values() if a.fictive}
     conn.close()
     rows = []
     for asset in assets.values():  # dans l'ordre choisi dans « Gérer » (D-070)
         if asset.id not in held or asset.manual:
+            continue
+        if asset.id in local:
+            closes = [(day, close) for day, close, _ in local[asset.id]]
+            row = {"label": asset.name, "ticker": None, "currency": None, "last": None,
+                   "last_date": None} | dict.fromkeys(watch.PERIODS)  # fmt: skip
+            row = _with_returns(row, asset.currency, closes, today) if closes else row
+            rows.append({"id": asset.id} | row)
             continue
         # Crypto : ticker Yahoo saisi ou connu (plusieurs années, D-111), sinon CoinGecko.
         ticker = crypto_tickers.yahoo_ticker(asset.ticker, asset.coingecko_id)

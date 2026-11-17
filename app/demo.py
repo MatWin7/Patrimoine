@@ -1,5 +1,8 @@
 """Remplit data/demo.db avec des données FICTIVES : `uv run python -m app.demo`.
 
+La démo complète (D-140, `app/demo_complet.py`) : sept ans d'opérations sur toutes les
+enveloppes, la même que le profil Démo.
+
 Toujours data/demo.db, quelle que soit PATRIMOINE_DB : ce script ne doit jamais toucher la
 vraie base. Ensuite : `PATRIMOINE_DB=data/demo.db uv run python -m app`.
 
@@ -12,7 +15,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from decimal import Decimal as D
 
-from app import db, prices, repository, valuations
+from app import db, demo_complet, prices, repository, valuations
 from app.providers import Price
 
 DEMO_DB = db.ROOT / "data" / "demo.db"
@@ -52,7 +55,7 @@ def fake_history(
 
 
 # Portefeuille FICTIF « grand » : (compte, nom, classe, devise, prix de départ en millièmes,
-# quantité). Noms inventés, tickers DEMO-* inexistants chez Yahoo et CoinGecko.
+# quantité). Noms inventés, tickers DEMO~* jamais demandés en ligne (D-140).
 GRAND_LINES = [
     ("PEA", "ETF Monde fictif", "etf", "EUR", 5000, "900"),
     ("PEA", "ETF Europe fictif", "etf", "EUR", 25000, "60"),
@@ -165,7 +168,7 @@ def fill_grand(conn) -> None:
             name,
             cls,
             None,
-            None if cls == "crypto" else f"{slug.upper()}.PA",
+            f"DEMO~C{i:02d}" if cls == "crypto" else f"DEMO~{i:02d}.PA",  # jamais en ligne
             slug if cls == "crypto" else None,
             currency,
         )
@@ -290,58 +293,9 @@ def fill_income(conn, accounts, assets) -> None:
 
 
 def fill_demo(conn) -> None:
-    """Données fictives de data/demo.db, aussi utilisées par le profil Démo (D-098)."""
-    pea = repository.create_account(conn, "PEA démo", "pea", "Banque fictive", "EUR")
-    etf = repository.create_asset(conn, "ETF Monde fictif", "etf", None, "DEMO.PA", None, "EUR")
-    action = repository.create_asset(
-        conn, "Action fictive", "action", None, "DEMO2.PA", None, "EUR"
-    )
-    # Versements fictifs puis achats : les espèces du compte se calculent toutes seules.
-    for jour, amount in [
-        (date(2025, 3, 1), "250"),
-        (date(2025, 6, 2), "100"),
-        (date(2025, 8, 29), "150"),
-    ]:
-        repository.create_operation(
-            conn,
-            pea.id,
-            None,
-            jour,
-            "versement",
-            None,
-            None,
-            Decimal(amount),
-            Decimal("0"),
-            "EUR",
-            "versement fictif",
-        )
-    for asset, jour, qty, price in [
-        (etf, date(2025, 3, 3), "40", "5.10"),
-        (action, date(2025, 6, 3), "3", "30.00"),
-        (etf, date(2025, 9, 1), "25", "5.62"),
-    ]:
-        repository.create_operation(
-            conn,
-            pea.id,
-            asset.id,
-            jour,
-            "achat",
-            Decimal(qty),
-            Decimal(price),
-            None,
-            Decimal("1.00"),
-            "EUR",
-            "achat fictif",
-        )
-    # Achat programmé fictif depuis deux mois : des échéances attendent d'être validées.
-    today = date.today()
-    start = date(today.year - (today.month <= 2), (today.month - 3) % 12 + 1, 1)
-    repository.save_recurring(
-        conn, None, pea.id, etf.id, Decimal("50"), "mensuel", 5, start, "achat programmé fictif"
-    )
-    fill_envelopes(conn)
-    fake_history(conn, etf.id, date(2025, 2, 24), date.today())
-    fake_history(conn, action.id, date(2025, 5, 26), date.today(), millis=30000, scale=-9)
+    """Données fictives de data/demo.db et du profil Démo (D-098) : la démo complète, qui passe
+    par chaque partie de l'app (D-140, `app/demo_complet.py`)."""
+    demo_complet.fill(conn)
 
 
 def main() -> None:
