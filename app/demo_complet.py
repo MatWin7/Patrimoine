@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
 
-from app import prices, repository, valuations
+from app import defi_sync, prices, repository, valuations
 from app.models import Account, Asset
 from app.portfolio import compute_positions
 from app.providers import Price
@@ -141,9 +141,10 @@ class Builder:
         seed: int = 1,
         *,
         coingecko_id: str | None = None,
+        wobble: str = "1",
     ) -> Asset:
         """Actif coté FICTIF et ses clôtures depuis `start` : prix de départ × marché^bêta ×
-        (1 + dérive)^années × (1 + bruit)."""
+        (1 + dérive)^années × (1 + bruit × `wobble`) ; `wobble` faible pour un stablecoin."""
         conn = self.conn
         asset = repository.create_asset(conn, name, cls, None, ticker, coingecko_id, currency)
         p0, b, g = D(price), D(beta), D("1") + D(drift)
@@ -152,7 +153,7 @@ class Builder:
         closes = {}
         for n, day in enumerate(d for d in self.days if d >= start):
             level = (self.market[day] / m0) ** b * g ** (D((day - start).days) / 365)
-            closes[day] = (p0 * level * (1 + _noise(n, seed))).quantize(step)
+            closes[day] = (p0 * level * (1 + _noise(n, seed) * D(wobble))).quantize(step)
         conn.executemany(
             "INSERT OR REPLACE INTO price_history (asset_id, price_date, close, currency, source)"
             " VALUES (?, ?, ?, ?, 'demo')",
@@ -245,8 +246,10 @@ def fill(conn) -> None:
     assurance_vie(b)
     per(b)
     livrets_et_biens(b)
+    crypto(b)
     reglages(b)
     b.finish()
+    defi_sync.sync(conn, today)  # intérêts Aave des mois clos, comme à l'ouverture de l'app
 
 
 def pea(b: Builder, recent: date) -> None:
@@ -472,3 +475,130 @@ def reglages(b: Builder) -> None:
         wl = repository.create_watchlist(conn, name)
         for label, ticker in items:
             repository.add_watchlist_item(conn, wl["id"], label, ticker)
+
+
+# Marchés Aave v3 d'Ethereum : adresses PUBLIQUES de contrats d'Aave (pool) et de jetons, jamais
+# un portefeuille (règle 3). L'app y lit les vrais taux une fois par jour ; les taux fictifs
+# enregistrés ici servent tant qu'elle ne les a pas, et hors ligne.
+AAVE_ETH = {"chain_id": 1, "chain_name": "Ethereum", "market_name": "Aave Ethereum",
+            "market": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"}  # fmt: skip
+USDC_TOKEN = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+WETH_TOKEN = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+
+
+def crypto(b: Builder) -> None:
+    """Plateforme à l'étranger (3916-bis) et portefeuille personnel (D-104), cryptos cotées en
+    dollars sur un compte en euros (D-085), transfert, échange crypto-crypto, ventes imposables
+    (D-066), frais, récompenses de chaque type (D-092), dépôts Aave vérifiés (D-095) et un
+    emprunt dont le facteur de santé approche l'alerte (D-108)."""
+    conn, today = b.conn, b.today
+    start = date(2019, 6, 3)
+    for name, sym, price, beta, drift, seed, wobble in [
+        ("Bitcoin fictif", "BTC", "9000", "2.2", "0.15", 20, "2"),
+        ("Ether fictif", "ETH", "250", "2.5", "0.15", 21, "3"),
+        ("Solana fictif", "SOL", "6", "3", "0.25", 22, "4"),
+        ("USDC fictif", "USDC", "1", "0", "0", 23, "0.02"),
+        ("Jeton airdrop fictif", "AIR", "2", "1", "-0.45", 24, "3"),
+    ]:
+        b.quoted(name, "crypto", f"DEMO~{sym}", "USD", start, price, beta, drift, seed,
+                 coingecko_id=f"demo-{sym.lower()}", wobble=wobble)  # fmt: skip
+    plat = repository.create_account(conn, "Plateforme crypto démo", "crypto",
+                                     "Plateforme fictive", "EUR")  # fmt: skip
+    repository.set_account_custody(conn, plat.id, "exchange", True)
+    wallet = repository.create_account(conn, "Portefeuille démo", "crypto", None, "EUR")
+    repository.set_account_custody(conn, wallet.id, "wallet", False)
+    aave_acc = repository.create_account(conn, "Aave Ethereum démo", "crypto", None, "EUR")
+    repository.set_account_custody(conn, aave_acc.id, "wallet", False)
+
+    b.cash(plat, date(2020, 4, 1), "3000")
+    b.buy(plat, "Bitcoin fictif", date(2020, 4, 6), eur="2000", decimals=6, fees="2")
+    b.buy(plat, "Ether fictif", date(2020, 5, 11), eur="900", decimals=5, fees="1")
+    for year in range(2021, today.year + 1):
+        amount = {2021: "2100", 2022: "1500", 2023: "1500", 2024: "1500"}.get(year, "300")
+        b.cash(plat, date(year, 1, 4), amount)
+    b.buy(plat, "Ether fictif", date(2021, 1, 5), eur="1400", decimals=5, fees="1.5")
+    b.buy(plat, "Solana fictif", date(2021, 9, 6), eur="600", decimals=3, fees="1")
+    b.buy(plat, "USDC fictif", date(2022, 1, 5), eur="1450", decimals=2, fees="0")
+    b.buy(plat, "Bitcoin fictif", date(2023, 1, 9), eur="1400", decimals=6, fees="1.5")
+    b.buy(plat, "USDC fictif", date(2024, 1, 8), eur="1400", decimals=2, fees="0")
+    # Frais de réseau payés en euros sur la plateforme (onglet Rendements crypto).
+    for year in range(2021, today.year + 1):
+        if date(year, 6, 1) <= today:
+            b.op(plat, None, date(year, 6, 1), "frais", amount=D("4.50"),
+                 note="frais de retrait fictifs")  # fmt: skip
+
+    # Bitcoin et ether envoyés vers le portefeuille personnel (D-085).
+    for name, day, qty in [("Bitcoin fictif", date(2023, 3, 6), "0.05"),
+                           ("Ether fictif", date(2024, 2, 5), "1.5")]:  # fmt: skip
+        b.op(plat, b.lines[name].asset, day, "transfert_sortant", quantity=D(qty),
+             unit_price=b.close(name, day), to_account_id=wallet.id,
+             note="envoi fictif vers le portefeuille")  # fmt: skip
+
+    # Ventes imposables (l'an dernier et cette année) et échange crypto-crypto, non imposable.
+    b.sell(plat, "Bitcoin fictif", date(today.year - 1, 11, 10), "0.01", fees="2")
+    b.sell(plat, "Bitcoin fictif", today - timedelta(days=25), "0.008", fees="2")
+    swap_day = today - timedelta(days=60)
+    eth = b.sell(plat, "Ether fictif", swap_day, "0.3", fees="0", crypto_swap=True,
+                 note="échange fictif")  # fmt: skip
+    sol_qty = (eth.quantity * eth.unit_price / b.close("Solana fictif", swap_day)).quantize(
+        D("0.001"), ROUND_DOWN)  # fmt: skip
+    b.buy(plat, "Solana fictif", swap_day, qty=str(sol_qty), fees="0", note="échange fictif")
+
+    # Récompenses sur 12 mois : Earn en USDC, staking en SOL, cashback en BTC, un airdrop et
+    # un parrainage (D-092).
+    for m in range(1, 13):
+        day = _business(today - timedelta(days=30 * m))
+        for name, qty, kind in [
+            ("USDC fictif", "6.2", "earn"),
+            ("Solana fictif", "0.07", "staking"),
+            ("Bitcoin fictif", "0.00002", "cashback"),
+        ]:
+            if kind == "cashback" and m > 6:
+                continue
+            price = b.close(name, day)
+            b.op(plat, b.lines[name].asset, day, "achat", quantity=D(qty), unit_price=price,
+                 offered=D(qty) * price, reward_kind=kind, note="récompense fictive")  # fmt: skip
+    for name, back, qty, kind in [("Jeton airdrop fictif", 300, "40", "airdrop"),
+                                  ("Bitcoin fictif", 150, "0.0003", "parrainage")]:  # fmt: skip
+        day = _business(today - timedelta(days=back))
+        price = b.close(name, day)
+        b.op(plat, b.lines[name].asset, day, "achat", quantity=D(qty), unit_price=price,
+             offered=D(qty) * price, reward_kind=kind, note="cadeau fictif")  # fmt: skip
+
+    # Aave : USDC et ether déposés depuis la plateforme et le portefeuille, puis un emprunt.
+    deposit = _business(date(today.year - 1, 3, 3))
+    for src, name, qty in [(plat, "USDC fictif", "1200"), (wallet, "Ether fictif", "1")]:
+        b.op(src, b.lines[name].asset, deposit, "transfert_sortant", quantity=D(qty),
+             unit_price=b.close(name, deposit), to_account_id=aave_acc.id,
+             note="dépôt fictif sur Aave")  # fmt: skip
+    usdc, ether = b.lines["USDC fictif"].asset, b.lines["Ether fictif"].asset
+    lines = [
+        defi_sync.create_line(conn, aave_acc.id, usdc.id, {**AAVE_ETH, "token": USDC_TOKEN,
+                                                           "symbol": "USDC"}),
+        defi_sync.create_line(conn, aave_acc.id, ether.id, {**AAVE_ETH, "token": WETH_TOKEN,
+                                                            "symbol": "WETH"}),
+    ]  # fmt: skip
+    borrow = defi_sync.create_borrow(conn, usdc.id, {**AAVE_ETH, "token": USDC_TOKEN,
+                                                     "symbol": "USDC"})  # fmt: skip
+    days = [d for d in b.days if d >= deposit] + [today]
+    for line, base, side in [(lines[0], "0.045", "supply"), (lines[1], "0.018", "supply"),
+                             (borrow, "0.062", "borrow")]:  # fmt: skip
+        rates = {d: (D(base) * (1 + _noise(n, line.id * 7 + len(side)) * 15)).quantize(D("0.0001"))
+                 for n, d in enumerate(days)}  # fmt: skip
+        defi_sync.save_rates(conn, line, rates, side)
+    conn.executemany(
+        "INSERT OR REPLACE INTO defi_reserve (chain_id, market, token, liquidation_threshold,"
+        " fetched_on) VALUES (1, ?, ?, ?, ?)",
+        [(AAVE_ETH["market"].lower(), t.lower(), v, today.isoformat())
+         for t, v in [(USDC_TOKEN, "0.78"), (WETH_TOKEN, "0.83")]],
+    )  # fmt: skip
+    # Emprunt réglé pour un facteur de santé d'environ 1,6, juste au-dessus de l'alerte (1,5).
+    borrowed = _business(date(today.year, 1, 12))
+    collateral = 1200 * D("0.78") + b.close("Ether fictif", today) * D("0.83")
+    defi_sync.add_borrow_flow(conn, borrow.id, borrowed, (collateral / D("1.6")).quantize(D(1)))
+    # Soldes lus dans Aave (« Vérifier ») : l'estimation repart de ces chiffres.
+    # Un peu moins que l'estimation : les taux réels ont varié.
+    checked = _business(today - timedelta(days=40))
+    years = D((checked - deposit).days) / 365
+    read = (1200 * D("1.045") ** years - D("2.37")).quantize(D("0.01"))
+    defi_sync.save_check(conn, lines[0].id, checked, read)

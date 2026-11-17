@@ -14,7 +14,8 @@ la page de la release sur GitHub.
 
 - Profil Démo complet : sept ans d'opérations fictives sur toutes les enveloppes (PEA, compte-titres
   en dollars, assurance-vie, PER, livrets, immobilier, or, prêts), achats programmés à valider,
-  dividendes, ventes, cibles et listes de suivi. « Recréer » dans Réglages, carte Profils, pour
+  dividendes, ventes, cibles, listes de suivi, cryptos sur une plateforme et un portefeuille,
+  récompenses, dépôts et emprunt Aave. « Recréer » dans Réglages, carte Profils, pour
   l'obtenir. Les lignes de la démo ne sont plus demandées en ligne (D-140).
 - Patrimoine s'ouvre dans sa propre fenêtre sous Windows et macOS, et non plus dans un onglet du
   navigateur ; fermer la fenêtre arrête l'app. Un second lancement ramène la fenêtre devant.
