@@ -44,7 +44,8 @@ app/outbound.py    ce qui sort de la machine (D-131) : liste des services joints
 app/settings.py    carte Réglages (D-130) : reglages.json du dossier des données (verrou commun avec updates), .env prioritaire, clé CoinGecko jamais renvoyée, dossier de copie sans réseau
 app/startpage.py   page de démarrage réglable (D-134) : fond pris dans une liste, mot d'accueil borné, image personnelle JPEG vérifiée dans data/accueil/fond.jpg ; clé `accueil` de reglages.json ; /api/start (lecture sans profil)
 app/version.py     __version__ (source lue par l'app, = pyproject.toml et uv.lock), notes d'une version tirées de CHANGELOG.md (D-121)
-app/main.py        FastAPI, API JSON sous /api/..., sert web/
+app/main.py        FastAPI : application, contrôles de chaque requête (profil, nom de site, origine, en-têtes), routes pas encore déplacées, sert web/
+app/api/           routes de l'API par famille (D-139) : deps.py (client HTTP, cookie de session, ce que les routes partagent), machine.py (état, mises à jour, réglages, page de démarrage, Ce qui sort, diagnostic, fenêtre), profiles.py ; branchées par main.py dans l'ordre de déclaration, jamais d'import de app.main
 app/__main__.py    point d'entrée (options) ; app/launcher.py : verrou d'instance, port libre, navigateur, arrêt propre, sauvegarde horaire (D-118)
 app/window.py      fenêtre d'application pywebview (Windows, macOS), repli sur le navigateur, taille gardée, actions du bouton « Fenêtre » (D-125, D-127)
 app/console.py     Patrimoine.exe / .app sans console : journal.txt dans le dossier de données par défaut, erreur de démarrage en boîte de dialogue (D-126, D-137)
@@ -86,7 +87,7 @@ web/               index.html (pages par onglets #apercu, #performance...), them
 .github/workflows/ CI : tests sous Linux, Windows et macOS, lint et syntaxe du front à chaque PR ; release.yml : étiquette vX.Y.Z → contrôles, archive, Patrimoine.exe zippé, SHA256SUMS, page de release (actions figées par SHA, D-121) ; exe-windows.yml : construit et lance Patrimoine.exe (D-126) ; app-macos.yml : Patrimoine.app et son .dmg (D-137) ; dependabot.yml : dépendances chaque semaine en une PR, 7 j de recul sauf alerte (D-123)
 .claude/           réglages Claude Code (D-079, D-113) : hooks garde-fou données réelles (bases des profils comprises) et ruff après édition, sous-agents, skills /avant-pr et nouvelle-migration
 packaging/         Patrimoine.exe (D-126) et Patrimoine.app (D-137, signée ad hoc, .dmg) : recette PyInstaller patrimoine.spec, icônes .ico/.icns dessinées par icone.py, essai de la fenêtre en CI, licences tierces relevées par licences.py (D-128)
-scripts/           lancement en un clic : patrimoine.sh (WSL), Patrimoine.bat (Bureau Windows via WSL), Patrimoine-sans-WSL.bat
+scripts/           lancement en un clic : patrimoine.sh (WSL), Patrimoine.bat (Bureau Windows via WSL), Patrimoine-sans-WSL.bat ; instantane_api.py : routes et réponses de l'API sur les bases de démo, à comparer avant et après une refonte (D-139)
 tests/fixtures/    données FICTIVES uniquement
 data/              ignoré par git : demo.db, demo-grand.db (les vraies données sont dans le dossier des données, D-119)
 LICENSE            GNU GPL v3 ou ultérieure (D-128) ; README.md pour l'utilisateur, SECURITY.md pour signaler une faille

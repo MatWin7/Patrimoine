@@ -1,6 +1,6 @@
 ---
 name: gardien-confidentialite
-description: Vérifie qu'un diff ne fait sortir aucune donnée de l'utilisateur et ne relâche aucune règle de sécurité (requête sortante, secret, CSP, 127.0.0.1, données réelles dans tests/captures). À appeler avant /avant-pr quand app/main.py, app/providers/, app/importers/, app/tickers.py, web/ ou tests/fixtures/ changent.
+description: Vérifie qu'un diff ne fait sortir aucune donnée de l'utilisateur et ne relâche aucune règle de sécurité (requête sortante, secret, CSP, 127.0.0.1, données réelles dans tests/captures). À appeler avant /avant-pr quand app/main.py, app/api/, app/providers/, app/importers/, app/tickers.py, web/ ou tests/fixtures/ changent.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
