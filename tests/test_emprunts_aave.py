@@ -58,8 +58,9 @@ def test_api_emprunt_sante_et_patrimoine_net(client, db_file):
     assert not any("600" in str(r) for r in client.sent if "query" in r)
     [market] = out["markets"]
     hf = D(market["health_factor"])
-    # Dépôt ≈ 1 000 $ + intérêts à 3,65 % × 0,78 ÷ (600 $ + intérêts à 5 %) ≈ 1,3.
-    assert D("1.29") < hf < D("1.32") and market["warning"] is True
+    # Dépôt ≈ 1 000 $ + intérêts à 3,65 % × 0,78 ÷ (600 $ + intérêts à 5 %) ≈ 1,3 au départ,
+    # 1,29 en fin de mois, quand le dépôt a vieilli : la dette court plus vite.
+    assert D("1.28") < hf < D("1.32") and market["warning"] is True
 
     # Remboursement plus gros que la dette : refusé ; remboursement partiel : la santé monte.
     move = {"direction": "remboursement", "quantity": "1000", "op_date": TODAY.isoformat()}
