@@ -33,7 +33,7 @@ uv run python -m app.diagnostic                 # diagnostic sans montant ni che
 uv run --group build pyinstaller packaging/patrimoine.spec   # Windows : dist/Patrimoine/Patrimoine.exe, sans console (D-126) ; macOS : dist/Patrimoine.app (D-137)
 uv run pytest                                  # tests
 uv run ruff check . && uv run ruff format .    # lint + formatage
-for f in web/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
+for f in web/*.js web/app/*.js; do node --check "$f"; done  # syntaxe du front (aussi en CI)
 ```
 
 ## Architecture
@@ -82,7 +82,8 @@ app/importers/     import CSV : csv_generique (lecture, correspondance des colon
 web/diagnostic.js  fenêtre « Diagnostic » (copie, lien de signalement) et erreurs de la page relevées dès le chargement (D-132)
 web/accueil.js     page de démarrage réglable (D-134) : pose le fond et le mot d'accueil avant profiles.js, tient la carte Apparence, réduit l'image choisie en JPEG dans la page
 web/tutorial.js    tutoriel de premier lancement en 6 étapes (D-099), relançable depuis Réglages, carte Aide ; « Comment ça marche » et fenêtre « Ce qui sort de cet ordinateur » (D-131)
-web/               index.html (pages par onglets #apercu, #performance...), theme.js (thème auto, clair ou sombre posé sur `<html>` avant l'affichage, D-133), profiles.js (page de démarrage et choix du profil, puis charge app.js, D-098), app.js, tips.js (infobulles « ? »), styles.css, logo.svg ; icônes Lucide en symboles SVG dans index.html (`<use href="#i-nom">`, D-133) ; web/vendor/ : Chart.js, chartjs-chart-treemap, police Inter et licence Lucide copiés (pas de CDN, D-117)
+web/app/           la page de l'app, un fichier par partie de l'écran (D-139), scripts classiques qui partagent leurs fonctions : positions.js (listes de Gérer, positions, glisser-déposer), graphiques.js, performance.js, filtre.js (filtre de lignes, alerte du jour), comparaison.js (liste de comparaison, calendrier), visualisations.js, projection.js (comparaison à un indice, projection), pages.js (onglets, disposition), saisie.js (opérations, comptes, actifs), verification.js (relevé de la banque, suppression, état du serveur), reglages.js, import.js, programmes.js (achats programmés, valeurs saisies), revenus.js, crypto.js, cibles.js, fiscalite.js, dettes.js (dettes, emprunts Aave), demarrage.js (premier affichage, toujours en dernier)
+web/               index.html (pages par onglets #apercu, #performance...), theme.js (thème auto, clair ou sombre posé sur `<html>` avant l'affichage, D-133), profiles.js (page de démarrage et choix du profil, puis charge les fichiers de l'app dans l'ordre de sa liste `APP_FILES`, D-098, D-139), app.js (socle : formats, API, messages, tri, questions, préférences), tips.js (infobulles « ? »), styles.css, logo.svg ; icônes Lucide en symboles SVG dans index.html (`<use href="#i-nom">`, D-133) ; web/vendor/ : Chart.js, chartjs-chart-treemap, police Inter et licence Lucide copiés (pas de CDN, D-117)
 .github/ISSUE_TEMPLATE/ formulaires « Signaler un problème » (diagnostic obligatoire) et « Proposer une idée », faille en privé (D-132)
 .github/workflows/ CI : tests sous Linux, Windows et macOS, lint et syntaxe du front à chaque PR ; release.yml : étiquette vX.Y.Z → contrôles, archive, Patrimoine.exe zippé, SHA256SUMS, page de release (actions figées par SHA, D-121) ; exe-windows.yml : construit et lance Patrimoine.exe (D-126) ; app-macos.yml : Patrimoine.app et son .dmg (D-137) ; dependabot.yml : dépendances chaque semaine en une PR, 7 j de recul sauf alerte (D-123)
 .claude/           réglages Claude Code (D-079, D-113) : hooks garde-fou données réelles (bases des profils comprises) et ruff après édition, sous-agents, skills /avant-pr et nouvelle-migration
@@ -136,7 +137,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
 - Expliquer en 2-3 phrases chaque notion nouvelle (l'utilisateur apprend).
 - Demander avant : push, migration de base, suppression de données, dépendance lourde.
 - Toute décision de conception va dans `docs/decisions.md`.
-- Économie de tokens : ne jamais lire en entier `docs/decisions.md` (≈ 90 Ko) ni `web/app.js` (≈ 285 Ko) ; chercher avec `grep -n` puis lire la zone utile. Nouvelle décision : numéro suivant par `grep -n "^## D-" docs/decisions.md | tail -1`, ajout en fin de fichier.
+- Économie de tokens : ne jamais lire en entier `docs/decisions.md` (≈ 90 Ko) ni tous les fichiers de `web/app/` (≈ 285 Ko à eux tous) ; chercher avec `grep -n` puis lire la zone utile. Nouvelle décision : numéro suivant par `grep -n "^## D-" docs/decisions.md | tail -1`, ajout en fin de fichier.
 - Schéma modifié : suivre la skill `nouvelle-migration`. Avant de pousser : `/avant-pr`.
 - Sous-agents (`.claude/agents/`, D-084), à appeler sans redemander : `verificateur` (Haiku) pour
   tests + lint quand la sortie est longue ; `relecteur-calculs` (Opus) si un calcul financier
@@ -147,6 +148,7 @@ docs/roadmap.md    jalons ; docs/decisions.md : décisions et pourquoi ; docs/re
   fichiers, décision et question précise. Pas de sous-agent pour une tâche de quelques lectures.
 
 ## Conventions du front (règles permanentes)
+- **Fichiers de la page** (D-139) : `web/app.js` puis `web/app/*.js`, chargés dans l'ordre de `APP_FILES` (`web/profiles.js`). À son chargement, un fichier ne se sert que de ce que les fichiers précédents définissent ; une fonction dont d'autres fichiers ont besoin dès leur chargement va dans `web/app.js` ; tout appel qui lance un chargement de données au démarrage va dans `web/app/demarrage.js`. Nouveau fichier : l'ajouter à `APP_FILES` avant `demarrage.js` (vérifié par `tests/test_regles_projet.py`).
 - **Tout tableau est triable par en-tête dès sa création** (demandé trois fois par l'utilisateur) : `<th data-sort="cle"><button class="sort">`, `bindSortable(id, colonnes numériques)` au chargement, puis `fillSortable(id, lignes, versLigne, texteVide)` au rendu (ordre par défaut dans `SORT_DEFAULTS`). Seules exceptions : listes à ordre choisi (Comptes, Actifs de « Gérer ») et formulaires en tableau.
 - Toute nouvelle carte d'onglet porte `data-card="nom-stable"` (déplaçable par « Réorganiser », D-070, D-073) ; `class="card half"` pour une demi-largeur.
 - Aucune bibliothèque chargée depuis un CDN (copie dans `web/vendor/`), aucune requête tierce à l'ouverture de la page.
