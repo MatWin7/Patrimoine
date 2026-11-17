@@ -11,6 +11,7 @@ du fichier .db, qui n'est pas chiffré. Aucun montant ni aucune quantité dans p
 """
 
 import base64
+import gc
 import hashlib
 import hmac
 import json
@@ -395,12 +396,22 @@ def delete(profile_id: str, confirm: str, code: str = "") -> Path:
         target = trash / f"{profile.id}-{datetime.now():%Y-%m-%d-%H%M%S}.db"
         if source.is_file():
             backup.backup(source, DATA_DIR / "sauvegardes", label="avant-suppression")
+            release_connections()
             shutil.move(source, target)
             target.chmod(0o600)
         _save([p for p in profiles if p.id != profile_id])
         for token in [t for t, sess in _sessions.items() if sess.profile_id == profile_id]:
             del _sessions[token]
         return target
+
+
+def release_connections() -> None:
+    """Ferme les connexions SQLite que plus rien n'utilise, avant de remplacer ou déplacer la
+    base d'un profil. Une connexion de CPython se référence elle-même (son cache de requêtes) :
+    sans `close()`, elle ne se ferme qu'au passage du ramasse-miettes. Sous Windows, un fichier
+    encore ouvert ne peut être ni remplacé ni déplacé (« Recréer » la démo, supprimer un profil
+    juste après l'avoir utilisé)."""
+    gc.collect()
 
 
 # --- Profil Démo (D-098, étape 4) --------------------------------------------------------------

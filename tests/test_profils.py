@@ -8,6 +8,7 @@ import sqlite3
 import sys
 import threading
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -489,3 +490,21 @@ def test_base_deja_remplie_garde_principal_meme_avec_adopt_empty(data_dir):
         state = client.get("/api/profiles").json()
         assert [p["name"] for p in state["profiles"]] == ["Principal", "Marie"]
         assert names(client) == ["PEA fictif"]
+
+
+@pytest.mark.skipif(not Path("/proc/self/fd").is_dir(), reason="descripteurs lus dans /proc")
+def test_recreer_la_demo_ne_laisse_aucune_connexion_ouverte(data_dir):
+    """Sous Windows, une base encore ouverte ne peut pas être remplacée : « Recréer » échouait
+    quand une requête avait laissé sa connexion au ramasse-miettes."""
+    import os
+
+    def ouverts(path):
+        fds = Path("/proc/self/fd")
+        return [f for f in fds.iterdir() if os.path.realpath(f) == str(path.resolve())]
+
+    demo = profiles.create_demo()
+    with TestClient(app) as client:
+        client.post(f"/api/profiles/{profiles.DEMO_ID}/open", json={})
+        client.get("/api/accounts")
+        profiles.release_connections()
+        assert ouverts(profiles.db_file(demo)) == []

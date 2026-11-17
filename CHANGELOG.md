@@ -17,6 +17,8 @@ la page de la release sur GitHub.
   dividendes, ventes, cibles, listes de suivi, cryptos sur une plateforme et un portefeuille,
   récompenses, dépôts et emprunt Aave. « Recréer » dans Réglages, carte Profils, pour
   l'obtenir. Les lignes de la démo ne sont plus demandées en ligne (D-140).
+- Windows : « Recréer » le profil Démo, ou supprimer un profil juste après l'avoir utilisé,
+  pouvait échouer (« accès refusé ») ; corrigé.
 - Patrimoine s'ouvre dans sa propre fenêtre sous Windows et macOS, et non plus dans un onglet du
   navigateur ; fermer la fenêtre arrête l'app. Un second lancement ramène la fenêtre devant.
   Taille, préférences de la page et profil ouvert sont gardés d'un lancement à l'autre. Bouton
