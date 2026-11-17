@@ -9,7 +9,7 @@ import threading
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -22,7 +22,6 @@ from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import (
-    backup,
     config,
     crypto,
     crypto_tickers,
@@ -37,14 +36,10 @@ from app import (
     profiles,
     providers,
     rebalance,
-    reconcile,
     repository,
     tax,
     tickers,
-    valuations,
 )
-from app import recurring as dca
-from app import watchlist as watch
 from app.analytics import (
     blend,
     eroded_invested,
@@ -60,15 +55,27 @@ from app.analytics import (
     yearly_inflation,
     yearly_returns,
 )
-from app.api import machine
+from app.api import accounts, benchmarks, machine, operations, watchlists
 from app.api import profiles as profiles_routes
+from app.api import recurring as recurring_routes
+from app.api.common import (
+    CLASS_LABELS,
+    LIVRETS,
+    category_of,
+)
+from app.api.common import backup_before_delete as _backup_before_delete
+from app.api.common import money_or_none as _money_or_none
+from app.api.common import pct as _pct
+from app.api.common import price_text as _price_text
+from app.api.common import reorder as _reorder
 from app.api.deps import SESSION_COOKIE, HttpClient, unready_profiles
 
 # Les tests remplacent ce client par `app.dependency_overrides[http_client]` : le nom reste
 # importable d'ici.
 from app.api.deps import http_client as http_client
+from app.api.operations import save_operation as _save_operation
 from app.importers import binance, csv_generique, preparation, trade_republic
-from app.models import CASH_ENTERED, Account, Asset, Operation
+from app.models import Account, Asset, Operation
 from app.portfolio import (
     TRADES,
     ZERO,
@@ -76,7 +83,6 @@ from app.portfolio import (
     RateHistory,
     allocation,
     annualized,
-    cash_movement,
     compute_positions,
     convert,
     daily_flows,
@@ -95,10 +101,6 @@ from app.portfolio import (
 )
 from app.providers import coingecko, yahoo
 from app.schemas import (
-    AccountIn,
-    AssetIn,
-    BenchmarkIn,
-    CashIn,
     CategoryTargetsIn,
     DebtBalanceIn,
     DebtIn,
@@ -108,41 +110,15 @@ from app.schemas import (
     DefiLineIn,
     DefiMoveIn,
     ImportIn,
-    OperationIn,
     OrderIn,
-    ReconcileIn,
-    RecurringConfirmIn,
-    RecurringIn,
-    RecurringSkipIn,
     SplitIn,
     TargetsIn,
     TradeIn,
-    ValuationIn,
-    WatchlistIn,
-    WatchlistItemIn,
     money,
     plain,
 )
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-CLASS_LABELS = {
-    "etf": "ETF",
-    "fonds": "Fonds",
-    "action": "Actions",
-    "crypto": "Crypto",
-    "obligation": "Obligations",
-    "fonds_euros": "Fonds euros",
-    "scpi": "SCPI",
-    "or": "Or",
-    "immobilier": "Immobilier",
-    "autre": "Divers",  # pas « Autres », déjà le nom de la part qui regroupe les petites
-}
-LIVRETS = "Livrets"  # espèces d'un compte de type livret : une classe à part entière (D-056)
-
-
-def category_of(asset: Asset) -> str:
-    """Catégorie personnelle de l'actif, sinon sa classe (« ETF », « Actions »...), D-061."""
-    return asset.category or CLASS_LABELS.get(asset.asset_class, "Autres")
 
 
 @asynccontextmanager
@@ -324,73 +300,6 @@ app.include_router(machine.router)
 app.include_router(profiles_routes.router)
 
 
-def _conflict(err: sqlite3.IntegrityError) -> HTTPException:
-    """Contrainte SQL violée (nom déjà pris, ISIN ou ticker en double...) -> 409."""
-    return HTTPException(status_code=409, detail=f"Refusé par la base : {err}")
-
-
-def _account_out(account: Account) -> dict:
-    out = asdict(account)
-    out["cash"] = plain(account.cash)  # jamais de float en JSON
-    out["cash_date"] = account.cash_date.isoformat() if account.cash_date else None
-    out["opened_on"] = account.opened_on.isoformat() if account.opened_on else None
-    out["deposits_before"] = plain(account.deposits_before)
-    out["deposits_entered"] = plain(account.deposits_entered)
-    out["deposits_implied"] = plain(account.deposits_implied)
-    out["deposits"] = plain(account.deposits)  # total : champ + opérations + supposés (D-062)
-    return out
-
-
-def _asset_out(asset: Asset) -> dict:
-    out = asdict(asset)
-    out["ter"] = None if asset.ter is None else plain(asset.ter)  # jamais de float en JSON
-    out["manual"] = asset.manual
-    out["category_label"] = category_of(asset)  # catégorie affichée (la classe à défaut)
-    return out
-
-
-def _operation_out(op: Operation) -> dict:
-    out = asdict(op)
-    out["op_date"] = op.op_date.isoformat()
-    for key in (
-        "quantity",
-        "unit_price",
-        "amount",
-        "fees",
-        "portfolio_value",
-        "offered",
-        "tax_withheld",
-    ):
-        out[key] = None if out[key] is None else plain(out[key])  # jamais de float en JSON
-    # Montant de l'opération : titres achetés frais compris, vente nette de frais, ou montant.
-    if op.op_type in TRADES:
-        out["total"] = money(
-            abs(cash_movement(op))
-            if op.op_type == "vente"
-            else op.quantity * op.unit_price + op.fees
-        )
-        out["gross"] = money(op.quantity * op.unit_price)  # montant hors frais (valeur saisie)
-    else:
-        out["total"] = money(op.amount)
-    return out
-
-
-def _price_text(value: Decimal) -> str:
-    """Cours en chaîne ; un cours converti d'une autre devise est limité à 8 décimales."""
-    if value.as_tuple().exponent < -8:
-        value = value.quantize(Decimal("0.00000001"))
-    return plain(value)
-
-
-def _pct(value: Decimal | None) -> str | None:
-    """Rapport -> pourcentage arrondi au centième, en chaîne ("8.04" pour 8,04 %)."""
-    return None if value is None else money(value * 100)
-
-
-def _money_or_none(value: Decimal | None) -> str | None:
-    return None if value is None else money(value)
-
-
 def _allocation_out(slices: list[tuple[str, Decimal, str]], rates: dict[str, Decimal]) -> list:
     """Parts du patrimoine en EUR (graphique de répartition), pourcentages calculés ici."""
     parts = allocation(slices, rates)
@@ -475,643 +384,12 @@ def _total_out(t: dict[str, Decimal]) -> dict:
     return out
 
 
-# --- Comptes et actifs -----------------------------------------------------
+# Comptes, actifs et valeurs saisies, opérations, achats programmés (app/api/).
+app.include_router(accounts.router)
+app.include_router(operations.router)
 
 
-@app.get("/api/accounts")
-def list_accounts() -> list[dict]:
-    with db.connect() as conn:
-        return [_account_out(a) for a in repository.list_accounts(conn)]
-
-
-def _reorder(table: str, body: OrderIn) -> None:
-    with db.connect() as conn:
-        if not repository.reorder(conn, table, body.ids):
-            raise HTTPException(
-                status_code=409, detail="La liste a changé entre-temps : recharge la page."
-            )
-
-
-@app.put("/api/accounts/order", status_code=204)
-def reorder_accounts(body: OrderIn) -> None:
-    """Range les comptes dans l'ordre donné (glisser-déposer de « Gérer », D-070)."""
-    _reorder("account", body)
-
-
-def _set_custody(conn, account: Account, body: AccountIn, created: bool) -> None:
-    """Garde et « à l'étranger » (D-104). Un champ absent est deviné à la création (nom,
-    établissement) et gardé à la modification, sauf une garde à préciser, devinée à nouveau.
-    La garde n'existe que pour un compte crypto ; un portefeuille personnel n'est jamais « à
-    l'étranger » (rien à déclarer)."""
-    fields = body.model_fields_set
-    if account.kind != "crypto":
-        custody_ = None
-    elif "custody" in fields:
-        custody_ = body.custody
-    else:
-        custody_ = account.custody or custody.guess_custody(body.name, body.institution)
-    if custody_ == "wallet":
-        abroad = False
-    elif body.abroad is not None:
-        abroad = body.abroad
-    elif created:
-        abroad = custody.guess_abroad(body.name, body.institution, custody_)
-    else:
-        abroad = account.abroad
-    repository.set_account_custody(conn, account.id, custody_, abroad)
-
-
-@app.post("/api/accounts", status_code=201)
-def create_account(body: AccountIn) -> dict:
-    try:
-        with db.connect() as conn:
-            account = repository.create_account(
-                conn, body.name, body.kind, body.institution, body.currency, body.cash
-            )
-            repository.set_account_tax_info(conn, account.id, body.opened_on, body.deposits_before)
-            _set_custody(conn, account, body, created=True)
-            account = repository.get_account(conn, account.id)
-    except sqlite3.IntegrityError as err:
-        raise _conflict(err) from err
-    return _account_out(account)
-
-
-@app.patch("/api/accounts/{account_id}")
-def update_account(account_id: int, body: AccountIn) -> dict:
-    try:
-        with db.connect() as conn:
-            if repository.get_account(conn, account_id) is None:
-                raise HTTPException(status_code=404, detail="Compte inconnu.")
-            account = repository.update_account(
-                conn, account_id, body.name, body.kind, body.institution, body.currency, body.cash
-            )
-            repository.set_account_tax_info(conn, account_id, body.opened_on, body.deposits_before)
-            _set_custody(conn, account, body, created=False)
-            account = repository.get_account(conn, account_id)
-    except sqlite3.IntegrityError as err:
-        raise _conflict(err) from err
-    return _account_out(account)
-
-
-# Suppression d'un compte ou d'un actif qui a des opérations (D-074) : `operations` dit quoi
-# en faire, les supprimer aussi ou les déplacer (`vers` = compte ou actif d'arrivée, même
-# devise). Sans ce choix, refus (409) : rien ne disparaît par accident. Une sauvegarde de la
-# base est faite juste avant, dans le dossier des sauvegardes.
-OpsChoice = Annotated[Literal["supprimer", "deplacer"] | None, Query()]
-
-
-def _backup_before_delete() -> None:
-    path = db.db_path()
-    # sauvegardes/ du dossier des données pour toutes les bases, profils compris (D-098, D-119).
-    folder = path.parent.parent if path.parent.name == profiles.PROFILES_SUBDIR else path.parent
-    try:
-        backup.backup(path, folder / "sauvegardes", label="avant-suppression")
-    except (OSError, sqlite3.Error) as err:
-        raise HTTPException(
-            status_code=500, detail=f"Sauvegarde impossible, rien n'est supprimé : {err}"
-        ) from err
-
-
-def _remove(kind: str, item_id: int, operations: str | None, vers: int | None) -> None:
-    noun = "Compte" if kind == "account" else "Actif"
-    get = repository.get_account if kind == "account" else repository.get_asset
-    with db.connect() as conn:
-        item = get(conn, item_id)
-        if item is None:
-            raise HTTPException(status_code=404, detail=f"{noun} inconnu.")
-        used = repository.count_operations(conn, **{f"{kind}_id": item_id})
-    conn.close()
-    if not used:
-        with db.connect() as conn:
-            (repository.delete_account if kind == "account" else repository.delete_asset)(
-                conn, item_id
-            )
-        return
-    if operations is None:
-        raise HTTPException(
-            status_code=409,
-            detail=f"{noun} utilisé par {used} opération(s) : choisis de les supprimer ou de les "
-            "déplacer.",
-        )
-    target = None
-    if operations == "deplacer":
-        with db.connect() as conn:
-            target = get(conn, vers) if vers is not None and vers != item_id else None
-        conn.close()
-        if target is None:
-            raise HTTPException(status_code=422, detail=f"{noun} d'arrivée manquant ou inconnu.")
-        if target.currency != item.currency:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Déplacement impossible : {item.currency} vers {target.currency}, "
-                "les montants des opérations ne seraient plus dans la bonne devise.",
-            )
-    _backup_before_delete()
-    try:
-        with db.connect() as conn:
-            repository.remove_with_operations(
-                conn, f"{kind}_id", item_id, target.id if target else None
-            )
-    except PositionError as err:
-        raise HTTPException(status_code=422, detail=f"Déplacement refusé : {err}") from err
-
-
-@app.delete("/api/accounts/{account_id}", status_code=204)
-def delete_account(account_id: int, operations: OpsChoice = None, vers: int | None = None) -> None:
-    _remove("account", account_id, operations, vers)
-
-
-@app.post("/api/accounts/{account_id}/reconcile")
-def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
-    """Compare le compte au relevé de la banque (D-063). Lecture seule : rien n'est enregistré.
-
-    Chaque ligne cotée du compte est renvoyée, vérifiée si sa quantité est fournie ; une ligne à
-    valeur saisie (D-056) n'a pas de quantité à comparer, ses « parts » sont internes à l'app."""
-    with db.connect() as conn:
-        account = repository.get_account(conn, account_id)
-        if account is None:
-            raise HTTPException(status_code=404, detail="Compte inconnu.")
-        assets = {a.id: a for a in repository.list_assets(conn)}
-        # Arrivées des transferts comprises (D-085) : des titres reçus d'un autre compte de
-        # l'app sont bien détenus ici, et leur vente n'est pas une vente à découvert (D-138).
-        ops = [
-            o
-            for o in with_transfers(repository.list_operations(conn))
-            if o.account_id == account_id
-        ]
-    conn.close()
-    try:
-        positions = compute_positions(ops)
-    except PositionError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
-
-    def qty(d: Decimal) -> str:
-        return format(d.normalize(), "f") if d else "0"
-
-    cash = None
-    if body.cash is not None:
-        check = reconcile.cash_check(
-            account.cash, body.cash, account.kind == "livret", account.kind in CASH_ENTERED
-        )
-        fix = check["correction"]
-        cash = {
-            **{k: money(check[k]) for k in ("app", "bank", "gap")},
-            "ok": check["ok"],
-            "causes": check["causes"],
-            "correction": fix and {"kind": fix["kind"], "amount": money(fix["amount"])},
-        }
-    lines = []
-    for p in sorted(positions, key=lambda p: list(assets).index(p.asset_id)):
-        asset = assets[p.asset_id]
-        line = {"asset_id": asset.id, "asset": asset.name, "manual": asset.manual}
-        line["app"] = qty(p.quantity)
-        bank = body.quantities.get(asset.id)
-        if bank is not None and not asset.manual:
-            check = reconcile.line_check(p.quantity, bank)
-            line |= {
-                "bank": qty(check["bank"]),
-                "gap": qty(check["gap"]),
-                "ok": check["ok"],
-                "causes": check["causes"],
-            }
-        lines.append(line)
-    checked = [x for x in lines if "ok" in x] + ([cash] if cash else [])
-    return {
-        "account": account.name,
-        "kind": account.kind,
-        "currency": account.currency,
-        "cash": cash,
-        "lines": lines,
-        "ok": bool(checked) and all(x["ok"] for x in checked),
-    }
-
-
-@app.get("/api/assets")
-def list_assets() -> list[dict]:
-    """Actifs dans l'ordre choisi. `sold_out` : des opérations, mais plus rien de détenu nulle
-    part (revendu, transféré hors de l'app) ; « Gérer » les range à part (D-085)."""
-    with db.connect() as conn:
-        operations = repository.list_operations(conn)
-        try:
-            held = {p.asset_id for p in compute_positions(operations)}
-        except PositionError:
-            held = {o.asset_id for o in operations}  # opérations incohérentes : rien de masqué
-        traded = {o.asset_id for o in operations if o.op_type in TRADES}
-        return [
-            {**_asset_out(a), "sold_out": a.id in traded and a.id not in held}
-            for a in repository.list_assets(conn)
-        ]
-
-
-@app.put("/api/assets/order", status_code=204)
-def reorder_assets(body: OrderIn) -> None:
-    """Range les actifs dans l'ordre donné (glisser-déposer de « Gérer », D-070)."""
-    _reorder("asset", body)
-
-
-@app.post("/api/assets", status_code=201)
-def create_asset(body: AssetIn) -> dict:
-    try:
-        with db.connect() as conn:
-            asset = repository.create_asset(
-                conn,
-                body.name,
-                body.asset_class,
-                body.isin,
-                body.ticker,
-                body.coingecko_id,
-                body.currency,
-                body.color,
-            )
-            repository.set_asset_ter(conn, asset.id, body.ter)
-            repository.set_asset_category(conn, asset.id, body.category)
-            asset = repository.get_asset(conn, asset.id)
-    except sqlite3.IntegrityError as err:
-        raise _conflict(err) from err
-    return _asset_out(asset)
-
-
-@app.patch("/api/assets/{asset_id}")
-def update_asset(asset_id: int, body: AssetIn, client: HttpClient) -> dict:
-    """Corrige un actif (nom, classe, ISIN, ticker...). Nouvelle devise de cotation alors que
-    des opérations sont saisies : elles sont converties au taux BCE de leur jour (D-083)."""
-    try:
-        with db.connect() as conn:
-            asset = repository.get_asset(conn, asset_id)
-            if asset is None:
-                raise HTTPException(status_code=404, detail="Actif inconnu.")
-            changed = body.currency != asset.currency
-            if changed:
-                _convert_asset(conn, asset, body.currency, client)
-            asset = repository.update_asset(
-                conn,
-                asset_id,
-                body.name,
-                body.asset_class,
-                body.isin,
-                body.ticker,
-                body.coingecko_id,
-                body.currency,
-                body.color,
-            )
-            repository.set_asset_ter(conn, asset_id, body.ter)
-            repository.set_asset_category(conn, asset_id, body.category)
-            asset = repository.get_asset(conn, asset_id)
-            if changed and not asset.ticker and not asset.coingecko_id:
-                valuations.refresh_latest(conn, asset)  # valeur saisie, dans la nouvelle devise
-    except sqlite3.IntegrityError as err:
-        raise _conflict(err) from err
-    return _asset_out(asset)
-
-
-def _convert_asset(conn, asset: Asset, currency: str, client) -> None:
-    """Passe les opérations, achats programmés et valeurs saisies d'un actif dans sa nouvelle
-    devise (D-083). Taux BCE de Frankfurter : seuls les codes devise partent sur le réseau."""
-    first = conn.execute(
-        "SELECT min(op_date) FROM operation WHERE asset_id = ?", (asset.id,)
-    ).fetchone()[0]
-    if first is None:
-        conn.execute("DELETE FROM price WHERE asset_id = ? AND source != 'manuel'", (asset.id,))
-        conn.execute(
-            "DELETE FROM price_history WHERE asset_id = ? AND source != 'manuel'", (asset.id,)
-        )
-        return
-    currencies = {asset.currency, currency} - {"EUR"}
-    start = date.fromisoformat(first)
-    prices.update_fx_history(conn, dict.fromkeys(currencies, start), client, today=date.today())
-    fx = RateHistory(prices.stored_rates(conn, currencies), prices.rate_series(conn, currencies))
-    try:
-        repository.convert_asset_currency(conn, asset.id, currency, fx)
-    except LookupError:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Taux de change {asset.currency} → {currency} indisponible : réessaie plus "
-            "tard (connexion à la BCE nécessaire pour convertir les opérations).",
-        ) from None
-
-
-@app.delete("/api/assets/{asset_id}", status_code=204)
-def delete_asset(asset_id: int, operations: OpsChoice = None, vers: int | None = None) -> None:
-    _remove("asset", asset_id, operations, vers)
-
-
-# --- Valeurs saisies (D-056) -------------------------------------------------
-# Pour un actif sans cours public (fonds euros, bien immobilier...) : la valeur totale de la
-# ligne à une date, rangée comme un prix. Rien ne part sur le réseau.
-
-
-def _manual_asset(conn, asset_id: int):
-    asset = repository.get_asset(conn, asset_id)
-    if asset is None:
-        raise HTTPException(status_code=404, detail="Actif inconnu.")
-    if not asset.manual:
-        raise HTTPException(
-            status_code=422, detail="Cet actif a un cours en ligne : sa valeur n'est pas saisie."
-        )
-    return asset
-
-
-def _valuations_out(conn, asset) -> list[dict]:
-    return [
-        {"date": day.isoformat(), "value": money(value), "currency": asset.currency}
-        for day, value in valuations.list_valuations(conn, asset)
-    ]
-
-
-@app.get("/api/assets/{asset_id}/valuations")
-def list_asset_valuations(asset_id: int) -> list[dict]:
-    with db.connect() as conn:
-        out = _valuations_out(conn, _manual_asset(conn, asset_id))
-    conn.close()
-    return out
-
-
-@app.post("/api/assets/{asset_id}/valuations", status_code=201)
-def save_asset_valuation(asset_id: int, body: ValuationIn) -> list[dict]:
-    """Enregistre la valeur de la ligne ce jour-là (remplace celle du même jour)."""
-    try:
-        with db.connect() as conn:
-            asset = _manual_asset(conn, asset_id)
-            valuations.save_valuation(conn, asset, body.value_date, body.value)
-            out = _valuations_out(conn, asset)
-    except ValueError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-    conn.close()
-    return out
-
-
-@app.delete("/api/assets/{asset_id}/valuations/{value_date}", status_code=204)
-def delete_asset_valuation(asset_id: int, value_date: date) -> None:
-    with db.connect() as conn:
-        if not valuations.delete_valuation(conn, _manual_asset(conn, asset_id), value_date):
-            raise HTTPException(status_code=404, detail="Aucune valeur saisie ce jour-là.")
-
-
-# --- Opérations ------------------------------------------------------------
-
-
-@app.get("/api/operations")
-def list_operations() -> list[dict]:
-    with db.connect() as conn:
-        return [_operation_out(op) for op in repository.list_operations(conn)]
-
-
-def _save_operation(conn, body: TradeIn | CashIn, operation_id: int | None = None):
-    """Ajoute (operation_id vide) ou corrige une opération après les vérifications communes.
-    La devise est celle de l'actif pour un achat ou une vente, celle du compte sinon."""
-    account = repository.get_account(conn, body.account_id)
-    if account is None:
-        raise HTTPException(status_code=404, detail="Compte inconnu.")
-    if isinstance(body, CashIn):
-        currency = account.currency
-        if body.asset_id is not None:  # dividende : dans la devise de l'actif, comme l'import
-            asset = repository.get_asset(conn, body.asset_id)
-            if asset is None:
-                raise HTTPException(status_code=404, detail="Actif inconnu.")
-            currency = asset.currency
-        fields = (body.account_id, body.asset_id, body.op_date, body.op_type, None, None)
-        fields += (body.amount, ZERO, currency, body.note)
-    else:
-        asset = repository.get_asset(conn, body.asset_id)
-        if asset is None:
-            raise HTTPException(status_code=404, detail="Actif inconnu.")
-        quantity, unit_price = body.quantity, body.unit_price
-        if quantity is None:
-            # Valeur saisie (D-056) : le montant devient des parts au dernier prix connu.
-            if not asset.manual:
-                raise HTTPException(status_code=422, detail="Indique la quantité.")
-            unit_price = valuations.unit_on(conn, asset.id, body.op_date)
-            quantity = (body.amount / unit_price).quantize(Decimal("0.00000001"))
-        fields = (body.account_id, body.asset_id, body.op_date, body.op_type, quantity)
-        fields += (unit_price, None, body.fees, asset.currency, body.note)
-    if operation_id is None:
-        op = repository.create_operation(conn, *fields)
-    else:
-        op = repository.update_operation(conn, operation_id, *fields)
-    # Seule une vente d'un compte crypto garde ses renseignements fiscaux (D-066).
-    crypto_sale = isinstance(body, TradeIn) and account.kind == "crypto" and body.op_type == "vente"
-    swap = crypto_sale and body.crypto_swap
-    value = body.portfolio_value if crypto_sale else None
-    if (swap, value) != (op.crypto_swap, op.portfolio_value):
-        op = repository.set_sale_tax_info(conn, op.id, swap, value)
-    offered = body.offered if isinstance(body, TradeIn) else None
-    withheld = body.tax_withheld if isinstance(body, CashIn) else None
-    if offered is not None and offered > op.quantity * op.unit_price + op.fees:
-        raise HTTPException(
-            status_code=422, detail="La part offerte dépasse le montant de l'achat."
-        )
-    kind = body.reward_kind if offered is not None else None
-    if (offered, withheld, kind) != (op.offered, op.tax_withheld, op.reward_kind):
-        op = repository.set_offered_withheld(conn, op.id, offered, withheld, kind)
-    if body.to_account_id is not None and repository.get_account(conn, body.to_account_id) is None:
-        raise HTTPException(status_code=404, detail="Compte de destination inconnu.")
-    if (body.to_account_id, body.destination) != (op.to_account_id, op.destination):
-        op = repository.set_transfer(conn, op.id, body.to_account_id, body.destination)
-    return op
-
-
-@app.post("/api/operations", status_code=201)
-def create_operation(body: OperationIn) -> dict:
-    # Le "with" valide la transaction SQL si tout va bien, l'annule (rollback) sinon.
-    try:
-        with db.connect() as conn:
-            op = _save_operation(conn, body)
-    except PositionError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-    return _operation_out(op)
-
-
-def _editable_or_raise(op: Operation | None) -> None:
-    """404 si l'opération n'existe pas ; 409 pour des intérêts Aave estimés par l'app (D-095),
-    recalculés à chaque passage : on les corrige avec « Vérifier » dans l'onglet Rendements
-    crypto."""
-    if op is None:
-        raise HTTPException(status_code=404, detail="Opération inconnue.")
-    if op.source == defi_sync.SOURCE:
-        raise HTTPException(
-            status_code=409,
-            detail="Intérêts Aave calculés par l'app : corrige-les avec « Vérifier » dans "
-            "l'onglet Rendements crypto.",
-        )
-
-
-@app.patch("/api/operations/{operation_id}")
-def update_operation(operation_id: int, body: OperationIn) -> dict:
-    """Corrige une opération (bouton « Modifier »), positions revérifiées comme à l'ajout."""
-    try:
-        with db.connect() as conn:
-            _editable_or_raise(repository.get_operation(conn, operation_id))
-            op = _save_operation(conn, body, operation_id)
-    except PositionError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-    return _operation_out(op)
-
-
-@app.delete("/api/operations/{operation_id}", status_code=204)
-def delete_operation(operation_id: int) -> None:
-    try:
-        with db.connect() as conn:
-            _editable_or_raise(repository.get_operation(conn, operation_id))
-            repository.delete_operation(conn, operation_id)
-    except PositionError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-
-
-# --- Achats programmés (D-055) ----------------------------------------------
-# Rien n'est enregistré tout seul : chaque échéance attend que l'utilisateur la valide avec le
-# prix et la quantité réellement exécutés, ou l'ignore. Aucune requête réseau ici.
-
-
-def _recurring_out(r: dict, accounts, assets) -> dict:
-    asset = assets[r["asset_id"]]
-    return {
-        **r,
-        "amount": plain(r["amount"]),
-        "start_date": r["start_date"].isoformat(),
-        "last_due": r["last_due"].isoformat() if r["last_due"] else None,
-        "account": accounts[r["account_id"]].name,
-        "asset": asset.name,
-        "currency": asset.currency,
-    }
-
-
-def _pending(r: dict, today: date) -> list[date]:
-    return dca.pending_dates(r["start_date"], r["frequency"], r["day"], r["last_due"], today)
-
-
-@app.get("/api/recurring")
-def list_recurring() -> dict:
-    """Achats programmés et échéances à valider. Prix proposé : clôture du jour de l'échéance
-    (ou d'avant) si l'historique est en cache, sinon dernier cours connu ; sans appel réseau."""
-    today = date.today()
-    with db.connect() as conn:
-        accounts = {a.id: a for a in repository.list_accounts(conn)}
-        assets = {a.id: a for a in repository.list_assets(conn)}
-        items = repository.list_recurring(conn)
-        last = {r["asset_id"]: prices.latest_price(conn, r["asset_id"]) for r in items}
-        due_dates = {r["id"]: _pending(r, today) for r in items}
-        closes = {
-            (r["asset_id"], due): prices.close_on(conn, r["asset_id"], due)
-            for r in items
-            for due in due_dates[r["id"]]
-        }
-    conn.close()
-    pending = []
-    for r in items:
-        asset = assets[r["asset_id"]]
-        price = last[r["asset_id"]]
-        latest = price.price if price and price.currency == asset.currency else None
-        for due in due_dates[r["id"]]:
-            close = closes[(r["asset_id"], due)]
-            known = close[0] if close and close[1] == asset.currency else latest
-            quantity = dca.suggested_quantity(r["amount"], known, asset.asset_class)
-            pending.append(
-                {
-                    "recurring_id": r["id"],
-                    "frequency": r["frequency"],
-                    "due_date": due.isoformat(),
-                    "account": accounts[r["account_id"]].name,
-                    "asset": asset.name,
-                    "amount": plain(r["amount"]),
-                    "currency": asset.currency,
-                    "price": None if known is None else _price_text(known),
-                    "quantity": None if quantity is None else plain(quantity),
-                }
-            )
-    pending.sort(key=lambda p: (p["due_date"], p["recurring_id"]))
-    return {"items": [_recurring_out(r, accounts, assets) for r in items], "pending": pending}
-
-
-def _save_recurring(body: RecurringIn, recurring_id: int | None = None) -> dict:
-    with db.connect() as conn:
-        if recurring_id is not None and repository.get_recurring(conn, recurring_id) is None:
-            raise HTTPException(status_code=404, detail="Achat programmé inconnu.")
-        if repository.get_account(conn, body.account_id) is None:
-            raise HTTPException(status_code=404, detail="Compte inconnu.")
-        if repository.get_asset(conn, body.asset_id) is None:
-            raise HTTPException(status_code=404, detail="Actif inconnu.")
-        r = repository.save_recurring(
-            conn,
-            recurring_id,
-            body.account_id,
-            body.asset_id,
-            body.amount,
-            body.frequency,
-            body.day,
-            body.start_date,
-            body.note,
-        )
-        accounts = {a.id: a for a in repository.list_accounts(conn)}
-        assets = {a.id: a for a in repository.list_assets(conn)}
-    return _recurring_out(r, accounts, assets)
-
-
-@app.post("/api/recurring", status_code=201)
-def create_recurring(body: RecurringIn) -> dict:
-    return _save_recurring(body)
-
-
-@app.patch("/api/recurring/{recurring_id}")
-def update_recurring(recurring_id: int, body: RecurringIn) -> dict:
-    return _save_recurring(body, recurring_id)
-
-
-@app.delete("/api/recurring/{recurring_id}", status_code=204)
-def delete_recurring(recurring_id: int) -> None:
-    """Supprime le modèle ; les achats déjà validés restent des opérations ordinaires."""
-    with db.connect() as conn:
-        if not repository.delete_recurring(conn, recurring_id):
-            raise HTTPException(status_code=404, detail="Achat programmé inconnu.")
-
-
-def _oldest_due(conn, recurring_id: int, due_date: date) -> dict:
-    """Le modèle, si `due_date` est bien sa plus ancienne échéance en attente (traitées dans
-    l'ordre, pour qu'aucune ne soit sautée sans être vue)."""
-    r = repository.get_recurring(conn, recurring_id)
-    if r is None:
-        raise HTTPException(status_code=404, detail="Achat programmé inconnu.")
-    due = _pending(r, date.today())
-    if not due or due[0] != due_date:
-        expected = due[0].strftime("%d/%m/%Y") if due else "aucune"
-        raise HTTPException(
-            status_code=409,
-            detail=f"Échéance à traiter d'abord : {expected}.",
-        )
-    return r
-
-
-@app.post("/api/recurring/{recurring_id}/confirm", status_code=201)
-def confirm_recurring(recurring_id: int, body: RecurringConfirmIn) -> dict:
-    """Enregistre l'achat de l'échéance, avec le prix et la quantité réellement exécutés."""
-    try:
-        with db.connect() as conn:
-            r = _oldest_due(conn, recurring_id, body.due_date)
-            asset = repository.get_asset(conn, r["asset_id"])
-            op = repository.create_operation(
-                conn,
-                r["account_id"],
-                r["asset_id"],
-                body.op_date,
-                "achat",
-                body.quantity,
-                body.unit_price,
-                None,
-                body.fees,
-                asset.currency,
-                r["note"] or "Achat programmé",
-            )
-            repository.mark_recurring_due(conn, recurring_id, body.due_date)
-    except PositionError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-    return _operation_out(op)
-
-
-@app.post("/api/recurring/{recurring_id}/skip", status_code=204)
-def skip_recurring(recurring_id: int, body: RecurringSkipIn) -> None:
-    """Échéance ignorée (achat non passé cette fois-là, ou déjà saisi autrement)."""
-    with db.connect() as conn:
-        _oldest_due(conn, recurring_id, body.due_date)
-        repository.mark_recurring_due(conn, recurring_id, body.due_date)
+app.include_router(recurring_routes.router)
 
 
 # --- Revenus, frais, allocation cible, repères fiscaux (D-057 à D-060) ---------------
@@ -3817,229 +3095,9 @@ def _calendar_out(months: dict[str, Decimal], estimated: set[str], currency: str
     }
 
 
-# --- Liste de comparaison (D-042) -------------------------------------------------------
-
-
-@app.get("/api/benchmarks")
-def list_benchmarks() -> list[dict]:
-    with db.connect() as conn:
-        return repository.list_benchmarks(conn)
-
-
-@app.post("/api/benchmarks", status_code=201)
-def create_benchmark(body: BenchmarkIn) -> dict:
-    with db.connect() as conn:
-        return repository.create_benchmark(
-            conn, body.kind, body.label, body.grp, body.ticker, body.rate
-        )
-
-
-@app.patch("/api/benchmarks/{benchmark_id}")
-def update_benchmark(benchmark_id: int, body: BenchmarkIn) -> dict:
-    with db.connect() as conn:
-        if repository.get_benchmark(conn, benchmark_id) is None:
-            raise HTTPException(status_code=404, detail="Entrée inconnue.")
-        return repository.update_benchmark(
-            conn, benchmark_id, body.kind, body.label, body.grp, body.ticker, body.rate
-        )
-
-
-@app.post("/api/benchmarks/{benchmark_id}/move", status_code=204)
-def move_benchmark(benchmark_id: int, step: Annotated[int, Query(ge=-1, le=1)]) -> None:
-    """Monte (step=-1) ou descend (step=1) une entrée d'un cran."""
-    with db.connect() as conn:
-        if repository.get_benchmark(conn, benchmark_id) is None:
-            raise HTTPException(status_code=404, detail="Entrée inconnue.")
-        repository.move_benchmark(conn, benchmark_id, step)
-
-
-@app.delete("/api/benchmarks/{benchmark_id}", status_code=204)
-def delete_benchmark(benchmark_id: int) -> None:
-    with db.connect() as conn:
-        if not repository.delete_benchmark(conn, benchmark_id):
-            raise HTTPException(status_code=404, detail="Entrée inconnue.")
-
-
-# --- Listes de suivi (D-072) ----------------------------------------------------
-# Seuls des noms et des tickers publics : ni montant ni quantité (règle 3). Les clôtures
-# viennent de Yahoo, gardées en mémoire et redemandées au plus une fois par jour et par ticker.
-
-WATCH_MAX_ITEMS = 60
-
-
-def _watchlist_or_404(conn: sqlite3.Connection, watchlist_id: int) -> dict:
-    found = repository.get_watchlist(conn, watchlist_id)
-    if found is None:
-        raise HTTPException(status_code=404, detail="Liste inconnue.")
-    return found
-
-
-@app.get("/api/watchlists")
-def list_watchlists() -> list[dict]:
-    with db.connect() as conn:
-        return repository.list_watchlists(conn)
-
-
-@app.post("/api/watchlists", status_code=201)
-def create_watchlist(body: WatchlistIn) -> dict:
-    try:
-        with db.connect() as conn:
-            return repository.create_watchlist(conn, body.name)
-    except sqlite3.IntegrityError as err:
-        raise HTTPException(status_code=409, detail="Une liste porte déjà ce nom.") from err
-
-
-@app.patch("/api/watchlists/{watchlist_id}")
-def rename_watchlist(watchlist_id: int, body: WatchlistIn) -> dict:
-    try:
-        with db.connect() as conn:
-            _watchlist_or_404(conn, watchlist_id)
-            return repository.rename_watchlist(conn, watchlist_id, body.name)
-    except sqlite3.IntegrityError as err:
-        raise HTTPException(status_code=409, detail="Une liste porte déjà ce nom.") from err
-
-
-@app.delete("/api/watchlists/{watchlist_id}", status_code=204)
-def delete_watchlist(watchlist_id: int) -> None:
-    with db.connect() as conn:
-        if not repository.delete_watchlist(conn, watchlist_id):
-            raise HTTPException(status_code=404, detail="Liste inconnue.")
-
-
-@app.post("/api/watchlists/{watchlist_id}/items", status_code=201)
-def add_watchlist_item(watchlist_id: int, body: WatchlistItemIn) -> dict:
-    try:
-        with db.connect() as conn:
-            if len(_watchlist_or_404(conn, watchlist_id)["items"]) >= WATCH_MAX_ITEMS:
-                raise HTTPException(
-                    status_code=409, detail=f"{WATCH_MAX_ITEMS} actifs au plus par liste."
-                )
-            ticker = body.ticker
-            if body.crypto:
-                ticker = crypto_tickers.resolve_crypto(ticker)
-                if not ticker:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Crypto « {body.ticker.lower()} » inconnue : saisis son ticker"
-                        " Yahoo (ex. BTC-EUR, trouvé sur finance.yahoo.com).",
-                    )
-            return repository.add_watchlist_item(conn, watchlist_id, body.label, ticker)
-    except sqlite3.IntegrityError as err:
-        raise HTTPException(status_code=409, detail="Ce ticker est déjà dans la liste.") from err
-
-
-@app.put("/api/watchlists/{watchlist_id}/items/order", status_code=204)
-def reorder_watchlist_items(watchlist_id: int, body: OrderIn) -> None:
-    """Range les actifs d'une liste de suivi dans l'ordre donné (glisser-déposer)."""
-    with db.connect() as conn:
-        _watchlist_or_404(conn, watchlist_id)
-        if not repository.reorder_watchlist_items(conn, watchlist_id, body.ids):
-            raise HTTPException(
-                status_code=409, detail="La liste a changé entre-temps : recharge la page."
-            )
-
-
-@app.delete("/api/watchlists/{watchlist_id}/items/{item_id}", status_code=204)
-def delete_watchlist_item(watchlist_id: int, item_id: int) -> None:
-    with db.connect() as conn:
-        if not repository.delete_watchlist_item(conn, watchlist_id, item_id):
-            raise HTTPException(status_code=404, detail="Actif inconnu dans cette liste.")
-
-
-def _coin_today_row(client: httpx2.Client, row: dict, coin: str, key: str | None) -> dict:
-    """Ligne d'une crypto dont l'historique manque : cours du jour et variation sur 24 h."""
-    try:
-        price = coingecko.get_price(client, coin, "EUR", key)
-    except providers.ProviderError as err:
-        return row | {"error": f"CoinGecko : {err}"}
-    if price.previous_close:
-        row["1j"] = _pct(price.price / price.previous_close - 1)
-    return row | {
-        "currency": "EUR",
-        "last": money(price.price, "0.01" if price.price >= 10 else "0.0001"),
-        "last_date": date.today().isoformat(),
-        "note": "Historique indisponible pour l'instant (CoinGecko limite les appels sans clé) : "
-        "cours du jour et variation sur 24 h seulement.",
-        "error": None,
-    }
-
-
-def _watch_row(
-    client: httpx2.Client,
-    label: str,
-    ticker: str | None,
-    today: date,
-    coin: str | None = None,
-) -> dict:
-    """Une ligne du tableau : dernier cours et rendement de chaque période (D-072).
-
-    Ticker Yahoo d'abord, cryptos comprises (BTC-EUR, plusieurs années, D-111). Une crypto
-    sans ticker Yahoo, ou que Yahoo ne renvoie pas, passe par son id CoinGecko (`coin`) :
-    365 jours en euros, donc 3 et 5 ans vides. Seul le ticker ou l'id part (règle 3)."""
-    row = {"label": label, "ticker": ticker, "currency": None, "last": None, "last_date": None}
-    row |= dict.fromkeys(watch.PERIODS)
-    if not ticker and not coin:
-        return row | {"error": "pas de ticker Yahoo, donc pas d'historique"}
-    currency, closes, error = "EUR", [], "aucune clôture chez Yahoo"
-    if ticker:
-        try:
-            start = watch.years_before(today, watch.HISTORY_YEARS)
-            currency, closes = prices.benchmark_history(client, ticker, start, today)
-        except providers.ProviderError as err:
-            error = str(err)
-    if not closes and coin:
-        row["ticker"] = None  # pas de bouton Calendrier sans clôtures Yahoo
-        key = config.coingecko_api_key()
-        currency, closes = "EUR", prices.coin_history(client, coin, today, key)
-        if not closes:
-            # L'historique est limité en débit sans clé (HTTP 429) : on se rabat sur le
-            # cours du jour et sa variation sur 24 h, plutôt que « indisponible ».
-            return _coin_today_row(client, row, coin, key)
-    if not closes:
-        return row | {"error": error}
-    returns = watch.period_returns(closes, today)
-    row |= {k: _pct(v) for k, v in returns.items()}
-    last_day, last = closes[-1]
-    return row | {
-        "currency": currency,
-        # Clôtures Yahoo en flottants : 173.58000183 -> 173.58 (4 décimales sous 10).
-        "last": money(last, "0.01" if last >= 10 else "0.0001"),
-        "last_date": last_day.isoformat(),
-        "error": None,
-    }
-
-
-@app.get("/api/watchlists/lines/performance")
-def lines_performance(client: HttpClient) -> dict:
-    """« Mes lignes » : les actifs détenus aujourd'hui, avec un ticker Yahoo. Les valeurs
-    saisies (sans cours public) sont laissées de côté ; seul le ticker part (règle 3)."""
-    today = date.today()
-    with db.connect() as conn:
-        assets = {a.id: a for a in repository.list_assets(conn)}
-        held = {p.asset_id for p in compute_positions(repository.list_operations(conn))}
-    conn.close()
-    rows = []
-    for asset in assets.values():  # dans l'ordre choisi dans « Gérer » (D-070)
-        if asset.id not in held or asset.manual:
-            continue
-        # Crypto : ticker Yahoo saisi ou connu (plusieurs années, D-111), sinon CoinGecko.
-        ticker = crypto_tickers.yahoo_ticker(asset.ticker, asset.coingecko_id)
-        row = _watch_row(client, asset.name, ticker, today, asset.coingecko_id)
-        rows.append({"id": asset.id} | row)
-    return {"rows": rows, "periods": list(watch.PERIODS)}
-
-
-@app.get("/api/watchlists/{watchlist_id}/performance")
-def watchlist_performance(watchlist_id: int, client: HttpClient) -> dict:
-    today = date.today()
-    with db.connect() as conn:
-        found = _watchlist_or_404(conn, watchlist_id)
-    conn.close()
-    rows = [
-        {"id": item["id"]} | _watch_row(client, item["label"], item["ticker"], today)
-        for item in found["items"]
-    ]
-    return {"rows": rows, "periods": list(watch.PERIODS)}
+# Liste de comparaison (D-042) puis listes de suivi (D-072), dans app/api/.
+app.include_router(benchmarks.router)
+app.include_router(watchlists.router)
 
 
 # Jusqu'à 5 taux annuels en %, séparés par « ; » (ex. « 2;5;8 » ou « 3,5;7 »).
