@@ -223,7 +223,7 @@ def _token_price(conn, asset: Asset, day: date, client: httpx2.Client) -> Decima
     if close and close[1] == asset.currency and (date.today() - day).days < 7:
         return close[0]
     key = config.coingecko_api_key()
-    if asset.coingecko_id and day < date.today():
+    if asset.coingecko_id and not asset.fictive and day < date.today():  # démo : D-140
         series = [
             p
             for d, p in prices.coin_history(client, asset.coingecko_id, date.today(), key)

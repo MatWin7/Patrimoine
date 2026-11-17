@@ -28,7 +28,13 @@ def test_comptes_coherents(client):
     assert {a["kind"] for a in accounts.values()} >= {
         "pea", "cto", "assurance_vie", "per", "livret", "immobilier", "autre",
     }  # fmt: skip
-    for name in ("PEA démo", "CTO démo", "Assurance-vie démo", "PER démo"):
+    for name in (
+        "PEA démo",
+        "CTO démo",
+        "Assurance-vie démo",
+        "PER démo",
+        "Plateforme crypto démo",
+    ):
         # Aucun achat sans assez d'espèces : pas de versement « supposé » (D-062).
         assert accounts[name]["deposits_implied"] == "0", name
     assert all(not a["cash"].startswith("-") for a in accounts.values())
@@ -115,3 +121,26 @@ def test_variation_du_jour_de_la_demo(client):
     et l'alerte du jour ont une variation à montrer, sans rien demander en ligne."""
     positions = client.get("/api/portfolio").json()["positions"]
     assert any(p.get("day_change_pct") for p in positions)
+
+
+def test_crypto_et_aave(client):
+    tax = client.get("/api/tax").json()
+    assert tax["crypto"]["sales"] and tax["crypto"]["swaps"] == 1  # vente imposable, échange
+    assert [f["form"] for f in tax["foreign_accounts"]] == ["3916-bis"]  # plateforme étrangère
+    assert tax["custody_unknown"] == []
+    rewards = client.get("/api/crypto/rewards").json()
+    assert {k["kind"] for k in rewards["kinds"]} >= {
+        "earn",
+        "staking",
+        "cashback",
+        "airdrop",
+        "parrainage",
+    }
+    assert any(p["aave_line_id"] for p in rewards["placements"]) and rewards["idle"]
+    assert rewards["fees"]["total"] != "0.00"
+    lines = client.get("/api/aave/lines").json()
+    assert len(lines) == 2 and any(m["verified"] for m in lines[0]["months"])
+    borrows = client.get("/api/aave/borrows").json()
+    assert borrows["markets"][0]["health_factor"] is not None  # dépôts face à l'emprunt
+    positions = client.get("/api/portfolio").json()["positions"]
+    assert any(p["account"] == "Portefeuille démo" for p in positions)  # transfert reçu
