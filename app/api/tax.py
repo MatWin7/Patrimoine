@@ -7,8 +7,21 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException
 
 from app import custody, db, prices, tax
+from app import life_insurance as av
 from app.api.common import offline_state, pct
-from app.portfolio import ZERO, convert, eur_costs, ratio
+from app.models import Account, Operation
+from app.portfolio import (
+    INFLOWS,
+    TRADES,
+    ZERO,
+    cash_movement,
+    convert,
+    eur_costs,
+    ratio,
+    replay_cash,
+    value_history,
+    with_transfers,
+)
 from app.schemas import money, plain
 
 router = APIRouter()
@@ -20,12 +33,14 @@ def tax_report(
     pfu: Decimal | None = None,
     tmi: Decimal = Decimal("30"),
     per_ceiling: Decimal | None = None,
+    couple: bool = False,
 ) -> dict:
     """Repères fiscaux, en estimation : plafond et 5 ans des PEA, 8 ans des assurances-vie,
     versements et impôt des PER (D-064), plus-values réalisées, dividendes et impôt estimé des
-    comptes-titres et des cryptos (D-066) pour une année. `tmi` et `per_ceiling` (plafond de
-    l'avis d'impôt) sont des réglages de la page, jamais enregistrés ; `pfu` vide = taux de
-    l'année (31,4 % dès 2026)."""
+    comptes-titres et des cryptos (D-066) pour une année, rachats d'assurance-vie (D-144).
+    `tmi`, `per_ceiling` (plafond de l'avis d'impôt) et `couple` (abattement de l'assurance-vie)
+    sont des réglages de la page, jamais enregistrés ; `pfu` vide = taux de l'année (31,4 % dès
+    2026)."""
     today = date.today()
     year = year or today.year
     entered = pfu is not None
@@ -98,6 +113,7 @@ def tax_report(
             )
         elif a.kind == "assurance_vie":
             avs.append(base(a, tax.av_status(a, ops, today)))
+    life = _life_insurance(state, avs, year, today, couple, value_of, eur)
     per_rows = []
     per_year_total = ZERO
     for a in accounts.values():  # ordre choisi dans « Gérer » (D-070)
@@ -185,10 +201,9 @@ def tax_report(
             }
         )
     crypto_ids = {a.id for a in accounts.values() if a.kind == "crypto"}
-    years = sorted(
-        {o.op_date.year for o in ops if o.account_id in cto_ids | per_ids | pea_ids | crypto_ids}
-        | {today.year}
-    )
+    av_ids = {a.id for a in accounts.values() if a.kind == "assurance_vie"}
+    taxed_ids = cto_ids | per_ids | pea_ids | crypto_ids | av_ids
+    years = sorted({o.op_date.year for o in ops if o.account_id in taxed_ids} | {today.year})
     return {
         "rules_date": tax.RULES_DATE,
         "pfu_pct": plain(pfu),
@@ -212,6 +227,7 @@ def tax_report(
             "net": money(pea_est["net"]),
         },
         "assurance_vie": avs,
+        "life_insurance": life,
         "per": {
             "year": year,
             "tmi_pct": plain(tmi),
@@ -313,3 +329,176 @@ def _crypto_tax(state: dict, crypto_ids: set[int], year: int, pfu: Decimal) -> d
             for s in est["sales"]
         ],
     }
+
+
+def _contract_flows(
+    a: Account, mine: list[Operation], state: dict, today: date
+) -> tuple[list[av.Premium], list[av.Buyback]]:
+    """Versements et rachats d'une assurance-vie (D-144). Versements = champ sans date du
+    compte, opérations « Versement » et achats payés sans versement (D-062). Rachats = retraits,
+    regroupés par jour, avec la valeur du contrat juste avant (titres à la dernière clôture en
+    cache et espèces rejouées) ; inconnue hors euros."""
+    premiums = [av.Premium(None, a.deposits_before)] if a.deposits_before > 0 else []
+    premiums += [av.Premium(o.op_date, o.amount) for o in mine if o.op_type == "versement"]
+    premiums += [av.Premium(d, amount) for d, amount in _paid_by_purchases(a, mine)]
+    out: dict[date, Decimal] = {}
+    for o in mine:
+        if o.op_type == "retrait":
+            out[o.op_date] = out.get(o.op_date, ZERO) + o.amount
+    if not out:
+        return premiums, []
+    trades = [o for o in mine if o.op_type in TRADES]
+    with db.connection() as conn:
+        closes = {i: prices.load_history(conn, i) for i in {o.asset_id for o in trades}}
+    points = value_history(trades, closes, state["rates"], today, history=state["fx"])
+    buybacks = []
+    for day, amount in sorted(out.items()):
+        value = None
+        if a.currency == "EUR":
+            titles = next((v for d, v, _ in reversed(points) if d <= day), ZERO)
+            before = [
+                o for o in mine if o.op_date < day or (o.op_date == day and o.op_type != "retrait")
+            ]
+            value = titles + replay_cash(a.deposits_before, a.currency, before)[0]
+        buybacks.append(av.Buyback(day, amount, value))
+    return premiums, buybacks
+
+
+def _paid_by_purchases(a: Account, mine: list[Operation]) -> list[tuple[date, Decimal]]:
+    """Versements que supposent les achats payés sans espèces, comme D-062. Un retrait ou des frais
+    sans espèces ne sont pas des versements : l'argent vient d'unités vendues sans vente saisie
+    (rachat) ou des unités elles-mêmes (frais de gestion) ; les espèces repartent de zéro."""
+    ops = sorted(
+        (o for o in mine if o.currency == a.currency),
+        key=lambda o: (o.op_date, o.op_type not in INFLOWS, o.id),
+    )
+    running, paid = a.deposits_before, []
+    for o in ops:
+        if o.op_type == "solde_initial":
+            running -= (o.quantity or ZERO) * (o.unit_price or ZERO) + o.fees
+        else:
+            running += cash_movement(o)
+        if running < 0:
+            if o.op_type in ("achat", "solde_initial"):
+                paid.append((o.op_date, -running))
+            running = ZERO
+    return paid
+
+
+def _life_insurance(state, rows, year, today, couple, value_of, eur) -> dict:
+    """Carte « Assurance-vie » (D-144) : versements restants, gains, abattement de l'année,
+    rachat sans impôt et impôt si tout était racheté aujourd'hui, rachats de l'année."""
+    accounts = state["accounts"]
+    ops = with_transfers(state["operations"])  # versements reçus d'un autre compte (D-085)
+    last_year_end = date(today.year - 1, 12, 31)
+    contracts = []
+    encours_pre = encours_post = used = ZERO
+    for row in rows:
+        a = accounts[row["account_id"]]
+        mine = [o for o in ops if o.account_id == a.id]
+        opened = date.fromisoformat(row["opened_on"]) if row["opened_on"] else None
+        premiums, buybacks = _contract_flows(a, mine, state, today)
+        remaining, gains = av.replay(premiums, buybacks, opened)
+        past, _ = av.replay(premiums, buybacks, opened, until=last_year_end)
+        # Taux du 31/12 pour le seuil, taux du jour de chaque rachat pour l'abattement.
+        encours_pre += state["fx"].to_eur(past.pre, a.currency, last_year_end) or ZERO
+        encours_post += state["fx"].to_eur(past.post, a.currency, last_year_end) or ZERO
+        used += sum(
+            (
+                state["fx"].to_eur(g.gain, a.currency, g.day) or ZERO
+                for g in gains
+                if g.eight_years and g.day.year == today.year
+            ),
+            ZERO,
+        )
+        paid_in = sum((p.amount for p in premiums), ZERO)
+        contracts.append((row, a, opened, remaining, gains, paid_in))
+    encours = av.Remaining(encours_pre, encours_post)
+    full = av.allowance(couple)
+    used = min(full, used)
+    left = full - used
+    running = left  # abattement partagé entre les contrats, dans l'ordre affiché
+    totals = {"value": ZERO, "remaining": ZERO, "ir": ZERO, "social": ZERO}
+    for row, a, opened, remaining, gains, paid_in in contracts:
+        value = value_of(a)
+        rest = av.Remaining(eur(remaining.pre, a.currency), eur(remaining.post, a.currency))
+        gain = value - rest.total
+        taxed = max(ZERO, gain)
+        eight = av.years_reached(opened, today, av.YEARS_REDUCED)
+        income = av.income_tax(
+            taxed, taxed * av.pre_share(rest, opened), opened, today, running, encours
+        )
+        running -= income["allowance_used"]
+        social = max(ZERO, taxed - _euro_fund_gains(state, a.id)) * av.SOCIAL_PCT / 100
+        totals["value"] += value
+        totals["remaining"] += rest.total
+        totals["ir"] += income["tax"]
+        totals["social"] += social
+        row.update(
+            {
+                "value": money(value),
+                "paid_in": money(eur(paid_in, a.currency)),
+                "remaining": money(rest.total),
+                "remaining_pre": money(rest.pre),
+                "gains": money(gain),
+                "gain_pct": pct(ratio(gain, rest.total)) if rest.total > 0 else None,
+                "estimated": any(g.estimated for g in gains),
+                "buybacks": len(gains),
+                "tax_free": money(av.tax_free_buyback(value, rest.total, eight, left)),
+                "exit_ir": money(income["tax"]),
+                "exit_social": money(social),
+                "exit_tax": money(income["tax"] + social),
+            }
+        )
+    names = {a.id: a.name for a in accounts.values()}
+    year_rows = []
+    for _row, a, _opened, _remaining, gains, _paid in contracts:
+        year_rows += [
+            {
+                "date": g.day.isoformat(),
+                "account": names[a.id],
+                "amount": money(eur(g.amount, a.currency)),
+                "gain": money(eur(g.gain, a.currency)),
+                "eight_years": g.eight_years,
+                "estimated": g.estimated,
+            }
+            for g in gains
+            if g.day.year == year
+        ]
+    return {
+        "year": year,
+        "today_year": today.year,
+        "couple": couple,
+        "allowance": money(full),
+        "allowance_used": money(used),
+        "allowance_left": money(left),
+        "encours": money(encours.total),
+        "encours_pre": money(encours.pre),
+        "encours_date": last_year_end.isoformat(),
+        "over_cap": encours.total > av.CAP,
+        "reduced_pct": plain(av.REDUCED_PCT),
+        "reduced_fraction_pct": pct(av.reduced_fraction(encours)),
+        "value": money(totals["value"]),
+        "remaining": money(totals["remaining"]),
+        "gains": money(totals["value"] - totals["remaining"]),
+        "exit_ir": money(totals["ir"]),
+        "exit_social": money(totals["social"]),
+        "exit_tax": money(totals["ir"] + totals["social"]),
+        "buybacks": sorted(year_rows, key=lambda r: r["date"]),
+    }
+
+
+def _euro_fund_gains(state: dict, account_id: int) -> Decimal:
+    """Gains du fonds euros encore détenus : intérêts déjà soumis aux prélèvements sociaux, prélevés
+    chaque année à leur inscription (valeur saisie nette). Le reste des gains (unités de compte,
+    plus-values réalisées puis replacées) les paie au rachat."""
+    return sum(
+        (
+            convert(p.gain, p.currency, "EUR", state["rates"]) or ZERO
+            for p in state["valued"]
+            if p.account_id == account_id
+            and p.gain > 0
+            and state["assets"][p.asset_id].asset_class == "fonds_euros"
+        ),
+        ZERO,
+    )

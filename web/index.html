@@ -477,12 +477,42 @@
       <details class="note"><summary>Règles de calcul</summary><p class="muted small" id="tax-pea-note"></p></details>
     </section>
     <section class="card" data-card="assurance-vie">
-      <div class="card-head"><h2>Assurance-vie <button type="button" class="tip" data-tip="Après 8 ans, abattement annuel sur les gains des rachats : 4 600 € (9 200 € en couple). Avant, aucun." aria-label="Plus d'infos">?</button></h2><span class="muted small">Abattement sur les gains après 8 ans</span></div>
+      <div class="card-head"><h2>Assurance-vie <button type="button" class="tip" data-tip="Seule la part de gains d'un rachat est imposée. Avant 8 ans : 12,8 % d'impôt. Après 8 ans : abattement de 4 600 € par an (9 200 € en couple), puis 7,5 %. Prélèvements sociaux de 17,2 % en plus, sauf sur le fonds euros (déjà prélevés chaque année)." aria-label="Plus d'infos">?</button></h2><span class="muted small">Gains imposés au rachat, allégés après 8 ans</span></div>
+      <form id="form-av" class="tax-form">
+        <label>Foyer fiscal <select name="couple">
+          <option value="">Personne seule (4 600 €)</option>
+          <option value="1">Couple, imposition commune (9 200 €)</option>
+        </select></label>
+      </form>
+      <p class="filter-banner" id="tax-av-warning" hidden></p>
       <dl id="tax-av-kpis" class="kpis"></dl>
       <div class="table-scroll"><table id="tax-av-table">
-        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th><th class="num" data-sort="deposits"><button type="button" class="sort">Versements</button></th><th data-sort="milestone"><button type="button" class="sort">8 ans</button></th></tr></thead>
+        <thead><tr><th data-sort="account"><button type="button" class="sort">Compte</button></th><th data-sort="opened_on"><button type="button" class="sort">Ouvert le</button></th><th class="num" data-sort="remaining"><button type="button" class="sort">Versements</button></th><th class="num" data-sort="value"><button type="button" class="sort">Valeur</button></th><th class="num" data-sort="gains"><button type="button" class="sort">Gains</button></th><th data-sort="milestone"><button type="button" class="sort">8 ans</button></th><th class="num" data-sort="tax_free"><button type="button" class="sort">Rachat sans impôt</button></th><th class="num" data-sort="exit_tax"><button type="button" class="sort">Impôt si rachat total</button></th></tr></thead>
         <tbody id="tax-av"></tbody>
       </table></div>
+      <h3 class="small-title" id="tax-av-buybacks-title">Rachats de l'année</h3>
+      <div class="table-scroll"><table id="tax-av-buybacks-table">
+        <thead><tr><th data-sort="date"><button type="button" class="sort">Date</button></th><th data-sort="account"><button type="button" class="sort">Compte</button></th><th class="num" data-sort="amount"><button type="button" class="sort">Montant</button></th><th class="num" data-sort="gain"><button type="button" class="sort">Part de gains</button></th><th data-sort="eight_years"><button type="button" class="sort">Abattement</button></th></tr></thead>
+        <tbody id="tax-av-buybacks"></tbody>
+      </table></div>
+      <p class="muted small">Au décès : 152 500 € par bénéficiaire sans droits, sur les versements faits avant 70 ans. <button type="button" class="tip" data-tip="Repère de transmission, sans calcul : l'app ne connaît ni tes bénéficiaires ni ton âge à chaque versement. Versements avant 70 ans : 152 500 € par bénéficiaire, puis 20 % jusqu'à 700 000 € de plus et 31,25 % au-delà. Versements après 70 ans : 30 500 € pour l'ensemble des bénéficiaires, au-delà droits de succession sur les versements ; les gains sont exonérés. Le conjoint ou partenaire de PACS ne paie rien." aria-label="Plus d'infos">?</button></p>
+      <details class="note"><summary>Règles de calcul</summary><p class="muted small">Part de gains d'un rachat = rachat × (valeur − versements restants) ÷ valeur ;
+        la part de versements remboursée sort des versements restants (si le contrat vaut moins que ses versements,
+        tout le rachat est du versement). Valeur d'un ancien rachat : titres à la dernière clôture connue ce jour-là et
+        espèces ; inconnue (« ≈ »), tout le rachat est compté en versements. Versements faits jusqu'au 26/09/2017 :
+        7,5 % après 8 ans (15 % de 4 à 8 ans, 35 % avant). Depuis le 27/09/2017 : 12,8 % avant 8 ans ; après, 7,5 %
+        tant que les versements restants de tous tes contrats au 31 décembre dernier ne dépassent pas 150 000 €,
+        sinon 7,5 % sur une partie seulement et 12,8 % sur le reste. Le seuil de 150 000 € est par personne : l'app
+        suppose que tous les contrats du profil sont au même nom. Champ « Versements » du compte, sans date : d'avant
+        le 27/09/2017 si le contrat a été ouvert avant. Les gains sont répartis au prorata des versements d'avant et
+        d'après cette date. Abattement : d'abord sur les gains des versements d'avant 2017, puis sur ceux à 7,5 %,
+        puis à 12,8 % ; il diminue des gains des rachats déjà faits cette année après 8 ans, et se partage entre les
+        contrats dans l'ordre du tableau. « Rachat sans impôt » : le plus grand rachat dont la part de gains tient dans
+        l'abattement restant (prélèvements sociaux dus quand même sur les unités de compte). L'assureur prélève 7,5 %
+        ou 12,8 % au rachat, sans abattement : la différence revient avec la déclaration. Prélèvements sociaux :
+        17,2 % (l'assurance-vie est restée hors de la hausse de 2026), sur les gains hors intérêts du fonds euros
+        (déjà prélevés chaque année). Un retrait ou des frais saisis sans espèces ne comptent pas comme des versements.
+        Non pris en compte : option pour le barème, contrats ouverts avant 1990 (6 ans), co-souscription.</p></details>
     </section>
     <section class="card" data-card="per">
       <div class="card-head"><h2>PER</h2><span class="muted small">Versements déduits du revenu, bloqués jusqu'à la retraite</span></div>
