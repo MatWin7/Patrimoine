@@ -12,7 +12,7 @@ from app.config import APP_DIR
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
-SCHEMA_VERSION = 21  # doit correspondre au PRAGMA user_version de schema.sql
+SCHEMA_VERSION = 22  # doit correspondre au PRAGMA user_version de schema.sql
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 
 # Base du profil de la requête en cours (D-098), posée par le middleware de app.main. Une

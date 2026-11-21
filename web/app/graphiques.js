@@ -22,6 +22,9 @@ const CLASS_COLORS = { ETF: "--series-1", Actions: "--series-2", Crypto: "--seri
 // Sept couleurs bien distinctes (vérifiées pour les daltonismes courants), toujours dans cet
 // ordre ; au-delà, l'œil ne les sépare plus : les plus petites parts passent dans « Autres ».
 const SERIES = ["--series-1", "--series-2", "--series-3", "--series-4", "--series-5", "--series-6", "--series-7"];
+// Couleurs au choix d'un actif (D-142) : les sept des graphiques, plus cinq réservées au choix
+// (jamais attribuées automatiquement, pour ne pas changer les graphiques existants).
+const PALETTE = [...SERIES, "--series-8", "--series-9", "--series-10", "--series-11", "--series-12"];
 const otherColor = () => `color-mix(in srgb, ${css("--neutral")} 45%, ${css("--surface")})`;
 
 // Couleurs des lignes (D-051, D-052) : celle choisie dans « Gérer » d'abord ; les autres
@@ -33,7 +36,7 @@ function lineColors() {
   const portfolio = lastPortfolio;
   if (lineColorCache.portfolio === portfolio) return lineColorCache.map;
   const map = new Map();
-  for (const p of portfolio?.positions ?? []) if (p.color) map.set(p.asset, SERIES[p.color - 1]);
+  for (const p of portfolio?.positions ?? []) if (p.color) map.set(p.asset, PALETTE[p.color - 1]);
   const free = SERIES.filter((s) => ![...map.values()].includes(s));
   const ranked = (portfolio?.groupings?.ligne?.all ?? []).filter((p) => p.label !== "Espèces");
   ranked.slice(0, SERIES.length).forEach((p) => {
@@ -153,28 +156,54 @@ const lineLegend = {
 
 // Camembert : parts en EUR, pourcentage repris dans la légende (« ETF · 82,5 % »).
 // `colorOf` donne la couleur d'une part ; `onPick` (facultatif) reçoit le libellé cliqué.
+// Le total des parts s'écrit au centre de l'anneau (greffon propre à ce graphique).
 function doughnutConfig(parts, colorOf, onPick) {
+  const total = parts.reduce((sum, p) => sum + Number(p.value), 0);
+  const centerTotal = {
+    id: "centerTotal",
+    afterDraw(chart) {
+      const { ctx, chartArea: a } = chart;
+      if (!a) return;
+      const x = (a.left + a.right) / 2;
+      const y = (a.top + a.bottom) / 2;
+      const size = Math.max(11, Math.min(26, (a.right - a.left) / 9));
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = css("--text-3");
+      ctx.font = `500 ${Math.round(size * 0.55)}px ${Chart.defaults.font.family}`;
+      ctx.fillText("Total", x, y - size * 0.7);
+      ctx.fillStyle = css("--text");
+      ctx.font = `600 ${Math.round(size)}px ${Chart.defaults.font.family}`;
+      ctx.fillText(euros.format(total), x, y + size * 0.4);
+      ctx.restore();
+    },
+  };
   return {
     type: "doughnut",
+    plugins: [centerTotal],
     data: {
       labels: parts.map((p) => `${p.display ?? p.label} · ${formatDecimal(p.pct)} %`),
       datasets: [{
         data: parts.map((p) => Number(p.value)),
         backgroundColor: parts.map((p, i) => colorOf(p, i)),
         borderColor: css("--surface"),
-        borderWidth: 2,
-        hoverOffset: 4,
+        borderWidth: 3,
+        borderRadius: 4,
+        spacing: 1,
+        hoverOffset: 6,
       }],
     },
     options: {
       maintainAspectRatio: false,
-      cutout: "68%",
+      cutout: "72%",
+      layout: { padding: isNarrow() ? 4 : { top: 4, bottom: 4, left: 8, right: 16 } },
       onClick: onPick ? (_, elements) => elements.length && onPick(parts[elements[0].index].label) : undefined,
       onHover: (event, elements) => {
         event.native.target.style.cursor = onPick && elements.length ? "pointer" : "default";
       },
       plugins: {
-        legend: { position: isNarrow() ? "bottom" : "right" },
+        legend: { position: isNarrow() ? "bottom" : "right", labels: { padding: 10, font: { size: 13 }, boxWidth: 10, boxHeight: 10 } },
         tooltip: {
           callbacks: {
             label: (ctx) => ` ${formatDecimal(parts[ctx.dataIndex].value, "EUR")} (${formatDecimal(parts[ctx.dataIndex].pct)} %)`,

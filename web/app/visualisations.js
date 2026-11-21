@@ -141,6 +141,27 @@ const WATCH_PERIODS = ["1j", "1s", "1m", "ytd", "1a", "3a", "5a"];
 
 const currentWatch = () => watchLists.find((w) => String(w.id) === watchPref.choice) ?? null;
 
+// Type d'une liste (Bourse ou Crypto) : choisi à sa création et gardé dans le navigateur ; une liste
+// plus ancienne se devine à ses actifs (tickers Yahoo de crypto : BTC-EUR...), sinon on le demande.
+const CRYPTO_TICKER = /^[A-Z0-9]{2,10}-(EUR|USD|USDT|USDC|GBP)$/;
+function watchKind(list) {
+  const saved = (watchPref.kinds ?? {})[list.id];
+  if (saved) return saved;
+  if (!list.items.length) return null;
+  return list.items.every((i) => CRYPTO_TICKER.test(i.ticker ?? "")) ? "crypto" : "bourse";
+}
+function syncWatchKind() {
+  const list = currentWatch();
+  const form = $("form-watch-item");
+  const kind = list ? watchKind(list) : null;
+  if (kind) form.kind.value = kind;
+  form.kind.closest("label").hidden = !!kind;
+  const crypto = form.kind.value === "crypto";
+  $("watch-ticker-label").textContent = crypto ? "Id CoinGecko ou symbole" : "Ticker Yahoo";
+  form.ticker.placeholder = crypto ? "ex. bitcoin, BTC, BTC-EUR" : "ex. AI.PA, ^FCHI";
+  form.label.placeholder = crypto ? "ex. Bitcoin" : "ex. Air Liquide";
+}
+
 function fillWatchSelect() {
   const select = $("watch-select");
   select.replaceChildren(new Option("Mes lignes", "lines"), ...watchLists.map((w) => new Option(`${w.name} (${w.items.length})`, String(w.id))));
@@ -148,6 +169,7 @@ function fillWatchSelect() {
   select.value = watchPref.choice;
   const own = currentWatch() !== null;
   $("watch-rename").hidden = $("watch-delete").hidden = $("form-watch-item").hidden = !own;
+  syncWatchKind();
 }
 
 // L'ordre se règle à la poignée tant que le tableau est dans l'ordre choisi (aucun tri par colonne).
@@ -251,11 +273,16 @@ $("watch-select").addEventListener("change", (e) => {
   refreshWatch().catch((err) => showMessage(err.message, true));
 });
 $("watch-new").addEventListener("click", async () => {
-  const name = (await askText("Nom de la nouvelle liste", { placeholder: "ex. ETF à surveiller", ok: "Créer" }))?.trim();
+  const answer = await askText("Nom de la nouvelle liste", {
+    placeholder: "ex. ETF à surveiller", ok: "Créer",
+    choices: { label: "Type d'actifs", options: [["bourse", "Bourse"], ["crypto", "Crypto"]] },
+  });
+  const name = answer?.text.trim();
   if (!name) return;
   try {
     const created = await api("/api/watchlists", { method: "POST", body: JSON.stringify({ name }) });
     watchPref.choice = String(created.id);
+    watchPref.kinds = { ...(watchPref.kinds ?? {}), [created.id]: answer.choice };
     savePref(WATCH_KEY, watchPref);
     await watchAction(Promise.resolve(), `Liste « ${name} » créée : ajoute-lui des actifs.`);
     $("form-watch-item").label.focus();
@@ -288,12 +315,7 @@ $("form-watch-item").addEventListener("submit", (e) => {
   });
 });
 // Crypto : l'id CoinGecko ou le symbole suffit, l'API trouve le ticker Yahoo (D-111).
-$("form-watch-item").kind.addEventListener("change", (e) => {
-  const crypto = e.target.value === "crypto";
-  $("watch-ticker-label").textContent = crypto ? "Id CoinGecko ou symbole" : "Ticker Yahoo";
-  e.target.form.ticker.placeholder = crypto ? "ex. bitcoin, BTC, BTC-EUR" : "ex. AI.PA, ^FCHI";
-  e.target.form.label.placeholder = crypto ? "ex. Bitcoin" : "ex. Air Liquide";
-});
+$("form-watch-item").kind.addEventListener("change", syncWatchKind);
 bindSortable("watch-table", ["order", "last", ...WATCH_PERIODS]);
 
 function refreshVisualisations() {

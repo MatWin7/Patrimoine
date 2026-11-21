@@ -343,7 +343,7 @@ function renderRewardsChart() {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: { position: "top", align: "end", labels: { padding: 14 } },
         tooltip: {
           filter: (item) => item.raw > 0,
           itemSort: (a, b) => b.raw - a.raw,

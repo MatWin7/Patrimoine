@@ -18,8 +18,8 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 5h16"/> <path d="M4 12h16"/> <path d="M4 19h16"/></symbol>
-  <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></symbol>
 </svg>
 <!-- Page de démarrage (D-098, D-133) : seule affichée tant qu'aucun profil n'est ouvert. Un mot
      d'accueil, puis le choix du profil, sur le fond choisi dans Réglages. -->
@@ -28,7 +28,7 @@
     <div class="picker-welcome">
       <svg class="logo" viewBox="0 0 1000 1000" aria-hidden="true"><rect class="logo-bg" x="60" y="60" width="880" height="880" rx="220"/><rect class="logo-bar" x="220" y="560" width="140" height="200"/><rect class="logo-bar" x="430" y="420" width="140" height="340"/><rect class="logo-bar" x="640" y="260" width="140" height="500"/></svg>
       <h1 id="picker-title">Bienvenue dans Patrimoine</h1>
-      <p class="picker-text" id="picker-text">Tes comptes et tes chiffres, sur ton ordinateur.</p>
+      <p class="picker-text" id="picker-text">La clarté de vos finances, à chaque décision.</p>
     </div>
     <div class="picker-panel">
       <h2 class="picker-ask">Qui consulte ?</h2>
@@ -73,8 +73,6 @@
              le choix s'ouvre en panneau par-dessus la page, sans la décaler. -->
         <button id="filter-toggle" type="button" class="icon-button filter-toggle" popovertarget="filter-panel" aria-label="Lignes prises en compte" hidden><svg class="ic" aria-hidden="true"><use href="#i-list-filter"/></svg><span id="line-filter-summary" class="tab-badge" hidden></span></button>
         <button id="refresh-prices" type="button" class="icon-button" title="Actualiser les cours" aria-label="Actualiser les cours"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg></button>
-        <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu. -->
-        <button id="window-toggle" type="button" class="icon-button" popovertarget="window-panel" title="Fenêtre" aria-label="Fenêtre" hidden><svg class="ic" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
         <a id="settings-link" class="icon-button" href="#reglages" data-tab="reglages" title="Réglages" aria-label="Réglages"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg></a>
         <button id="profile-toggle" type="button" class="profile-toggle" popovertarget="profile-panel" hidden><span class="avatar" id="profile-avatar" aria-hidden="true"></span><span id="profile-name"></span></button>
       </div>
@@ -88,20 +86,6 @@
     </div>
     <p class="muted small">Clique sur un compte ou une ligne pour le retirer.</p>
     <div id="line-filter"></div>
-  </div>
-
-  <div id="window-panel" class="filter-panel window-panel" popover aria-labelledby="window-panel-title">
-    <div class="card-head">
-      <h2 id="window-panel-title">Fenêtre</h2>
-      <button type="button" class="icon" popovertarget="window-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
-    </div>
-    <div class="window-actions">
-      <button type="button" data-window="reload">Recharger la page</button>
-      <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
-      <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
-      <button type="button" data-window="folder">Dossier des données</button>
-    </div>
-    <p id="window-error" class="ko small" role="alert" hidden></p>
   </div>
 
   <div id="profile-panel" class="filter-panel profile-panel" popover aria-labelledby="profile-panel-title">
@@ -230,21 +214,21 @@
         </div>
         <label class="inline">Depuis le <input id="perf-start" type="date"></label>
         <label class="inline">Jusqu'au <input id="perf-end" type="date"></label>
-        <div class="presets" role="group" aria-label="Raccourcis de dates">
-          <button type="button" class="chip" data-preset="all">Depuis le début</button>
-          <button type="button" class="chip" data-preset="ytd">Cette année</button>
-          <button type="button" class="chip" data-preset="12m">12 mois</button>
-          <button type="button" class="chip" data-preset="3m">3 mois</button>
-          <button type="button" class="chip" data-preset="1m">1 mois</button>
+        <div class="segmented" role="group" aria-label="Raccourcis de dates">
+          <button type="button" data-preset="all">Depuis le début</button>
+          <button type="button" data-preset="ytd">Cette année</button>
+          <button type="button" data-preset="12m">12 mois</button>
+          <button type="button" data-preset="6m">6 mois</button>
+          <button type="button" data-preset="3m">3 mois</button>
+          <button type="button" data-preset="1m">1 mois</button>
         </div>
       </div>
       <dl id="perf-kpis" class="kpis"></dl>
       <div class="card-head perf-chart-head">
         <div class="segmented small-seg" role="group" aria-label="Graphique">
           <button type="button" data-perf-chart="pct">Performance %</button>
-          <button type="button" data-perf-chart="split">Apports et gains €</button>
+          <button type="button" data-perf-chart="split">Apports et gains/pertes €</button>
         </div>
-        <a id="perf-csv" class="button" href="/api/performance.csv" download>Exporter en CSV</a>
       </div>
       <div class="chart"><canvas id="chart-performance" aria-label="Performance de chaque période"></canvas></div>
       <div class="table-scroll" id="perf-table">
@@ -265,6 +249,7 @@
         </table>
       </div>
       <p id="perf-status" class="muted small"></p>
+      <div class="card-foot"><a id="perf-csv" class="button" href="/api/performance.csv" download>Exporter en CSV</a></div>
     </section>
     <section class="card" data-card="comparaison-a-un-indice-ou-a-un-livret">
       <div class="card-head">
@@ -276,7 +261,7 @@
         <label class="inline" id="bench-custom-label" hidden>Ticker Yahoo <input id="bench-custom" placeholder="ex. ^N225" maxlength="20"></label>
         <label class="inline" id="bench-rate-label" hidden>Taux du livret (%/an) <input id="bench-rate" inputmode="decimal" placeholder="ex. 1,7" maxlength="6"></label>
         <button type="button" id="bench-save" hidden>Ajouter à la liste</button>
-        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
+        <button type="button" data-edit-list>Modifier la liste</button>
         <label class="inline">Depuis le <input id="bench-start" type="date"></label>
         <label class="inline">Jusqu'au <input id="bench-end" type="date"></label>
       </div>
@@ -325,7 +310,7 @@
       </div>
       <div class="perf-controls">
         <label class="inline">Liste <select id="watch-select"></select></label>
-        <button type="button" class="chip" id="watch-new">Nouvelle liste</button>
+        <button type="button" id="watch-new">Nouvelle liste</button>
         <button type="button" class="chip" id="watch-rename" hidden>Renommer</button>
         <button type="button" class="chip" id="watch-delete" hidden>Supprimer la liste</button>
       </div>
@@ -348,7 +333,7 @@
       </div>
       <div class="perf-controls">
         <label class="inline">Calendrier de <select id="cal-select"></select></label>
-        <button type="button" class="chip" data-edit-list>Modifier la liste</button>
+        <button type="button" data-edit-list>Modifier la liste</button>
       </div>
       <div class="table-fit"><table class="heatmap" id="calendar"></table></div>
       <p class="muted small" id="cal-note"></p>
@@ -603,7 +588,7 @@
     <section class="card" data-card="mes-placements">
       <div class="card-head">
         <h2>Mes placements <button type="button" class="tip" data-tip="Un placement : un jeton sur un compte qui rapporte des jetons (Aave, Earn, staking). Taux du jour : taux public Aave. Rendement 12 mois : jetons reçus ÷ jetons détenus en moyenne, ramené à un an, sans effet du cours. Revenu estimé : capital × taux du jour, sinon × rendement 12 mois. Aave : seuls la chaîne, le marché et le jeton partent vers Aave, une fois par jour ; « Vérifier » recale l'estimation sur le solde lu dans Aave." aria-label="Plus d'infos">?</button></h2>
-        <button type="button" class="chip" id="aave-new">Suivre une ligne Aave</button>
+        <button type="button" id="aave-new">Suivre un placement</button>
       </div>
       <form id="form-aave-line" class="perf-controls" hidden>
         <label class="inline">Chaîne <select name="chain_id" required></select></label>
@@ -639,8 +624,8 @@
     </section>
     <section class="card" data-card="emprunts-aave">
       <div class="card-head">
-        <h2>Emprunts Aave <button type="button" class="tip" data-tip="Dette estimée chaque jour avec le taux d'emprunt public du marché ; « Vérifier » la recale sur la dette lue dans Aave. Facteur de santé = dépôts suivis sur le même marché × seuil de liquidation ÷ dettes : sous 1, Aave vend une partie des dépôts. Juste seulement si tous tes dépôts Aave de ce marché sont suivis ici (mode E et isolation non pris en compte). Les jetons empruntés se saisissent à part, sur le compte où ils arrivent." aria-label="Plus d'infos">?</button></h2>
-        <button type="button" class="chip" id="borrow-new">Suivre un emprunt</button>
+        <h2>Mes Emprunts <button type="button" class="tip" data-tip="Dette estimée chaque jour avec le taux d'emprunt public du marché ; « Vérifier » la recale sur la dette lue dans Aave. Facteur de santé = dépôts suivis sur le même marché × seuil de liquidation ÷ dettes : sous 1, Aave vend une partie des dépôts. Juste seulement si tous tes dépôts Aave de ce marché sont suivis ici (mode E et isolation non pris en compte). Les jetons empruntés se saisissent à part, sur le compte où ils arrivent." aria-label="Plus d'infos">?</button></h2>
+        <button type="button" id="borrow-new">Suivre un emprunt</button>
       </div>
       <p class="warn small" id="borrow-warning" hidden></p>
       <form id="form-borrow" class="perf-controls" hidden>
@@ -716,15 +701,15 @@
     <section class="card" id="card-operation" data-card="nouvelle-operation">
       <div class="card-head">
         <h2>Ajouter des opérations <button type="button" class="tip" data-tip="Une par une : achat, vente, versement, retrait, dividende… les espèces du compte suivent. Importer : le relevé de ton courtier ou des lignes copiées depuis un tableur, pour beaucoup d'opérations d'un coup." aria-label="Plus d'infos">?</button></h2>
-        <div class="segmented" id="operation-mode" role="group" aria-label="Façon d'ajouter des opérations">
-          <button type="button" data-mode="saisie">Une par une</button>
-          <button type="button" data-mode="import">Importer un relevé</button>
-        </div>
       </div>
-      <div data-operation-mode="saisie">
-        <div id="new-operation"></div>
+      <div class="card-part part-head">
+        <h3>Une par une <button type="button" class="tip" data-tip="Achat, vente, versement, retrait, dividende… les espèces du compte suivent." aria-label="Plus d'infos">?</button></h3>
       </div>
-      <div id="card-import" data-operation-mode="import" hidden>
+      <div id="new-operation"></div>
+      <div class="card-part part-head">
+        <h3>Importer un relevé <button type="button" class="tip" data-tip="Le relevé de ton courtier ou des lignes copiées depuis un tableur, pour beaucoup d'opérations d'un coup." aria-label="Plus d'infos">?</button></h3>
+      </div>
+      <div id="card-import">
         <form id="form-import-start" class="import-start">
           <label>Compte <select name="account_id"></select></label>
           <label>Fichier CSV <input type="file" name="file" accept=".csv,.txt,text/csv"></label>
@@ -739,7 +724,7 @@
     <section class="card" id="card-recurring" data-card="achats-programmes">
       <div class="card-head">
         <h2>Achats programmés <button type="button" class="tip" data-tip="Ex. 100 € d'ETF le 5 de chaque mois, semaine ou trimestre. Chaque échéance passée est proposée ici, avec une quantité estimée d'après la clôture du jour (à défaut, le dernier cours connu). Rien n'est enregistré sans ta validation, et rien ne part chez ta banque." aria-label="Plus d'infos">?</button></h2>
-        <button type="button" data-add="recurring">+ Ajouter</button>
+        <button type="button" data-add="recurring">Ajouter</button>
       </div>
       <div id="recurring-pending" hidden>
         <p class="muted small">À valider d'après ton relevé ; « Ignorer » si l'achat n'a pas eu lieu.</p>
@@ -755,20 +740,20 @@
     <section class="card half" data-card="comptes">
       <div class="card-head">
         <h2>Comptes</h2>
-        <button type="button" data-add="account">+ Ajouter</button>
+        <button type="button" data-add="account">Ajouter</button>
       </div>
       <div class="table-scroll"><table><tbody id="accounts-list"></tbody></table></div>
       <p class="muted small">Total du compte, titres et espèces compris. <button type="button" class="tip" data-tip="Survole un montant pour voir les espèces (et les versements d'un PEA, d'une assurance-vie ou d'un PER). PEA, assurance-vie, PER : espèces = versements + ventes + dividendes − achats − frais − retraits. Compte-titres, crypto, livret, autre : espèces saisies comme les affiche la banque, puis les opérations suivantes." aria-label="Plus d'infos">?</button></p>
           <div class="card-part part-head">
         <h3>Dettes <button type="button" class="tip" data-tip="Crédit immobilier, prêt conso… Le capital restant dû est calculé chaque mois d'après le montant, le taux et la durée (mensualités constantes, hors assurance). Saisis le capital lu sur un relevé pour recaler le calcul. Patrimoine net = patrimoine total − capital restant dû." aria-label="Plus d'infos">?</button></h3>
-        <button type="button" class="secondary" data-add="debt">+ Ajouter</button>
+        <button type="button" data-add="debt">Ajouter</button>
       </div>
       <div class="table-scroll"><table><tbody id="debts-list"></tbody></table></div>
     </section>
     <section class="card half" data-card="actifs">
       <div class="card-head">
         <h2>Actifs</h2>
-        <button type="button" data-add="asset">+ Ajouter</button>
+        <button type="button" data-add="asset">Ajouter</button>
       </div>
       <div class="table-scroll"><table><tbody id="assets-list"></tbody></table></div>
       <details id="assets-sold-box" class="sold-box" hidden>
@@ -795,8 +780,8 @@
       </form>
       <p id="profile-new-error" class="ko small" role="alert" hidden></p>
       <button type="button" id="profile-demo-add" class="link edit">+ Profil Démo, avec des données fictives</button>
-      <details class="profile-restore-box">
-        <summary>Restaurer un profil exporté</summary>
+      <div class="card-part profile-restore-box">
+        <h3>Restaurer un profil exporté</h3>
         <form id="form-profile-restore" class="profile-new">
           <label>Fichier .db
             <input name="file" type="file" accept=".db,application/octet-stream" required>
@@ -808,7 +793,7 @@
         </form>
         <p class="muted small">Il devient un nouveau profil, sans rien remplacer. <button type="button" class="tip" data-tip="Le fichier vient de « Exporter » sur un autre ordinateur ou une ancienne copie. L'app vérifie qu'il s'agit bien d'une de ses bases avant de l'accepter, puis la met à jour si elle est ancienne." aria-label="Plus d'infos">?</button></p>
         <p id="profile-restore-error" class="ko small" role="alert" hidden></p>
-      </details>
+      </div>
     </section>
     <section class="card half" data-card="apparence">
       <div class="card-head">
@@ -880,6 +865,17 @@
         </div>
       </form>
       <p id="settings-state" class="small" role="status" hidden></p>
+      <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu, ouvert avec « ?fenetre ». -->
+      <div id="window-actions" class="card-part" hidden>
+        <h3>Fenêtre</h3>
+        <div class="window-actions">
+          <button type="button" data-window="reload">Recharger la page</button>
+          <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
+          <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
+          <button type="button" data-window="folder">Dossier des données</button>
+        </div>
+        <p id="window-error" class="ko small" role="alert" hidden></p>
+      </div>
     </section>
     <section class="card half" data-card="alertes-et-mises-a-jour">
       <div class="card-head"><h2>Alertes et mises à jour</h2></div>
@@ -980,6 +976,7 @@
     <form id="form-ask">
       <p id="ask-detail" class="muted small" hidden></p>
       <input id="ask-input" maxlength="100" autocomplete="off" hidden>
+      <label id="ask-choice" hidden><span id="ask-choice-label"></span> <select id="ask-choice-select"></select></label>
       <div class="picker-actions">
         <button type="button" data-close>Annuler</button>
         <button type="submit" id="ask-ok" class="primary">Confirmer</button>
@@ -1279,6 +1276,11 @@
             <option value="5">Rose</option>
             <option value="6">Vert</option>
             <option value="7">Violet</option>
+            <option value="8">Cyan</option>
+            <option value="9">Brun</option>
+            <option value="10">Magenta</option>
+            <option value="11">Ardoise</option>
+            <option value="12">Citron vert</option>
           </select>
         </span>
       </label>
