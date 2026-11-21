@@ -459,7 +459,7 @@ async function refreshHistory() {
   const rate = `${String(inflation?.rate ?? inflationPref.rate).replace(".", ",")} % par an`;
   if (inflation?.last_month) {
     const [y, m] = inflation.last_month.split("-");
-    notes.push(`Inflation : ${inflation.source} jusqu'à ${m}/${y}, lissée sur chaque année, puis ${rate} (taux saisi).`);
+    notes.push(`Inflation : ${inflation.source} jusqu'à ${m}/${y}, au taux sur 12 mois de chaque mois, puis ${rate} (taux saisi).`);
   } else if (inflation) {
     notes.push(`Eurostat indisponible : inflation au taux saisi de ${rate} sur toute la période.`);
   }

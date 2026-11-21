@@ -197,33 +197,33 @@ def test_json_stat_en_liste_et_mois_a_l_ancienne():
     assert eurostat._parse(data) == {date(2025, 1, 1): D("99.5")}
 
 
-def test_indice_lisse_par_annee_civile():
-    """Les mois de soldes ne font plus baisser l'indice ; décembre et le dernier mois restent
-    exacts (D-110)."""
-    from app.analytics import smooth_index
+def test_indice_au_glissement_sur_12_mois():
+    """Chaque mois, la courbe monte au rythme de l'inflation sur 12 mois de ce mois : les mois
+    de soldes ne la font pas remonter, et sa pente change d'un mois à l'autre (D-145)."""
+    from app.analytics import smooth_index, yearly_inflation
 
-    raw = {date(2024, 12, 1): D("100")}
+    raw = {date(2024, month, 1): D("100") + D(month) / 10 for month in range(1, 13)}
     for month, change in enumerate(["-0.4", "0.7", "1.1", "0.2", "0.1", "-0.3"], start=1):
-        raw[date(2025, month, 1)] = raw[max(raw)] * (1 + D(change) / 100)
-    for month in range(7, 13):
-        raw[date(2025, month, 1)] = raw[max(raw)] * D("1.001")
-    raw[date(2026, 1, 1)] = raw[date(2025, 12, 1)] * D("0.996")  # soldes de janvier
+        raw[date(2025, month, 1)] = raw[date(2024, month, 1)] * (1 + D(change) / 100 + D("0.02"))
     smooth = smooth_index(raw)
-    months = sorted(raw)
-    assert smooth[date(2024, 12, 1)] == raw[date(2024, 12, 1)]
-    assert smooth[date(2025, 12, 1)] == pytest.approx(raw[date(2025, 12, 1)])
-    # Même pourcentage chaque mois de 2025, jamais de baisse.
-    steps = [smooth[b] / smooth[a] for a, b in zip(months, months[1:], strict=False)]
-    assert all(s > 1 for s in steps)
-    assert steps[0] == pytest.approx(steps[11])
-    # Janvier 2026 en baisse depuis décembre : pente du glissement sur 12 mois.
-    year = raw[date(2026, 1, 1)] / raw[date(2025, 1, 1)]
-    assert steps[12] == pytest.approx(year ** (D(1) / 12))
-    # Mois en cours en hausse depuis décembre : exact au dernier mois publié.
-    raw[date(2026, 2, 1)] = raw[date(2025, 12, 1)] * D("1.003")
-    smooth = smooth_index(raw)
-    assert smooth[date(2026, 2, 1)] == pytest.approx(raw[date(2026, 2, 1)])
-    assert smooth[date(2026, 1, 1)] > smooth[date(2025, 12, 1)]
+    # Les 12 premiers mois, sans glissement : indice exact.
+    for month in range(1, 13):
+        assert smooth[date(2024, month, 1)] == raw[date(2024, month, 1)]
+    # Ensuite, du 1er de M au 1er du mois suivant : glissement de M ramené au mois.
+    for month in range(1, 7):
+        start, nxt = date(2025, month, 1), date(2025, month + 1, 1)
+        year = raw[start] / raw[date(2024, month, 1)]
+        assert smooth[nxt] / smooth[start] == pytest.approx(year ** (D(1) / 12))
+        assert yearly_inflation(smooth, date(2025, month, 15), D("2")) == pytest.approx(
+            (year - 1) * 100
+        )
+    # Jamais de baisse tant que les prix montent sur un an, même en janvier (soldes).
+    months = sorted(smooth)
+    assert all(smooth[b] >= smooth[a] for a, b in zip(months, months[1:], strict=False))
+    # Les taux changent d'un mois à l'autre.
+    assert len({yearly_inflation(smooth, date(2025, m, 1), D("2")) for m in range(1, 7)}) > 1
+    # Jusqu'au mois qui suit le dernier publié, puis le taux saisi prend le relais.
+    assert max(smooth) == date(2025, 7, 1)
     # Série trop courte : rendue telle quelle.
     assert smooth_index({date(2025, 1, 1): D("100")}) == {date(2025, 1, 1): D("100")}
 

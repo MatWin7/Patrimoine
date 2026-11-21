@@ -209,41 +209,34 @@ def _next_month(day: date) -> date:
 
 
 def smooth_index(monthly: dict[date, Decimal]) -> dict[date, Decimal]:
-    """Indice lissé : la hausse des prix de chaque année civile, étalée à vitesse constante (D-110).
+    """Indice de la courbe : chaque mois suit l'inflation sur 12 mois de ce mois (D-145).
 
     L'IPCH n'est pas désaisonnalisé : il baisse 4 à 5 mois par an (soldes de janvier et juin,
-    fin des tarifs d'été en septembre), ce qui ferait remonter « investi moins l'inflation »
-    sans versement. Ici, l'indice reste exact au premier mois et à chaque décembre, et suit
-    entre deux une progression géométrique (même pourcentage chaque mois). Après le dernier
-    décembre, même progression jusqu'au dernier mois publié, exact lui aussi ; si les prix
-    ont baissé depuis décembre (soldes de janvier), la pente est le glissement sur 12 mois
-    du dernier mois publié (le taux d'inflation annoncé). Ne baisse donc que si les prix
-    baissent sur une année entière.
+    fin des tarifs d'été en septembre), ce qui ferait remonter « placé moins l'inflation »
+    sans versement. Ici, du 1er du mois M au 1er du mois suivant, l'indice monte au rythme du
+    glissement sur 12 mois de M (indice de M ÷ indice de M un an plus tôt, le taux officiel),
+    ramené au mois. La pente change donc chaque mois et ne descend que si les prix ont baissé
+    sur un an. La série va jusqu'au mois qui suit le dernier mois publié. Les 12 premiers mois
+    publiés, sans glissement, gardent l'indice exact. Coût : le glissement a environ six mois
+    de retard sur l'indice, l'écart de niveau reste le plus souvent sous 1 % (3,5 % en 2022).
     """
     months = sorted(monthly)
     if len(months) < 2:
         return dict(monthly)
-    first, last = months[0], months[-1]
-    anchors = [first] + [m for m in months if m.month == 12 and m > first]
-    out: dict[date, Decimal] = {}
+    out: dict[date, Decimal] = {months[0]: monthly[months[0]]}
     with localcontext() as ctx:
         ctx.prec = 28
-        for a, b in zip(anchors, anchors[1:], strict=False):
-            span = _months_between(a, b)
-            ratio = monthly[b] / monthly[a]
-            for m in months:
-                if a <= m <= b:
-                    out[m] = monthly[a] * ratio ** (Decimal(_months_between(a, m)) / span)
-        start = anchors[-1]
-        out[start] = monthly[start]
-        if start < last:
-            step = (monthly[last] / monthly[start]) ** (ONE / _months_between(start, last))
-            year_ago = date(last.year - 1, last.month, 1)
-            if step < ONE and year_ago in monthly:  # en janvier, souvent : soldes
-                step = (monthly[last] / monthly[year_ago]) ** (ONE / 12)
-            for m in months:
-                if m > start:
-                    out[m] = monthly[start] * step ** _months_between(start, m)
+        month = months[0]
+        while month <= months[-1]:
+            nxt = _next_month(month)
+            year_ago = date(month.year - 1, month.month, 1)
+            if year_ago in monthly and month in monthly:
+                out[nxt] = out[month] * (monthly[month] / monthly[year_ago]) ** (ONE / 12)
+            elif nxt in monthly:  # début de la série : indice exact
+                out[nxt] = monthly[nxt]
+            else:  # mois manquant : la série s'arrête là
+                break
+            month = nxt
     return out
 
 
@@ -278,8 +271,8 @@ def yearly_inflation(monthly: dict[date, Decimal], day: date, fallback: Decimal)
 
     `monthly` est l'indice qui sert à la courbe (lissé, prolongé) : `index_on` interpole entre le
     1er du mois de `day` et le 1er du mois suivant, donc le taux est la pente de ce segment
-    ramenée à l'année. Lissé par année civile, c'est la hausse des prix de l'année (D-110) ; au
-    taux saisi après le dernier mois publié. Sans l'un des deux mois : `fallback`.
+    ramenée à l'année : le glissement sur 12 mois du mois de `day` (D-145) ; au taux saisi
+    après le dernier mois publié. Sans l'un des deux mois : `fallback`.
     """
     month = date(day.year, day.month, 1)
     nxt = _next_month(month)
