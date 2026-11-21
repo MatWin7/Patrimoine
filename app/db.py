@@ -2,7 +2,8 @@
 
 import os
 import sqlite3
-from contextlib import closing
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from contextvars import ContextVar
 from decimal import Decimal
 from pathlib import Path
@@ -53,6 +54,24 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+@contextmanager
+def connection(path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    """Connexion fermée à la sortie du bloc, même sur une erreur : la forme à employer partout.
+
+    `with sqlite3.connect(...) as conn` valide ou annule la transaction mais ne ferme pas : la
+    connexion se référence elle-même (cache de requêtes) et n'est libérée qu'au passage du
+    ramasse-miettes ; sous Windows, son fichier reste verrouillé jusque-là. Ici, même
+    validation ou annulation, puis `close()`. La connexion rendue est ordinaire : une fonction
+    qui la reçoit peut ouvrir sa propre transaction (`with conn:`) sans la fermer.
+    """
+    conn = connect(path)
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+
+
 def describe(path: Path | None = None) -> str:
     """Base utilisée et nombre d'opérations, affichés au lancement (D-039).
 
@@ -82,12 +101,11 @@ def init_db(path: Path | None = None) -> int:
     """
     path = path or db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with connect(path) as conn:
+    with connection(path) as conn:
         version = schema_version(conn)
         if version == 0:
             conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
             version = schema_version(conn)
-    conn.close()
     if version != SCHEMA_VERSION:
         raise RuntimeError(
             f"Base {path} en version {version}, le code attend {SCHEMA_VERSION} : "

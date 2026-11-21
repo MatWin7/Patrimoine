@@ -38,9 +38,8 @@ def projection(
     prévision : les marchés ne montent jamais à taux constant. `keep` : lignes laissées
     de côté ; les espèces restent comptées, sauf d'un compte entier exclu (D-050, D-069)."""
     series = value_series(client, keep)
-    with db.connect() as conn:
+    with db.connection() as conn:
         accounts = repository.list_accounts(conn)
-    conn.close()
     # Espèces comptées, sauf celles d'un compte entier laissé de côté (D-069).
     kept = [(a.cash, a.currency) for a in accounts if a.id not in keep.accounts]
     cash = sum_by_currency(kept, series["rates"])

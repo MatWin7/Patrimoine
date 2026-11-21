@@ -153,10 +153,9 @@ def _defi_lines_out(conn, warnings: dict[int, str]) -> list[dict]:
 @router.get("/api/aave/lines")
 def aave_lines(client: HttpClient) -> list[dict]:
     """Dépôts suivis : taux, intérêts enregistrés et estimés, soldes vérifiés."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         warnings = update_defi(conn, client)
         out = _defi_lines_out(conn, warnings)
-    conn.close()
     return out
 
 
@@ -175,7 +174,7 @@ def create_aave_line(body: DefiLineIn, client: HttpClient) -> list[dict]:
         raise HTTPException(status_code=502, detail=f"Aave injoignable : {err}") from err
     except StopIteration as err:
         raise HTTPException(status_code=422, detail="Marché ou jeton inconnu chez Aave.") from err
-    with db.connect() as conn:
+    with db.connection() as conn:
         if body.account_id is None:
             name = f"Aave {chain}"
             same = [a for a in repository.list_accounts(conn) if a.name == name]
@@ -211,7 +210,6 @@ def create_aave_line(body: DefiLineIn, client: HttpClient) -> list[dict]:
         conn.commit()
         warnings = update_defi(conn, client)
         out = _defi_lines_out(conn, warnings)
-    conn.close()
     return out
 
 
@@ -295,7 +293,7 @@ def _defi_move(
 def move_aave_line(line_id: int, body: DefiMoveIn, client: HttpClient) -> list[dict]:
     """Dépôt ou retrait sur une ligne suivie, puis intérêts recalculés."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             line = defi_sync.get_line(conn, line_id)
             if line is None:
                 raise HTTPException(status_code=404, detail="Ligne suivie inconnue.")
@@ -304,20 +302,18 @@ def move_aave_line(line_id: int, body: DefiMoveIn, client: HttpClient) -> list[d
             out = _defi_lines_out(conn, update_defi(conn, client))
     except PositionError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
-    conn.close()
     return out
 
 
 @router.delete("/api/aave/lines/{line_id}", status_code=204)
 def delete_aave_line(line_id: int) -> None:
     """Arrête le suivi : les intérêts estimés de la ligne sont retirés (sauvegarde avant)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         if defi_sync.get_line(conn, line_id) is None:
             raise HTTPException(status_code=404, detail="Ligne suivie inconnue.")
-    conn.close()
     backup_before_delete()
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             defi_sync.delete_line(conn, line_id)
             compute_positions(repository.list_operations(conn))
     except PositionError as err:
@@ -330,7 +326,7 @@ def check_aave_line(line_id: int, body: DefiCheckIn) -> dict:
     today = date.today()
     if body.check_date > today:
         raise HTTPException(status_code=422, detail="Date future.")
-    with db.connect() as conn:
+    with db.connection() as conn:
         line = defi_sync.get_line(conn, line_id)
         if line is None:
             raise HTTPException(status_code=404, detail="Ligne suivie inconnue.")
@@ -341,7 +337,6 @@ def check_aave_line(line_id: int, body: DefiCheckIn) -> dict:
         conn.commit()
         warnings = defi_sync.safe_sync(conn, today)
         out = _defi_lines_out(conn, warnings)
-    conn.close()
     estimated = before.balance if before else None
     return {
         "estimated": quantity_text(estimated) if estimated is not None else None,
@@ -352,12 +347,11 @@ def check_aave_line(line_id: int, body: DefiCheckIn) -> dict:
 
 @router.delete("/api/aave/lines/{line_id}/checks/{check_date}", status_code=204)
 def delete_aave_check(line_id: int, check_date: date) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not defi_sync.delete_check(conn, line_id, check_date):
             raise HTTPException(status_code=404, detail="Solde vérifié inconnu.")
         conn.commit()
         defi_sync.safe_sync(conn, date.today())
-    conn.close()
 
 
 # --- Emprunts et facteur de santé (D-108) ---------------------------------------------------
@@ -478,11 +472,10 @@ def _borrows_out(conn: sqlite3.Connection) -> dict:
 @router.get("/api/aave/borrows")
 def aave_borrows(client: HttpClient) -> dict:
     """Emprunts suivis : dette estimée, taux d'emprunt du jour, coût annuel, facteur de santé."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         update_defi(conn, client)
         conn.commit()
         out = _borrows_out(conn)
-    conn.close()
     return out
 
 
@@ -504,7 +497,7 @@ def create_aave_borrow(body: DefiBorrowIn, client: HttpClient) -> dict:
         raise HTTPException(status_code=422, detail="Marché ou jeton inconnu chez Aave.") from err
     if not reserve["borrowable"]:
         raise HTTPException(status_code=422, detail="Ce jeton ne s'emprunte pas sur ce marché.")
-    with db.connect() as conn:
+    with db.connection() as conn:
         asset = repository.get_asset(conn, body.asset_id)
         if asset is None or asset.asset_class != "crypto":
             raise HTTPException(status_code=422, detail="Choisis l'actif crypto emprunté.")
@@ -516,14 +509,13 @@ def create_aave_borrow(body: DefiBorrowIn, client: HttpClient) -> dict:
         update_defi(conn, client)
         conn.commit()
         out = _borrows_out(conn)
-    conn.close()
     return out
 
 
 @router.post("/api/aave/borrows/{borrow_id}/moves", status_code=201)
 def move_aave_borrow(borrow_id: int, body: DefiBorrowMoveIn) -> dict:
     """Nouvel emprunt (+) ou remboursement (−), en jetons ; la dette ne descend pas sous 0."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         borrow = defi_sync.get_borrow(conn, borrow_id)
         if borrow is None:
             raise HTTPException(status_code=404, detail="Emprunt inconnu.")
@@ -539,7 +531,6 @@ def move_aave_borrow(borrow_id: int, body: DefiBorrowMoveIn) -> dict:
         defi_sync.add_borrow_flow(conn, borrow_id, body.op_date, quantity)
         conn.commit()
         out = _borrows_out(conn)
-    conn.close()
     return out
 
 
@@ -548,7 +539,7 @@ def check_aave_borrow(borrow_id: int, body: DefiCheckIn) -> dict:
     """Dette lue dans Aave : renvoie l'écart avec l'estimation, qui repart de ce chiffre."""
     if body.check_date > date.today():
         raise HTTPException(status_code=422, detail="Date future.")
-    with db.connect() as conn:
+    with db.connection() as conn:
         borrow = defi_sync.get_borrow(conn, borrow_id)
         if borrow is None:
             raise HTTPException(status_code=404, detail="Emprunt inconnu.")
@@ -556,7 +547,6 @@ def check_aave_borrow(borrow_id: int, body: DefiCheckIn) -> dict:
         defi_sync.save_borrow_check(conn, borrow_id, body.check_date, body.quantity)
         conn.commit()
         out = _borrows_out(conn)
-    conn.close()
     estimated = before.balance if before else None
     return {
         "estimated": None if estimated is None else quantity_text(estimated),
@@ -567,20 +557,17 @@ def check_aave_borrow(borrow_id: int, body: DefiCheckIn) -> dict:
 
 @router.delete("/api/aave/borrows/{borrow_id}/checks/{check_date}", status_code=204)
 def delete_aave_borrow_check(borrow_id: int, check_date: date) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not defi_sync.delete_borrow_check(conn, borrow_id, check_date):
             raise HTTPException(status_code=404, detail="Dette vérifiée inconnue.")
-    conn.close()
 
 
 @router.delete("/api/aave/borrows/{borrow_id}", status_code=204)
 def delete_aave_borrow(borrow_id: int) -> None:
     """Arrête le suivi de l'emprunt, sauvegarde de la base juste avant (D-074)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         if defi_sync.get_borrow(conn, borrow_id) is None:
             raise HTTPException(status_code=404, detail="Emprunt inconnu.")
-    conn.close()
     backup_before_delete()
-    with db.connect() as conn:
+    with db.connection() as conn:
         defi_sync.delete_borrow(conn, borrow_id)
-    conn.close()

@@ -429,9 +429,8 @@ def create_demo() -> Profile:
     tmp = DATA_DIR / f".demo-{secrets.token_hex(8)}.db"
     try:
         db.init_db(tmp)
-        with db.connect(tmp) as conn:
+        with db.connection(tmp) as conn:
             demo.fill_demo(conn)
-        conn.close()
         existing = get(DEMO_ID)
         if existing is not None:
             os.replace(tmp, db_file(existing))

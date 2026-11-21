@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("/api/operations")
 def list_operations() -> list[dict]:
-    with db.connect() as conn:
+    with db.connection() as conn:
         return [operation_out(op) for op in repository.list_operations(conn)]
 
 
@@ -77,7 +77,7 @@ def save_operation(conn, body: TradeIn | CashIn, operation_id: int | None = None
 def create_operation(body: OperationIn) -> dict:
     # Le "with" valide la transaction SQL si tout va bien, l'annule (rollback) sinon.
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             op = save_operation(conn, body)
     except PositionError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
@@ -102,7 +102,7 @@ def _editable_or_raise(op: Operation | None) -> None:
 def update_operation(operation_id: int, body: OperationIn) -> dict:
     """Corrige une opération (bouton « Modifier »), positions revérifiées comme à l'ajout."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             _editable_or_raise(repository.get_operation(conn, operation_id))
             op = save_operation(conn, body, operation_id)
     except PositionError as err:
@@ -113,7 +113,7 @@ def update_operation(operation_id: int, body: OperationIn) -> dict:
 @router.delete("/api/operations/{operation_id}", status_code=204)
 def delete_operation(operation_id: int) -> None:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             _editable_or_raise(repository.get_operation(conn, operation_id))
             repository.delete_operation(conn, operation_id)
     except PositionError as err:

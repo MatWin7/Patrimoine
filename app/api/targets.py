@@ -117,12 +117,11 @@ def _category_targets(state: dict, contribution: Decimal) -> dict:
 
 @router.put("/api/targets")
 def save_targets(body: TargetsIn) -> dict:
-    with db.connect() as conn:
+    with db.connection() as conn:
         known = {a.id for a in repository.list_assets(conn)}
         if set(body.targets) - known:
             raise HTTPException(status_code=404, detail="Actif inconnu.")
         repository.save_targets(conn, body.targets)
-    conn.close()
     return targets_report()
 
 
@@ -130,7 +129,6 @@ def save_targets(body: TargetsIn) -> dict:
 def save_category_targets(body: CategoryTargetsIn) -> dict:
     """Une catégorie sans ligne détenue est acceptée : on peut viser une catégorie avant d'y
     avoir acheté quoi que ce soit (rien à acheter n'est alors proposé)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         repository.save_category_targets(conn, body.targets)
-    conn.close()
     return targets_report(level="categorie")

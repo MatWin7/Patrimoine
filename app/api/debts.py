@@ -82,26 +82,23 @@ def _debt_values(body: DebtIn) -> dict:
 def list_debts() -> dict:
     """Dettes avec capital restant dû du jour, mensualité, fin et intérêts restant à payer."""
     today = date.today()
-    with db.connect() as conn:
+    with db.connection() as conn:
         found = repository.list_debts(conn)
         balances = repository.debt_balances(conn)
         rates = prices.stored_rates(conn, {d.currency for d in found})
-    conn.close()
     rows = [_debt_out(d, balances.get(d.id, {}), rates, today) for d in found]
     total = sum((Decimal(r["balance_eur"]) for r in rows if r["balance_eur"]), ZERO)
     # Emprunts Aave (D-108) : rappelés ici en lecture, gérés dans Rendements crypto.
-    with db.connect() as conn:
+    with db.connection() as conn:
         aave_rows = borrows_report(conn, today)["borrows"]
-    conn.close()
     total += sum((Decimal(r["value_eur"]) for r in aave_rows if r["value_eur"]), ZERO)
     return {"debts": rows, "aave": aave_rows, "total_eur": money(total)}
 
 
 @router.post("/api/debts", status_code=201)
 def create_debt(body: DebtIn) -> dict:
-    with db.connect() as conn:
+    with db.connection() as conn:
         debt = repository.create_debt(conn, _debt_values(body))
-    conn.close()
     return {"id": debt.id}
 
 
@@ -112,42 +109,37 @@ def reorder_debts(body: OrderIn) -> None:
 
 @router.put("/api/debts/{debt_id}")
 def update_debt(debt_id: int, body: DebtIn) -> dict:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if repository.update_debt(conn, debt_id, _debt_values(body)) is None:
             raise HTTPException(status_code=404, detail="Dette inconnue.")
-    conn.close()
     return {"id": debt_id}
 
 
 @router.delete("/api/debts/{debt_id}", status_code=204)
 def delete_debt(debt_id: int) -> None:
     """Supprime la dette et ses capitaux saisis, sauvegarde de la base juste avant (D-074)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         if repository.get_debt(conn, debt_id) is None:
             raise HTTPException(status_code=404, detail="Dette inconnue.")
-    conn.close()
     backup_before_delete()
-    with db.connect() as conn:
+    with db.connection() as conn:
         repository.delete_debt(conn, debt_id)
-    conn.close()
 
 
 @router.post("/api/debts/{debt_id}/balances", status_code=201)
 def save_debt_balance(debt_id: int, body: DebtBalanceIn) -> None:
     """Capital restant dû lu sur un relevé : les échéances suivantes partent de lui."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         debt = repository.get_debt(conn, debt_id)
         if debt is None:
             raise HTTPException(status_code=404, detail="Dette inconnue.")
         if body.balance_date < debt.start_date:
             raise HTTPException(status_code=422, detail="Date antérieure au début du prêt.")
         repository.save_debt_balance(conn, debt_id, body.balance_date, body.balance)
-    conn.close()
 
 
 @router.delete("/api/debts/{debt_id}/balances/{balance_date}", status_code=204)
 def delete_debt_balance(debt_id: int, balance_date: date) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not repository.delete_debt_balance(conn, debt_id, balance_date):
             raise HTTPException(status_code=404, detail="Capital saisi inconnu.")
-    conn.close()

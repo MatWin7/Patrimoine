@@ -25,9 +25,8 @@ def health(request: Request) -> dict:
     base = {"status": "ok", "app": "patrimoine", "version": __version__}
     if profiles.enabled() and getattr(request.state, "profile", None) is None:
         return {**base, "profile_required": True}
-    with db.connect() as conn:
+    with db.connection() as conn:
         version = db.schema_version(conn)
-    conn.close()
     return {**base, "schema_version": version}
 
 

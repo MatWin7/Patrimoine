@@ -183,7 +183,7 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
     """
     now = datetime.now(UTC)  # horodatage du cache des prix, en UTC
     ttl = config.price_ttl()
-    with db.connect() as conn:
+    with db.connection() as conn:
         update_defi(conn, client)
         accounts = {a.id: a for a in repository.list_accounts(conn)}
         assets = {a.id: a for a in repository.list_assets(conn)}
@@ -213,7 +213,6 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
         if any(q.fetched for q in quotes.values()):  # erreur montrée par Performance
             _update_fx_history(conn, operations, currencies, client, date.today())
         fx = RateHistory(rates, prices.rate_series(conn, currencies))
-    conn.close()
     market = {i: (q.price.price, q.price.currency) for i, q in quotes.items() if q.price}
     valued = with_market_prices(positions, market, rates)
     # Coût en EUR aux taux des jours d'achat : la plus-value en EUR compte l'effet de change.
@@ -265,9 +264,8 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
         }
 
     # Patrimoine net (D-107) : capital restant dû de toutes les dettes, hors filtre de lignes.
-    with db.connect() as conn:
+    with db.connection() as conn:
         debts_eur = debts_total_eur(conn, rates, date.today())
-    conn.close()
 
     return {
         "debts_eur": money_or_none(debts_eur),
@@ -337,7 +335,7 @@ def value_series(client: httpx2.Client, keep: LineFilter = NO_FILTER, placed: bo
     # Jour local, comme la date des opérations saisies (D-039) : en UTC, une opération du
     # jour saisie entre minuit et 2 h serait absente de la courbe jusqu'à 2 h.
     today = date.today()
-    with db.connect() as conn:
+    with db.connection() as conn:
         assets = {a.id: a for a in repository.list_assets(conn)}
         operations = repository.list_operations(conn)
         traded = sorted({op.asset_id for op in operations if op.op_type in TRADES})
@@ -361,7 +359,6 @@ def value_series(client: httpx2.Client, keep: LineFilter = NO_FILTER, placed: bo
         rates = prices.stored_rates(conn, currencies)
         fx_error = _update_fx_history(conn, operations, currencies, client, today)
         fx = RateHistory(rates, prices.rate_series(conn, currencies))
-    conn.close()
     if fx_error:
         errors[0] = fx_error
     try:

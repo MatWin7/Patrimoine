@@ -31,14 +31,14 @@ def _watchlist_or_404(conn: sqlite3.Connection, watchlist_id: int) -> dict:
 
 @router.get("/api/watchlists")
 def list_watchlists() -> list[dict]:
-    with db.connect() as conn:
+    with db.connection() as conn:
         return repository.list_watchlists(conn)
 
 
 @router.post("/api/watchlists", status_code=201)
 def create_watchlist(body: WatchlistIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             return repository.create_watchlist(conn, body.name)
     except sqlite3.IntegrityError as err:
         raise HTTPException(status_code=409, detail="Une liste porte déjà ce nom.") from err
@@ -47,7 +47,7 @@ def create_watchlist(body: WatchlistIn) -> dict:
 @router.patch("/api/watchlists/{watchlist_id}")
 def rename_watchlist(watchlist_id: int, body: WatchlistIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             _watchlist_or_404(conn, watchlist_id)
             return repository.rename_watchlist(conn, watchlist_id, body.name)
     except sqlite3.IntegrityError as err:
@@ -56,7 +56,7 @@ def rename_watchlist(watchlist_id: int, body: WatchlistIn) -> dict:
 
 @router.delete("/api/watchlists/{watchlist_id}", status_code=204)
 def delete_watchlist(watchlist_id: int) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not repository.delete_watchlist(conn, watchlist_id):
             raise HTTPException(status_code=404, detail="Liste inconnue.")
 
@@ -64,7 +64,7 @@ def delete_watchlist(watchlist_id: int) -> None:
 @router.post("/api/watchlists/{watchlist_id}/items", status_code=201)
 def add_watchlist_item(watchlist_id: int, body: WatchlistItemIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             if len(_watchlist_or_404(conn, watchlist_id)["items"]) >= WATCH_MAX_ITEMS:
                 raise HTTPException(
                     status_code=409, detail=f"{WATCH_MAX_ITEMS} actifs au plus par liste."
@@ -86,7 +86,7 @@ def add_watchlist_item(watchlist_id: int, body: WatchlistItemIn) -> dict:
 @router.put("/api/watchlists/{watchlist_id}/items/order", status_code=204)
 def reorder_watchlist_items(watchlist_id: int, body: OrderIn) -> None:
     """Range les actifs d'une liste de suivi dans l'ordre donné (glisser-déposer)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         _watchlist_or_404(conn, watchlist_id)
         if not repository.reorder_watchlist_items(conn, watchlist_id, body.ids):
             raise HTTPException(
@@ -96,7 +96,7 @@ def reorder_watchlist_items(watchlist_id: int, body: OrderIn) -> None:
 
 @router.delete("/api/watchlists/{watchlist_id}/items/{item_id}", status_code=204)
 def delete_watchlist_item(watchlist_id: int, item_id: int) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not repository.delete_watchlist_item(conn, watchlist_id, item_id):
             raise HTTPException(status_code=404, detail="Actif inconnu dans cette liste.")
 
@@ -173,12 +173,11 @@ def lines_performance(client: HttpClient) -> dict:
     """« Mes lignes » : les actifs détenus aujourd'hui, avec un ticker Yahoo. Les valeurs
     saisies (sans cours public) sont laissées de côté ; seul le ticker part (règle 3)."""
     today = date.today()
-    with db.connect() as conn:
+    with db.connection() as conn:
         assets = {a.id: a for a in repository.list_assets(conn)}
         held = {p.asset_id for p in compute_positions(repository.list_operations(conn))}
         # Actifs des démos : leurs clôtures générées, rien en ligne (D-140).
         local = {a.id: prices.load_history(conn, a.id) for a in assets.values() if a.fictive}
-    conn.close()
     rows = []
     for asset in assets.values():  # dans l'ordre choisi dans « Gérer » (D-070)
         if asset.id not in held or asset.manual:
@@ -200,9 +199,8 @@ def lines_performance(client: HttpClient) -> dict:
 @router.get("/api/watchlists/{watchlist_id}/performance")
 def watchlist_performance(watchlist_id: int, client: HttpClient) -> dict:
     today = date.today()
-    with db.connect() as conn:
+    with db.connection() as conn:
         found = _watchlist_or_404(conn, watchlist_id)
-    conn.close()
     rows = [
         {"id": item["id"]} | _watch_row(client, item["label"], item["ticker"], today)
         for item in found["items"]

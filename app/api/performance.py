@@ -203,11 +203,10 @@ def benchmark(
         return {"points": [], "summary": None}
     start, end = _range(series, start, end)
     currency, closes = _reference_closes(client, ticker, rate, start, series["today"])
-    with db.connect() as conn:
+    with db.connection() as conn:
         rates, fx_error = prices.get_rates(
             conn, {currency}, client, today=series["today"], may_fetch=False
         )
-    conn.close()
     in_eur = [(d, convert(c, currency, "EUR", rates)) for d, c in closes]
     if any(c is None for _, c in in_eur):
         raise HTTPException(status_code=502, detail=f"Taux de change {currency} : {fx_error}")
@@ -298,9 +297,8 @@ def _months_before(client: httpx2.Client, series: dict, first: date) -> dict[str
     réseau, jusqu'à aujourd'hui : jamais la date du premier achat, règle 3). Une ligne cotée
     depuis moins longtemps compte à partir de sa cotation."""
     since = date(first.year - CALENDAR_YEARS, 1, 1)
-    with db.connect() as conn:
+    with db.connection() as conn:
         assets = {a.id: a for a in repository.list_assets(conn)}
-    conn.close()
     weighted = []
     for p in compute_positions(series["operations"]):
         asset = assets[p.asset_id]

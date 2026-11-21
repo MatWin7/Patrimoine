@@ -149,9 +149,8 @@ def main(sortie: Path) -> None:
         for base, remplir in BASES.items():
             chemin = Path(dossier) / base
             db.init_db(chemin)
-            with db.connect(chemin) as conn:
+            with db.connection(chemin) as conn:
                 getattr(demo, remplir)(conn)
-            conn.close()
             os.environ["PATRIMOINE_DB"] = str(chemin)
             with TestClient(app) as client:
                 resultat["bases"][base] = _lectures(client, app)

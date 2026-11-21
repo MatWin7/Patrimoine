@@ -112,7 +112,7 @@ def money_or_none(value: Decimal | None) -> str | None:
 
 
 def reorder(table: str, body: OrderIn) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not repository.reorder(conn, table, body.ids):
             raise HTTPException(
                 status_code=409, detail="La liste a changé entre-temps : recharge la page."
@@ -133,7 +133,7 @@ def backup_before_delete() -> None:
 
 def offline_state() -> dict:
     """Comptes, actifs, opérations et positions valorisées au dernier cours en cache."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         accounts = {a.id: a for a in repository.list_accounts(conn)}
         assets = {a.id: a for a in repository.list_assets(conn)}
         operations = repository.list_operations(conn)
@@ -145,7 +145,6 @@ def offline_state() -> dict:
         fx = RateHistory(rates, prices.rate_series(conn, currencies))
         targets = repository.list_targets(conn)
         category_targets = repository.list_category_targets(conn)
-    conn.close()
     market = {i: (q.price, q.currency) for i, q in latest.items() if q}
     return {
         "accounts": accounts,

@@ -301,21 +301,19 @@ def fill_demo(conn) -> None:
 def main() -> None:
     if "--grand" in sys.argv[1:]:
         db.init_db(DEMO_GRAND_DB)
-        with db.connect(DEMO_GRAND_DB) as conn:
+        with db.connection(DEMO_GRAND_DB) as conn:
             if repository.list_operations(conn):
                 print(f"{DEMO_GRAND_DB} contient déjà des opérations : rien à faire.")
                 return
             fill_grand(conn)
-        conn.close()
         print(f"Base de démo prête : {DEMO_GRAND_DB}")
         return
     db.init_db(DEMO_DB)
-    with db.connect(DEMO_DB) as conn:
+    with db.connection(DEMO_DB) as conn:
         if repository.list_operations(conn):
             print(f"{DEMO_DB} contient déjà des opérations : rien à faire.")
             return
         fill_demo(conn)
-    conn.close()
     print(f"Base de démo prête : {DEMO_DB}")
 
 
