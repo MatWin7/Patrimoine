@@ -1,5 +1,5 @@
 """Assurance-vie : part de gains d'un rachat, abattement après 8 ans et taux selon la date des
-versements, en ESTIMATION (D-142). Fonctions pures.
+versements, en ESTIMATION (D-144). Fonctions pures.
 
 Règles (CGI art. 125-0 A et 200 A ; BOFiP BOI-RPPM-RCM-20-10-20-50 et BOI-RPPM-RCM-20-15 ;
 impots.gouv.fr, page mise à jour le 20/03/2026) :
@@ -39,7 +39,7 @@ PFU_IR_PCT = Decimal("12.8")
 PRE_SHORT_PCT = Decimal("35")
 PRE_MIDDLE_PCT = Decimal("15")
 SOCIAL_PCT = Decimal("17.2")
-# Transmission (repère seulement, D-142) : primes versées avant 70 ans, 152 500 € par
+# Transmission (repère seulement, D-144) : primes versées avant 70 ans, 152 500 € par
 # bénéficiaire (art. 990 I) ; après 70 ans, 30 500 € pour tous les bénéficiaires (art. 757 B).
 HEIR_ALLOWANCE = Decimal("152500")
 AFTER_70_ALLOWANCE = Decimal("30500")

@@ -70,7 +70,7 @@ app/watchlist.py   listes de suivi : rendement d'un cours sur 1 jour à 5 ans (f
 app/income.py      dividendes reçus, frais payés, coût des frais courants (TER) ; fonctions pures
 app/rebalance.py   allocation cible : répartition d'un versement sans vente (fonction pure)
 app/tax.py         repères fiscaux FR en estimation : plafond et 5 ans PEA, 8 ans AV, PER (plafond, sortie), plus-values CTO, crypto (portefeuille global)
-app/life_insurance.py assurance-vie (D-142) : part de gains d'un rachat, versements d'avant ou d'après le 27/09/2017, seuil de 150 000 €, abattement après 8 ans (fonctions pures)
+app/life_insurance.py assurance-vie (D-144) : part de gains d'un rachat, versements d'avant ou d'après le 27/09/2017, seuil de 150 000 €, abattement après 8 ans (fonctions pures)
 app/reconcile.py   comparaison d'un compte au relevé de la banque : écarts, causes, correction (D-063)
 app/prices.py      cache des prix et taux dans SQLite (un seul cours en ligne gardé par actif, D-138), choix de la source, repli si panne ; clôtures quotidiennes Yahoo, cryptos comprises par leur ticker Yahoo
 app/demo.py        remplit data/demo.db (démo complète) et data/demo-grand.db ; app/demo_complet.py : sept ans fictifs sur toutes les enveloppes, cours générés, tickers `DEMO~` jamais demandés en ligne (D-140)

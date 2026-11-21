@@ -223,7 +223,7 @@ function renderTaxModes() {
   ), "Aucun compte-titres.");
 }
 
-// Carte « Assurance-vie » (D-142) : gains, abattement de l'année, rachat sans impôt, rachats.
+// Carte « Assurance-vie » (D-144) : gains, abattement de l'année, rachat sans impôt, rachats.
 function renderLifeInsurance(avs, life) {
   const n = avs.length;
   const warning = $("tax-av-warning");

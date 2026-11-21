@@ -164,7 +164,7 @@ class AssetIn(Entree):
     ticker: Ticker | None = None
     coingecko_id: CoingeckoId | None = None
     currency: Currency = "EUR"
-    color: int | None = Field(default=None, ge=1, le=7)  # None = automatique (D-052)
+    color: int | None = Field(default=None, ge=1, le=12)  # None = automatique (D-052)
     ter: Decimal | None = Field(default=None, ge=0, le=10, allow_inf_nan=False)  # % par an
     category: Annotated[Category | None, Blank] = None
 

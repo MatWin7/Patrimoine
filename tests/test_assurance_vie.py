@@ -1,4 +1,4 @@
-"""Carte « Assurance-vie » de Fiscalité (D-142) : part de gains d'un rachat, abattement, seuil
+"""Carte « Assurance-vie » de Fiscalité (D-144) : part de gains d'un rachat, abattement, seuil
 de 150 000 €. Montants fictifs ; exemples chiffrés repris du BOFiP quand il en donne."""
 
 from datetime import date

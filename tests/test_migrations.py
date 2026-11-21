@@ -402,3 +402,36 @@ def test_migration_v18_depots_defi(tmp_path, monkeypatch):
                 "INSERT INTO defi_line (account_id, asset_id, chain_id, chain_name, market,"
                 " market_name, token, symbol) VALUES (1, 1, 1, 'E', 'x', 'C', 'y', 'U')"
             )
+
+
+def test_migration_v22_douze_couleurs(tmp_path, monkeypatch):
+    """v21 -> v22 (D-142) : table asset recréée pour 12 couleurs, lignes et opérations gardées."""
+    db_file = tmp_path / "test.db"
+    monkeypatch.setenv("PATRIMOINE_DB", str(db_file))
+    db.init_db(db_file)
+    conn = sqlite3.connect(db_file)
+    conn.executescript(
+        """
+        ALTER TABLE asset RENAME TO asset_v22;
+        CREATE TABLE asset (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, asset_class TEXT NOT NULL,
+            isin TEXT UNIQUE, ticker TEXT, coingecko_id TEXT, currency TEXT NOT NULL,
+            color INTEGER CHECK (color IS NULL OR color BETWEEN 1 AND 7),
+            ter TEXT, category TEXT, position INTEGER NOT NULL DEFAULT 0);
+        DROP TABLE asset_v22;
+        INSERT INTO account (id, name, kind) VALUES (1, 'CTO fictif', 'cto');
+        INSERT INTO asset (id, name, asset_class, ticker, currency, color)
+            VALUES (1, 'ETF fictif', 'etf', 'FAKE.PA', 'EUR', 3);
+        INSERT INTO operation (id, account_id, asset_id, op_date, op_type, quantity, unit_price,
+            currency) VALUES (1, 1, 1, '2025-01-02', 'achat', '10', '1', 'EUR');
+        PRAGMA user_version = 21;
+        """
+    )
+    conn.close()
+    assert db.migrate() == (21, db.SCHEMA_VERSION)
+    with db.connect() as conn:
+        assert conn.execute("SELECT name, color FROM asset").fetchall()[0][:] == ("ETF fictif", 3)
+        assert conn.execute("SELECT quantity FROM operation").fetchall()[0][0] == "10"
+        conn.execute("UPDATE asset SET color = 12")
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute("UPDATE asset SET color = 13")

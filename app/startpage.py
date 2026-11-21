@@ -21,7 +21,7 @@ SECTION = "accueil"
 IMAGE = "image"
 # « auto » suit le thème (clair ou sombre) ; les autres noms sont ceux de web/styles.css.
 BACKGROUNDS = ("auto", "aucun", "aube", "ciel", "dore", "crepuscule", "nuit", IMAGE)
-DEFAULT_TEXT = "Tes comptes et tes chiffres, sur ton ordinateur."
+DEFAULT_TEXT = "La clarté de vos finances, à chaque décision."
 TEXT_MAX = 120
 IMAGE_DIR = "accueil"
 IMAGE_NAME = "fond.jpg"

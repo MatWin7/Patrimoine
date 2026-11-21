@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS asset (
     ticker        TEXT,                     -- ticker Yahoo, ex. "CW8.PA"
     coingecko_id  TEXT,                     -- ex. "bitcoin"
     currency      TEXT NOT NULL CHECK (length(currency) = 3),  -- devise de cotation
-    -- Couleur dans les graphiques : NULL = automatique, 1 à 7 = --series-N de styles.css (D-052).
-    color         INTEGER CHECK (color IS NULL OR color BETWEEN 1 AND 7),
+    -- Couleur dans les graphiques : NULL = automatique, 1 à 12 = --series-N de styles.css (D-052, D-142).
+    color         INTEGER CHECK (color IS NULL OR color BETWEEN 1 AND 12),
     ter           TEXT,                     -- frais courants d'un fonds, en % par an (D-060)
     category      TEXT,                     -- catégorie personnelle ; vide = la classe (D-061)
     position      INTEGER NOT NULL DEFAULT 0, -- ordre choisi dans « Gérer » (D-070)
@@ -309,4 +309,4 @@ CREATE TABLE IF NOT EXISTS defi_reserve (
     PRIMARY KEY (chain_id, market, token)
 );
 
-PRAGMA user_version = 21;
+PRAGMA user_version = 22;

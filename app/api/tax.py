@@ -37,7 +37,7 @@ def tax_report(
 ) -> dict:
     """Repères fiscaux, en estimation : plafond et 5 ans des PEA, 8 ans des assurances-vie,
     versements et impôt des PER (D-064), plus-values réalisées, dividendes et impôt estimé des
-    comptes-titres et des cryptos (D-066) pour une année, rachats d'assurance-vie (D-142).
+    comptes-titres et des cryptos (D-066) pour une année, rachats d'assurance-vie (D-144).
     `tmi`, `per_ceiling` (plafond de l'avis d'impôt) et `couple` (abattement de l'assurance-vie)
     sont des réglages de la page, jamais enregistrés ; `pfu` vide = taux de l'année (31,4 % dès
     2026)."""
@@ -334,7 +334,7 @@ def _crypto_tax(state: dict, crypto_ids: set[int], year: int, pfu: Decimal) -> d
 def _contract_flows(
     a: Account, mine: list[Operation], state: dict, today: date
 ) -> tuple[list[av.Premium], list[av.Buyback]]:
-    """Versements et rachats d'une assurance-vie (D-142). Versements = champ sans date du
+    """Versements et rachats d'une assurance-vie (D-144). Versements = champ sans date du
     compte, opérations « Versement » et achats payés sans versement (D-062). Rachats = retraits,
     regroupés par jour, avec la valeur du contrat juste avant (titres à la dernière clôture en
     cache et espèces rejouées) ; inconnue hors euros."""
@@ -386,7 +386,7 @@ def _paid_by_purchases(a: Account, mine: list[Operation]) -> list[tuple[date, De
 
 
 def _life_insurance(state, rows, year, today, couple, value_of, eur) -> dict:
-    """Carte « Assurance-vie » (D-142) : versements restants, gains, abattement de l'année,
+    """Carte « Assurance-vie » (D-144) : versements restants, gains, abattement de l'année,
     rachat sans impôt et impôt si tout était racheté aujourd'hui, rachats de l'année."""
     accounts = state["accounts"]
     ops = with_transfers(state["operations"])  # versements reçus d'un autre compte (D-085)

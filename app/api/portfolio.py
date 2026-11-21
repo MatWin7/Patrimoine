@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx2
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -171,12 +171,43 @@ Filter = Annotated[LineFilter, Depends(line_filter)]
 NO_FILTER = LineFilter()
 
 
+# Périmètres de la Vue d'ensemble (D-143). Brut : tout ce qui est détenu ; net : brut moins le
+# capital restant dû (mêmes lignes, seul le chiffre principal change) ; financier : placements
+# placés sur les marchés et les contrats (bourse, crypto, assurance-vie, PER), sans
+# l'immobilier (en direct ou en SCPI), les livrets ni l'argent des comptes bancaires (espèces
+# d'un compte « Autre ») (choix de l'utilisateur, 2026-11-21).
+Scope = Literal["brut", "net", "financier"]
+NOT_FINANCIAL_CLASSES = frozenset({"immobilier", "scpi"})
+NOT_FINANCIAL_ACCOUNTS = frozenset({"immobilier", "livret"})  # le compte entier
+BANK_ACCOUNTS = frozenset({"autre"})  # seulement ses espèces : ses titres restent
+
+
+def is_financial(account, asset) -> bool:
+    """La ligne (compte, actif) entre-t-elle dans le patrimoine financier ? `asset` None : les
+    espèces du compte."""
+    if account.kind in NOT_FINANCIAL_ACCOUNTS:
+        return False
+    if asset is None:
+        return account.kind not in BANK_ACCOUNTS
+    return asset.asset_class not in NOT_FINANCIAL_CLASSES
+
+
+def _sum_eur(amounts: list[tuple[Decimal, str]], rates: dict[str, Decimal]) -> Decimal:
+    """Somme en EUR ; un montant sans taux de change n'y entre pas (comme `totals` sans EUR)."""
+    values = (convert(value, currency, "EUR", rates) for value, currency in amounts)
+    return sum((v for v in values if v is not None), ZERO)
+
+
 @router.get("/api/portfolio")
-def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
+def portfolio(client: HttpClient, keep: Filter, force: bool = False, scope: Scope = "brut") -> dict:
     """Positions et total en EUR, au cours en ligne (cache de PRICE_TTL_MINUTES).
 
     `keep` : lignes laissées de côté par le filtre de Vue d'ensemble (D-069) ; un compte
     entier exclu emporte ses espèces.
+
+    `scope` (D-143) : `financier` limite positions, totaux et répartition aux lignes de
+    `is_financial` ; `brut` et `net` gardent tout. `scopes` donne les trois chiffres
+    principaux en EUR, quel que soit `scope`.
 
     `force=true` (bouton « Actualiser ») ignore le cache. Seuls les tickers, ids CoinGecko et
     codes devises partent sur le réseau, jamais les quantités ni les montants (règle 3).
@@ -215,6 +246,14 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
         fx = RateHistory(rates, prices.rate_series(conn, currencies))
     market = {i: (q.price.price, q.price.currency) for i, q in quotes.items() if q.price}
     valued = with_market_prices(positions, market, rates)
+    held_value = [(p.value, p.currency) for p in valued]  # brut, avant le périmètre
+    financial_value = [
+        (p.value, p.currency)
+        for p in valued
+        if is_financial(accounts[p.account_id], assets[p.asset_id])
+    ]
+    if scope == "financier":
+        valued = [p for p in valued if is_financial(accounts[p.account_id], assets[p.asset_id])]
     # Coût en EUR aux taux des jours d'achat : la plus-value en EUR compte l'effet de change.
     costs_eur = eur_costs(operations, fx)
 
@@ -240,6 +279,10 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
     # Espèces des comptes : ajoutées à la valeur totale, sans toucher au coût ni à la plus-value.
     # Espèces négatives (achat saisi avant le versement correspondant) : affichées, signalées.
     cash_accounts = [a for a in accounts.values() if a.cash and a.id not in keep.accounts]
+    held_value += [(a.cash, a.currency) for a in cash_accounts]
+    financial_value += [(a.cash, a.currency) for a in cash_accounts if is_financial(a, None)]
+    if scope == "financier":
+        cash_accounts = [a for a in cash_accounts if is_financial(a, None)]
     for cur, cash in sum_by_currency([(a.cash, a.currency) for a in cash_accounts], rates).items():
         totals.setdefault(cur, {"value": ZERO, "cost": ZERO, "gain": ZERO})["cash"] = cash
 
@@ -267,7 +310,17 @@ def portfolio(client: HttpClient, keep: Filter, force: bool = False) -> dict:
     with db.connection() as conn:
         debts_eur = debts_total_eur(conn, rates, date.today())
 
+    # Les trois chiffres principaux (D-143), en EUR, sur les lignes du filtre.
+    gross = _sum_eur(held_value, rates)
+    scopes = {
+        "brut": money(gross),
+        "net": money(gross - debts_eur) if debts_eur is not None else money(gross),
+        "financier": money(_sum_eur(financial_value, rates)),
+    }
+
     return {
+        "scope": scope,
+        "scopes": scopes,
         "debts_eur": money_or_none(debts_eur),
         "positions": [
             {

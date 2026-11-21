@@ -12,10 +12,15 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Retouches de l'interface : nouvelle phrase d'accroche et cadenas sur les profils à code, anneau de répartition avec le total au centre, raccourcis de période en noir et blanc (6 mois ajouté), légendes gains/pertes, boutons d'action en bleu plein, type d'une liste de suivi choisi à sa création, « Ajouter des opérations » en deux parties comme Comptes, actions de la fenêtre déplacées dans Réglages > Général, douze couleurs au choix pour un actif (schéma v22).
+- Vue d'ensemble : le chiffre principal s'appelle « Patrimoine financier » et passe d'un clic à
+  « Brut » (tout ce qui est détenu) ou « Net » (brut moins les dettes). Le financier laisse de
+  côté l'immobilier, les SCPI, les livrets et l'argent des comptes bancaires ; les tuiles et la
+  répartition suivent le choix, gardé d'une visite à l'autre (D-143).
 - Fiscalité, carte Assurance-vie plus complète : gains de chaque contrat, abattement restant de
   l'année (4 600 € ou 9 200 € en couple), plus grand rachat sans impôt sur le revenu, impôt si
   tout était racheté (versements d'avant ou d'après le 27/09/2017, seuil de 150 000 €), rachats
-  de l'année avec leur part de gains, repère de transmission (D-142).
+  de l'année avec leur part de gains, repère de transmission (D-144).
 - Profil Démo complet : sept ans d'opérations fictives sur toutes les enveloppes (PEA, compte-titres
   en dollars, assurance-vie, PER, livrets, immobilier, or, prêts), achats programmés à valider,
   dividendes, ventes, cibles, listes de suivi, cryptos sur une plateforme et un portefeuille,

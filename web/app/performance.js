@@ -31,6 +31,7 @@ function presetStart(preset) {
   const d = new Date();
   if (preset === "ytd") return `${d.getFullYear()}-01-01`;
   if (preset === "12m") d.setFullYear(d.getFullYear() - 1);
+  else if (preset === "6m") d.setMonth(d.getMonth() - 6);
   else if (preset === "3m") d.setMonth(d.getMonth() - 3);
   else if (preset === "1m") d.setMonth(d.getMonth() - 1);
   else return null; // « depuis le début »
@@ -71,6 +72,34 @@ async function refreshPerformance() {
   $("perf-csv").href = `/api/performance.csv?${params}`; // même découpage, mêmes dates
   const data = await api(`/api/performance?${params}`);
   renderPerformance(data);
+}
+
+// Légende des barres : les gains (vert) et les pertes (rouge) ont chacun leur pastille ;
+// dans « Apports et gains/pertes », « Apports » s'y ajoute et un clic masque les barres du marché.
+function perfLegend(withFlows) {
+  return {
+    position: "top",
+    align: "end",
+    onClick: withFlows
+      ? (e, item, legend) => legend.chart.setDatasetVisibility(item.datasetIndex, !legend.chart.isDatasetVisible(item.datasetIndex)) || legend.chart.update()
+      : () => {},
+    labels: {
+      padding: 14,
+      boxWidth: 8,
+      boxHeight: 8,
+      generateLabels: (chart) => {
+        const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+        const swatch = (text, token, datasetIndex) => {
+          const l = { ...(base[datasetIndex] ?? base[0]), text, fillStyle: css(token), strokeStyle: css(token), datasetIndex };
+          if (!withFlows) l.hidden = false;
+          return l;
+        };
+        const market = withFlows ? 1 : 0;
+        const entries = [swatch("Gains", "--ok", market), swatch("Pertes", "--ko", market)];
+        return withFlows ? [base[0], ...entries] : entries;
+      },
+    },
+  };
 }
 
 function renderPerformance(data) {
@@ -117,17 +146,7 @@ function renderPerformance(data) {
       options: {
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            position: "top",
-            align: "end",
-            labels: {
-              // Les barres de gain changent de couleur selon le signe : légende en vert.
-              generateLabels: (chart) =>
-                Chart.defaults.plugins.legend.labels.generateLabels(chart).map((l) =>
-                  l.datasetIndex === 1 ? { ...l, fillStyle: css("--ok"), strokeStyle: css("--ok") } : l,
-                ),
-            },
-          },
+          legend: perfLegend(true),
           tooltip: {
             callbacks: {
               title,
@@ -157,7 +176,7 @@ function renderPerformance(data) {
       options: {
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: perfLegend(false),
           tooltip: {
             callbacks: {
               title,

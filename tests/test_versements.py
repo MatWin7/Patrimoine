@@ -200,7 +200,7 @@ def test_couleur_choisie_pour_un_actif(client, pea):
     _, asset_id = pea
     body = {"name": "ETF fictif", "asset_class": "etf", "ticker": "fake.pa", "color": 3}
     assert client.patch(f"/api/assets/{asset_id}", json=body).json()["color"] == 3
-    assert client.patch(f"/api/assets/{asset_id}", json={**body, "color": 8}).status_code == 422
+    assert client.patch(f"/api/assets/{asset_id}", json={**body, "color": 13}).status_code == 422
     operation(client, pea, "achat", quantity="1", unit_price="10")
     assert client.get("/api/portfolio").json()["positions"][0]["color"] == 3
     # Sans le champ : retour à la couleur automatique.

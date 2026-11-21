@@ -209,7 +209,7 @@ function showPickedColor() {
   const form = $("form-asset");
   const asset = lists.assets.find((a) => String(a.id) === form.dataset.id);
   $("asset-color-dot").style.background = form.color.value
-    ? css(SERIES[Number(form.color.value) - 1])
+    ? css(PALETTE[Number(form.color.value) - 1])
     : asset && !asset.color ? partColor("ligne", asset.name) : otherColor();
 }
 $("form-asset").color.addEventListener("change", showPickedColor);

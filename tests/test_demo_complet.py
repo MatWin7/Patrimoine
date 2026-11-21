@@ -5,6 +5,7 @@ Garde-fou : si une fonctionnalité de l'app n'a plus rien à montrer dans la dé
 """
 
 from datetime import date
+from decimal import Decimal as D
 
 import pytest
 from fastapi.testclient import TestClient
@@ -47,6 +48,8 @@ def test_vue_d_ensemble(client):
     assert len(data["positions"]) >= 14
     assert {g["label"] for g in data["groupings"]["devise"]["all"]} == {"EUR", "USD"}
     assert data["debts_eur"] != "0.00"  # prêt immobilier et prêt auto (D-107)
+    scopes = {k: D(v) for k, v in data["scopes"].items()}  # brut, net, financier (D-143)
+    assert scopes["financier"] < scopes["net"] < scopes["brut"]
     points = client.get("/api/history").json()["points"]
     assert points[0]["date"] < "2018-01-01"  # assurance-vie ouverte en 2017
 
@@ -70,7 +73,7 @@ def test_fiscalite(client):
     tax = client.get("/api/tax").json()
     assert tax["pea"][0]["milestone_reached"] is True  # PEA de plus de 5 ans
     assert tax["assurance_vie"][0]["milestone_reached"] is True  # AV de plus de 8 ans
-    # Rachat partiel de 2025 : part de gains calculée, gains restants et rachat sans impôt (D-142).
+    # Rachat partiel de 2025 : part de gains calculée, gains restants et rachat sans impôt (D-144).
     av = client.get("/api/tax?year=2025").json()["life_insurance"]
     assert av["buybacks"][0]["gain"] != "0.00" and not av["buybacks"][0]["estimated"]
     assert tax["assurance_vie"][0]["tax_free"] != "0.00"

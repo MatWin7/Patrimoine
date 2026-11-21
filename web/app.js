@@ -292,7 +292,7 @@ function fillSortable(tableId, rows, toRow, empty) {
 // --- Questions posées par l'app (remplacent confirm() et prompt() du navigateur) -------------
 // Une seule fenêtre « dlg-ask » : titre, détail facultatif, champ texte facultatif. Renvoie une
 // promesse : true/false pour askConfirm, le texte saisi (ou null si annulé) pour askText.
-function askDialog({ title, detail = "", input = false, value = "", placeholder = "", ok = "Confirmer", danger = false }) {
+function askDialog({ title, detail = "", input = false, value = "", placeholder = "", ok = "Confirmer", danger = false, choices = null }) {
   return new Promise((resolve) => {
     const dlg = $("dlg-ask");
     const form = $("form-ask");
@@ -304,6 +304,13 @@ function askDialog({ title, detail = "", input = false, value = "", placeholder 
     field.required = input;
     field.value = value;
     field.placeholder = placeholder;
+    // Choix facultatif sous le champ (ex. type d'une liste) : le résultat devient { text, choice }.
+    const pick = $("ask-choice");
+    pick.hidden = !choices;
+    if (choices) {
+      $("ask-choice-label").textContent = choices.label;
+      $("ask-choice-select").replaceChildren(...choices.options.map(([v, t]) => new Option(t, v)));
+    }
     const button = $("ask-ok");
     button.textContent = ok;
     button.classList.toggle("danger", danger);
@@ -312,6 +319,7 @@ function askDialog({ title, detail = "", input = false, value = "", placeholder 
     form.onsubmit = (e) => {
       e.preventDefault();
       result = input ? field.value : true;
+      if (input && choices) result = { text: field.value, choice: $("ask-choice-select").value };
       dlg.close();
     };
     dlg.addEventListener("close", () => resolve(result), { once: true });
