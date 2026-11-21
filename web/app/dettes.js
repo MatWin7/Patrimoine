@@ -161,15 +161,29 @@ $("form-debt-balance").addEventListener("submit", async (event) => {
 document.querySelector('[data-add="debt"]').addEventListener("click", () => openDebt());
 makeReorderable($("debts-list"), "tr[data-id]", ".drag-handle", (rows, moved) => saveOrder("debts", rows, moved));
 
-// Tuile « Patrimoine net » : patrimoine complet (hors filtre de lignes) − capital restant dû.
-function netWorthTile(portfolio) {
-  if (portfolio.debts_eur === null || portfolio.debts_eur === undefined) return null;
-  const eur = portfolio.totals.EUR;
-  if (!eur) return null;
-  const net = Number(eur.total ?? eur.value) - Number(portfolio.debts_eur);
-  const tile = kpi("Patrimoine net", formatDecimal(net.toFixed(2), "EUR"), `dettes ${formatDecimal(roundDecimal(portfolio.debts_eur), "EUR")}`);
-  tile.title = "Patrimoine total, toutes lignes comprises, moins le capital restant dû des dettes (Gérer > Dettes)";
-  return tile;
+// Tuiles placées devant les chiffres clés selon le patrimoine affiché (D-143), montants
+// calculés par le serveur : brut → patrimoine net (s'il y a des dettes) ; net → brut et
+// dettes ; financier → le brut, pour situer la part financière.
+function scopeTiles(view) {
+  const s = view.scopes;
+  if (!s) return [];
+  const debts = view.debts_eur;
+  const hasDebts = debts !== null && debts !== undefined;
+  if (view.scope === "net") {
+    return [
+      kpi("Patrimoine brut", formatDecimal(s.brut, "EUR")),
+      kpi("Dettes", formatDecimal(hasDebts ? debts : "0", "EUR")),
+    ];
+  }
+  if (view.scope === "financier") {
+    const tile = kpi("Patrimoine brut", formatDecimal(s.brut, "EUR"));
+    tile.title = "Tout ce que tu possèdes : immobilier, livrets et comptes bancaires compris";
+    return [tile];
+  }
+  if (!hasDebts) return [];
+  const tile = kpi("Patrimoine net", formatDecimal(s.net, "EUR"), `dettes ${formatDecimal(debts, "EUR")}`);
+  tile.title = "Patrimoine brut moins le capital restant dû des dettes (Gérer > Dettes)";
+  return [tile];
 }
 
 // --- Emprunts Aave et facteur de santé (D-108) ---------------------------------------------

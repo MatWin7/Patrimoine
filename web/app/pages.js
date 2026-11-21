@@ -226,6 +226,22 @@ document.addEventListener("keydown", (e) => {
 
 let ttlMinutes = 5;
 
+// Ce que montre Vue d'ensemble : le filtre de lignes (D-069) et le périmètre financier (D-143)
+// demandent un second appel, servi par le cache des cours ; brut et net reprennent `portfolio`.
+async function overviewView(portfolio) {
+  const scope = totalScope.scope;
+  if (!filterActive() && scope !== "financier") return { ...portfolio, scope };
+  const params = filterActive() ? addExclude(new URLSearchParams()) : new URLSearchParams();
+  params.set("scope", scope);
+  return api(`/api/portfolio?${params}`);
+}
+
+// Changement de périmètre : seule la Vue d'ensemble est redessinée.
+async function refreshOverview() {
+  if (!lastPortfolio) return;
+  renderPortfolio(lastPortfolio, await overviewView(lastPortfolio));
+}
+
 async function refresh(force = false) {
   // Prochaine actualisation automatique : le serveur ne rappelle les sources qu'une fois
   // le cache expiré, donc ce minuteur ne génère pas d'appels en trop.
@@ -245,9 +261,7 @@ async function refresh(force = false) {
   refreshRecurring().catch((err) => showMessage(err.message, true)); // sans réseau : immédiat
   const portfolio = await api(force ? "/api/portfolio?force=true" : "/api/portfolio");
   ttlMinutes = portfolio.price_ttl_minutes;
-  // Filtre actif : un second appel, servi par le cache des cours, pour la Vue d'ensemble.
-  const view = filterActive() ? await api(`/api/portfolio?${addExclude(new URLSearchParams())}`) : portfolio;
-  renderPortfolio(portfolio, view);
+  renderPortfolio(portfolio, await overviewView(portfolio));
   renderFilterButton();
   // Après le portefeuille : la courbe finit au cours qui vient d'être mis en cache.
   refreshHistory()

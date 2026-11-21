@@ -560,19 +560,48 @@ $("positions-account").addEventListener("change", (e) => {
   renderPositions();
 });
 
-// `view` : le même portefeuille limité aux lignes cochées (filtre de Vue d'ensemble, D-069) ;
-// Positions, Gérer, alertes et couleurs restent calculés sur le patrimoine complet.
+// Patrimoine affiché par Vue d'ensemble (D-143) : financier (par défaut), brut ou net. Le
+// financier est demandé au serveur (`scope=financier`) ; brut et net ont les mêmes lignes.
+const SCOPE_KEY = PREF + "patrimoine";
+const SCOPE_LABELS = { financier: "Patrimoine financier", brut: "Patrimoine brut", net: "Patrimoine net" };
+const totalScope = loadPref(SCOPE_KEY, { scope: "financier" });
+if (!SCOPE_LABELS[totalScope.scope]) totalScope.scope = "financier";
+
+function showScope() {
+  for (const b of $("total-scope").querySelectorAll("button")) {
+    const chosen = b.dataset.scope === totalScope.scope;
+    b.classList.toggle("active", chosen);
+    b.setAttribute("aria-pressed", String(chosen));
+  }
+}
+showScope();
+$("total-scope").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-scope]");
+  if (!button || button.dataset.scope === totalScope.scope) return;
+  totalScope.scope = button.dataset.scope;
+  savePref(SCOPE_KEY, totalScope);
+  showScope();
+  refreshOverview().catch((err) => showMessage(err.message, true));
+});
+
+// `view` : ce que montre Vue d'ensemble, limité aux lignes cochées (filtre, D-069) et au
+// périmètre choisi (D-143) ; Positions, Gérer, alertes et couleurs restent calculés sur le
+// patrimoine complet.
 function renderPortfolio(portfolio, view = portfolio) {
   // Total converti en EUR ; une devise sans taux de change reste sur sa propre ligne.
   const totals = Object.entries(view.totals);
-  $("total-label").textContent = view === portfolio ? "Patrimoine total" : "Patrimoine des lignes cochées";
-  // Le total inclut les espèces des comptes (t.total) quand il y en a.
-  $("total-value").textContent = totals.length
-    ? totals.map(([cur, t]) => formatDecimal(t.total ?? t.value, cur)).join(" + ")
-    : "–";
+  const scope = view.scope ?? "brut";
+  $("total-label").textContent = SCOPE_LABELS[scope] + (view.filtered ? " des lignes cochées" : "");
+  // Le total inclut les espèces des comptes (t.total) quand il y en a. Net : brut − dettes,
+  // calculé par le serveur en EUR.
+  // Une devise sans taux de change reste à part, comme dans le brut.
+  $("total-value").textContent = scope === "net" && view.scopes
+    ? [formatDecimal(view.scopes.net, "EUR"), ...totals.filter(([cur]) => cur !== "EUR").map(([cur, t]) => formatDecimal(t.total ?? t.value, cur))].join(" + ")
+    : totals.length
+      ? totals.map(([cur, t]) => formatDecimal(t.total ?? t.value, cur)).join(" + ")
+      : "–";
   renderKpis(totals);
-  const net = netWorthTile(portfolio);
-  if (net) $("kpis").prepend(net);
+  for (const tile of scopeTiles(view).reverse()) $("kpis").prepend(tile);
   checkAlerts(portfolio);
 
   lastPositions = portfolio;
