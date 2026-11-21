@@ -176,7 +176,6 @@ h1 { font-size: var(--t-2xl); font-weight: 600; letter-spacing: -0.02em; margin:
 .icon-button:hover { color: var(--text); background: var(--hover); }
 a.icon-button.active { color: var(--on-inverse); background: var(--inverse); }
 .icon-button:disabled .ic { animation: spin 0.9s linear infinite; }
-.icon-button .tab-badge { position: absolute; top: 0; right: 0; margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .icon-button:disabled .ic { animation: none; } }
 /* État du serveur : un point rouge à côté du nom, visible seulement en cas de problème. */
@@ -361,9 +360,7 @@ button.chip.active { background: var(--accent); color: var(--on-accent); box-sha
 .filter-panel button.chip.active { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
 .filter-panel button.chip.off { background: var(--surface-2); color: var(--text-3); }
 /* Lignes prises en compte (D-094) : bouton de la barre du haut et panneau par-dessus la page. */
-.filter-toggle span { font-weight: 400; color: var(--text-2); }
 .filter-toggle.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.filter-toggle.active span { color: inherit; }
 .filter-panel {
   position: fixed; inset: 72px 16px auto auto; margin: 0; padding: var(--s-4) var(--s-5);
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 88px); overflow: auto;
