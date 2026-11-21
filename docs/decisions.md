@@ -1082,9 +1082,9 @@ Demande de l'utilisateur : un taux d'inflation qui change chaque mois dans l'inf
 
 ## D-146 · 2026-11-21 · Filtre des lignes : plus de pastille sur l'icône
 
-**Décision.** Le bouton « Lignes » de la barre du haut n'a plus de pastille chiffrée. Le détail reste dans l'infobulle et le signal « filtre actif » est l'icône en accent.
+**Décision** : l'icône « Lignes prises en compte » de la barre du haut n'a plus de pastille avec le nombre de lignes retirées (demande de James). Le détail reste dans l'infobulle du bouton (« Calcul sans : … »).
 
-**Pourquoi.** La pastille bleue ajoutait un point de couleur de plus à la barre du haut, sans rien dire de plus que l'icône déjà en accent.
+**Pourquoi / limite** : rien d'autre ne montre alors, d'un coup d'œil, qu'un filtre agit. Le signal restant est l'icône en bleu d'accent sur fond teinté (`.filter-toggle.active`), déjà en place.
 
 ## D-147 · 2026-11-21 · Sélecteur du patrimoine en haut à droite, actions « Page et fenêtre » toujours visibles
 
