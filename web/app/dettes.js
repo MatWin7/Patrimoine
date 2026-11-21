@@ -162,18 +162,18 @@ document.querySelector('[data-add="debt"]').addEventListener("click", () => open
 makeReorderable($("debts-list"), "tr[data-id]", ".drag-handle", (rows, moved) => saveOrder("debts", rows, moved));
 
 // Tuiles placées devant les chiffres clés selon le patrimoine affiché (D-143), montants
-// calculés par le serveur : brut → patrimoine net (s'il y a des dettes) ; net → brut et
-// dettes ; financier → le brut, pour situer la part financière.
+// calculés par le serveur : brut → patrimoine net (s'il y a des dettes) ; net → dettes ;
+// financier → le brut, pour situer la part financière.
 function scopeTiles(view) {
   const s = view.scopes;
   if (!s) return [];
   const debts = view.debts_eur;
   const hasDebts = debts !== null && debts !== undefined;
   if (view.scope === "net") {
-    return [
-      kpi("Patrimoine brut", formatDecimal(s.brut, "EUR")),
-      kpi("Dettes", formatDecimal(hasDebts ? debts : "0", "EUR")),
-    ];
+    // Une seule tuile en tête : sept tuiles passeraient sur deux lignes.
+    const tile = kpi("Dettes", formatDecimal(hasDebts ? debts : "0", "EUR"));
+    tile.title = `Patrimoine brut ${formatDecimal(s.brut, "EUR")} moins le capital restant dû des dettes`;
+    return [tile];
   }
   if (view.scope === "financier") {
     const tile = kpi("Patrimoine brut", formatDecimal(s.brut, "EUR"));
