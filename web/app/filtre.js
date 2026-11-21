@@ -141,11 +141,8 @@ function renderLineFilter() {
 function renderFilterButton() {
   const button = $("filter-toggle");
   button.hidden = !filterUseful || !FILTERED_PAGES.has(currentPage);
-  const n = lineFilter.accounts.length + lineFilter.lines.length;
   button.classList.toggle("active", filterActive());
-  // Icône seule ; une pastille compte les lignes retirées quand le filtre agit.
-  $("line-filter-summary").textContent = String(n);
-  $("line-filter-summary").hidden = !filterActive();
+  // Icône seule : le détail est dans l'infobulle, l'icône en accent montre que le filtre agit.
   button.title = filterActive() ? `Calcul sans : ${filterSummary()}` : "Choisir les lignes comptées";
 }
 

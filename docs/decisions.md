@@ -1079,3 +1079,15 @@ Base existante : mise à jour au prochain lancement, copie `avant-migration` d'a
 
 ## D-145 · 2026-11-21 · Évolution : la courbe suit l'inflation sur 12 mois de chaque mois
 Demande de l'utilisateur : un taux d'inflation qui change chaque mois dans l'infobulle. Avec D-110, la pente de « Placé moins l'inflation » était constante sur une année civile, donc le taux de D-112 aussi (et celui de décembre était déjà celui de l'année suivante ; l'année en cours ramenait la hausse depuis décembre à l'année : 4,7 % affichés pour 2026 contre 3,4 % officiels en septembre). Choix (remplace le lissage de D-110, garde D-112 : le taux affiché est la pente de la courbe) : du 1er du mois M au 1er du mois suivant, l'indice de la courbe monte au rythme du **glissement sur 12 mois** de M (indice de M ÷ indice de M un an plus tôt, le taux de l'INSEE et d'Eurostat), ramené au mois ; jusqu'au mois qui suit le dernier mois publié, puis taux saisi (D-067). La courbe ne remonte toujours pas aux mois de soldes, seulement si les prix ont baissé sur un an. Coût : le glissement a environ six mois de retard, l'indice de la courbe n'est plus recalé chaque décembre ; écart de niveau avec l'indice brut mesuré de 2015 à 2026 : le plus souvent sous 1 %, jusqu'à −3,5 % en juin 2022, résorbé ensuite. Écartés : glissement dans l'infobulle seule (le taux ne serait plus la pente vue, ce que D-112 refusait), hausse d'un seul mois ramenée à l'année (−15 % en septembre, fin des tarifs d'été). Aucune requête nouvelle : même série Eurostat.
+
+## D-146 · 2026-11-21 · Filtre des lignes : plus de pastille sur l'icône
+
+**Décision** : l'icône « Lignes prises en compte » de la barre du haut n'a plus de pastille avec le nombre de lignes retirées (demande de James). Le détail reste dans l'infobulle du bouton (« Calcul sans : … »).
+
+**Pourquoi / limite** : rien d'autre ne montre alors, d'un coup d'œil, qu'un filtre agit. Le signal restant est l'icône en bleu d'accent sur fond teinté (`.filter-toggle.active`), déjà en place.
+
+## D-147 · 2026-11-21 · Sélecteur du patrimoine en haut à droite, montant principal centré
+
+**Décision.** Le sélecteur Financier / Brut / Net passe en haut à droite de la carte du total, sur la ligne du titre (sous le titre sur mobile), et le montant principal est centré en hauteur face aux tuiles.
+
+**Pourquoi.** Le titre reste en haut à gauche, le sélecteur ne se mélange pas aux tuiles et le gros chiffre s'aligne sur elles.
