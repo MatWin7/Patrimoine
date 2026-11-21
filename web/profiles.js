@@ -112,9 +112,12 @@
       name.textContent = p.name;
       button.append(avatar(p), name);
       if (p.has_code) {
-        const lock = document.createElement("span");
-        lock.className = "muted small";
-        lock.textContent = "code";
+        // Cadenas en haut à droite de la tuile : ce profil demande un code.
+        const lock = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        lock.setAttribute("class", "ic picker-lock");
+        lock.setAttribute("aria-hidden", "true");
+        lock.innerHTML = '<use href="#i-lock"/>';
+        button.title = "Protégé par un code";
         button.append(lock);
       }
       button.addEventListener("click", () => {
@@ -172,9 +175,12 @@
       name.textContent = p.name;
       button.append(avatar(p), name);
       if (p.has_code) {
-        const lock = document.createElement("span");
-        lock.className = "muted small";
-        lock.textContent = "code";
+        // Cadenas en haut à droite de la tuile : ce profil demande un code.
+        const lock = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        lock.setAttribute("class", "ic picker-lock");
+        lock.setAttribute("aria-hidden", "true");
+        lock.innerHTML = '<use href="#i-lock"/>';
+        button.title = "Protégé par un code";
         button.append(lock);
       }
       button.addEventListener("click", () => {

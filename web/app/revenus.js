@@ -72,7 +72,7 @@ async function refreshIncome() {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: { position: "top", align: "end", labels: { padding: 14 } },
         tooltip: {
           filter: (item) => item.raw > 0,
           itemSort: (a, b) => (a.dataset.label === "Autres") - (b.dataset.label === "Autres") || b.raw - a.raw,

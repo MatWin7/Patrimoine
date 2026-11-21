@@ -12,6 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Retouches de l'interface : nouvelle phrase d'accroche et cadenas sur les profils à code, anneau de répartition avec le total au centre, raccourcis de période en noir et blanc (6 mois ajouté), légendes gains/pertes, boutons d'action en bleu plein, type d'une liste de suivi choisi à sa création, « Ajouter des opérations » en deux parties comme Comptes, actions de la fenêtre déplacées dans Réglages > Général, douze couleurs au choix pour un actif (schéma v22).
 - Profil Démo complet : sept ans d'opérations fictives sur toutes les enveloppes (PEA, compte-titres
   en dollars, assurance-vie, PER, livrets, immobilier, or, prêts), achats programmés à valider,
   dividendes, ventes, cibles, listes de suivi, cryptos sur une plateforme et un portefeuille,

@@ -193,14 +193,14 @@ function renderAssetsList() {
     const name = cell(a.name);
     const dot = document.createElement("span");
     dot.className = "dot";
-    dot.style.background = a.color ? css(SERIES[a.color - 1]) : partColor("ligne", a.name);
+    dot.style.background = a.color ? css(PALETTE[a.color - 1]) : partColor("ligne", a.name);
     name.prepend(dot);
     const detail = document.createElement("span");
     detail.className = "muted small block";
     detail.textContent = [CLASSES[a.asset_class], a.category, a.ticker ?? a.coingecko_id ?? "valeur saisie", a.currency, a.color ? null : "couleur auto"].filter(Boolean).join(" · ");
     name.append(detail);
     const actions = actionButtons(() => openAsset(a), () => deleteItem("/api/assets", a, a.name, "Actif"));
-    if (isManual(a)) actions.prepend(smallButton("Valeur", "Saisir la valeur de la ligne", () => openValuation(a)));
+    if (isManual(a)) actions.prepend(smallButton("Valeur", "Saisir la valeur de la ligne", () => openValuation(a), "link edit verify"));
     tr.append(name, actions);
     return tr;
   };

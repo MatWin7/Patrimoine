@@ -1031,3 +1031,11 @@ Pour lancer Patrimoine sous Windows sans installer Python ni uv : un dossier `Pa
 **Écartés.** Fermer dans `__exit__` de la connexion elle-même : tout `with conn:` imbriqué fermerait la connexion de l'appelant (piste écartée lors de D-139). Une connexion par requête en dépendance FastAPI (`Depends`) : signature changée sur les 77 blocs des routes, et une route a parfois besoin de transactions séparées (sauvegarde avant suppression) ; pour le même résultat.
 
 **Garde-fous.** `tests/test_connexions.py` relève les connexions ouvertes pendant chaque route de lecture de la démo complète et pendant des requêtes en erreur (404), et vérifie qu'aucune n'est restée ouverte après la réponse ; il échoue sur l'ancien code. Il refuse aussi `with db.connect(` dans `app/`. L'instantané de l'API (`scripts/instantane_api.py`) est identique avant et après. `profiles.release_connections()` (D-140) est gardé en filet : il ne coûte rien et couvre une connexion ouverte hors de `db.connection` à l'avenir.
+
+## D-142 · 2026-11-21 · Douze couleurs au choix pour un actif (schéma v22) et retouches d'interface
+
+**Décision.** La couleur d'un actif va de 1 à 12 (`--series-8` à `--series-12` ajoutées, clair et sombre). Les graphiques n'attribuent toujours automatiquement que les sept premières : les cinq nouvelles ne servent qu'à ce qu'on choisit, pour ne pas changer les graphiques existants. Même passage : « Ajouter des opérations » prend le style des cartes Comptes et Dettes (deux parties séparées par un trait, sans bascule), sélecteurs de période en segments noir et blanc (6 mois ajouté), boutons d'action en bleu plein, menu « … » supprimé (ses actions passent dans la carte Général), type d'une liste de suivi choisi à sa création (gardé dans le navigateur, deviné pour les anciennes listes).
+
+**Pourquoi.** Sept couleurs ne suffisent plus avec trente lignes. SQLite ne sait pas modifier un `CHECK` : la table `asset` est recréée.
+
+Base existante : mise à jour au prochain lancement, copie `avant-migration` d'abord (D-120).

@@ -63,6 +63,11 @@
   --series-5: #e87ba4;
   --series-6: #008300;
   --series-7: #6250d6;
+  --series-8: #0f9fbd;
+  --series-9: #a0522d;
+  --series-10: #b4308a;
+  --series-11: #5b7083;
+  --series-12: #7fb413;
 }
 /* Sombre : pas de noir pur ; plus un élément est haut, plus sa surface est claire, et l'ombre
    reste noire (jamais un halo clair). */
@@ -106,6 +111,11 @@
   --series-5: #d55181;
   --series-6: #008300;
   --series-7: #9085e9;
+  --series-8: #2bb6d3;
+  --series-9: #c4764f;
+  --series-10: #d65bab;
+  --series-11: #8aa0b3;
+  --series-12: #9cce3a;
 }
 
 /* Police Inter copiée dans web/vendor/ (D-117) : même rendu sur toutes les machines, aucune requête sortante. */
@@ -209,6 +219,12 @@ h3 { font-size: var(--t-md); font-weight: 600; margin: 0; }
 .big { font-size: var(--t-3xl); font-weight: 500; letter-spacing: -0.03em; line-height: 1.1; margin: var(--s-1) 0 var(--s-2); font-variant-numeric: tabular-nums; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s-3); margin: 0; }
 .kpis + .segmented { margin-top: var(--s-4); }
+/* Un peu d'air entre les tuiles et ce qui suit (graphique, tableau). */
+.kpis + .chart, .kpis + .table-scroll { margin-top: var(--s-5); }
+.segmented + .chart { margin-top: var(--s-5); }
+.card-foot { display: flex; justify-content: flex-end; margin-top: var(--s-4); }
+.operation-choice { display: flex; flex-direction: column; gap: var(--s-3); }
+.operation-choice button { width: 100%; }
 .kpi { background: var(--surface-2); border-radius: var(--radius); padding: var(--s-3) var(--s-4); }
 .kpi dt { font-size: var(--t-xs); color: var(--text-2); margin-bottom: var(--s-1); }
 .kpi dd { margin: 0; font-size: var(--t-xl); font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -285,13 +301,13 @@ button:not([class]):hover, button[class=""]:hover, a.button:hover, button.primar
    ligne du menu « Fenêtre », « Passer » du tutoriel, boutons de la carte Aide ; `class="secondary"` pour tout autre cas. */
 button.secondary, button.chip, button[data-cancel]:not(.link), button[data-close]:not(.icon),
 form button[type="button"]:not([class]), form button[type="button"][class=""],
-.form-actions button[type="button"]:not([class]), .window-panel button:not(.icon), .tutorial-actions button:first-child,
+.form-actions button[type="button"]:not([class]), .window-actions button, .tutorial-actions button:first-child,
 .help-actions button:not([class]) {
   background: var(--accent-soft); color: var(--accent); box-shadow: none;
 }
 button.secondary:hover, button.chip:hover, button[data-cancel]:not(.link):hover, button[data-close]:not(.icon):hover,
 form button[type="button"]:not([class]):hover, form button[type="button"][class=""]:hover,
-.form-actions button[type="button"]:not([class]):hover, .window-panel button:not(.icon):hover, .tutorial-actions button:first-child:hover,
+.form-actions button[type="button"]:not([class]):hover, .window-actions button:hover, .tutorial-actions button:first-child:hover,
 .help-actions button:not([class]):hover {
   background: var(--accent-soft-hover);
 }
@@ -332,7 +348,7 @@ button.link { border: none; background: none; box-shadow: none; color: var(--ko)
 label.inline { flex-direction: row; align-items: center; gap: var(--s-2); font-size: var(--t-sm); }
 label.inline input { padding: var(--s-2) var(--s-2); }
 .presets { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.group-by { margin: calc(var(--s-1) * -1) 0 var(--s-3); }
+.group-by { margin: calc(var(--s-1) * -1) 0 var(--s-5); }
 .table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
 .table-tools input[type="search"] { flex: 1 1 220px; max-width: 320px; }
 .color-pick { display: flex; align-items: center; gap: var(--s-1); }
@@ -753,12 +769,14 @@ button.tip[hidden] { display: none; }
 .picker-welcome .logo { width: 48px; height: 48px; margin-bottom: var(--s-4); }
 .picker-welcome h1 { font-size: var(--t-2xl); margin: 0 0 var(--s-2); }
 .picker-text { margin: 0; color: var(--text-2); font-size: var(--t-lg); }
-.picker-ask { margin: var(--s-6) 0 var(--s-3); font-size: var(--t-sm); font-weight: 500; color: var(--text-3); letter-spacing: 0; }
+.picker-ask { margin: var(--s-6) 0 var(--s-4); font-size: var(--t-xl); font-weight: 600; color: var(--text); letter-spacing: 0; }
 .picker-list { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3); }
 .picker-profile {
   display: flex; flex: 0 1 116px; align-self: stretch; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-4) var(--s-3);
   border-radius: var(--r-lg); white-space: normal;
 }
+.picker-profile { position: relative; }
+.picker-lock { position: absolute; top: var(--s-2); right: var(--s-2); width: 16px; height: 16px; color: var(--text-3); }
 .picker-profile .avatar { width: 52px; height: 52px; font-size: var(--t-xl); }
 /* Fonds fournis : cinq ciels, du matin à la nuit ; « auto » suit le thème. Chaque fond est un
    jeton, lu par la page de démarrage et par sa vignette dans Réglages (D-134). L'image de
@@ -818,11 +836,9 @@ button.tip[hidden] { display: none; }
 .profile-toggle:hover { background: var(--control-hover); }
 .profile-toggle .avatar { width: 28px; height: 28px; }
 .profile-panel { width: min(360px, calc(100vw - 32px)); }
-/* Bouton « Fenêtre » (D-127) : même panneau que le profil, une action par ligne. */
-.window-panel { width: min(320px, calc(100vw - 32px)); }
-.window-actions { display: flex; flex-direction: column; gap: var(--s-1); margin-top: var(--s-2); }
-.window-actions button { width: 100%; text-align: left; }
-.window-panel > p { margin: var(--s-3) 0 0; }
+/* Actions « Fenêtre » (D-127), dans la carte Général de Réglages. */
+.window-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+#window-actions > p { margin: var(--s-3) 0 0; }
 .profile-panel > button { width: 100%; }
 .profile-others-title { margin: 0 0 var(--s-2); font-size: var(--t-md); }
 .profile-others { display: flex; flex-direction: column; gap: var(--s-1); margin-bottom: var(--s-3); }
@@ -847,15 +863,14 @@ label.crop-zoom { display: flex; flex-direction: row; align-items: center; gap: 
 .profile-row-actions { display: flex; gap: var(--s-3); margin-left: auto; }
 .profile-inline { display: flex; flex-direction: column; gap: var(--s-3); margin: 0 0 var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .profile-inline button.danger { background: var(--ko); border-color: var(--ko); color: var(--on-accent); }
-.profile-restore-box { margin-top: var(--s-4); }
 #profile-demo-add { margin-top: var(--s-4); align-self: start; }
 /* Avis (profil Démo, mise à jour) : petits cadres en bas à gauche, par-dessus la page (D-133). */
 .notices { position: fixed; left: var(--s-4); bottom: var(--s-4); z-index: 6; display: grid; gap: var(--s-2); max-width: min(440px, calc(100vw - 32px)); }
 main:has(.notice:not([hidden])) { padding-bottom: 160px; }
 .notice button.icon { margin-left: var(--s-2); padding: 0 var(--s-1); }
 .notice { margin: 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-lg); background: var(--floating); box-shadow: var(--shadow); font-size: var(--t-sm); color: var(--text-2); }
-.profile-restore-box summary { cursor: pointer; font-size: var(--t-md); color: var(--text-2); }
 .profile-restore-box .profile-new { margin-top: var(--s-3); }
+.profile-restore-box h3 { margin: 0; }
 .profile-new { display: flex; align-items: end; gap: var(--s-3); flex-wrap: wrap; }
 .profile-new label { flex: 1 1 180px; }
 @media (max-width: 600px) {
@@ -994,3 +1009,7 @@ td { padding: var(--s-2) var(--s-3); font-size: var(--t-sm); }
 .settings-form { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); row-gap: 0; column-gap: var(--s-4); }
 .settings-form label { display: grid; grid-template-rows: subgrid; grid-row: span 3; gap: var(--s-2); margin-bottom: var(--s-4); }
 .settings-form label > span:first-child { align-self: end; }
+
+/* Frais courants des fonds : lignes plus aérées, comptes en tête de groupe, chiffres alignés. */
+#ter-lines-table td, #ter-lines-table th { padding-top: var(--s-3); padding-bottom: var(--s-3); }
+#ter-lines-table td.num { font-variant-numeric: tabular-nums; }
