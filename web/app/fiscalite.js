@@ -3,6 +3,7 @@
 $("form-per").tmi.value = taxPref.tmi;
 if (!$("form-per").tmi.value) $("form-per").tmi.value = "30";
 $("form-per").ceiling.value = taxPref.ceiling.replace(".", ",");
+$("form-av").couple.value = taxPref.couple ?? "";
 
 // Cellule « 5 ans » / « 8 ans » : ✓ atteint ou ⏳ date, explication au survol.
 function milestoneCell(item, what) {
@@ -75,6 +76,7 @@ async function refreshTax() {
   if (custom) params.set("pfu", custom);
   if (year) params.set("year", year);
   if (ceiling) params.set("per_ceiling", ceiling);
+  if ($("form-av").couple.value) params.set("couple", "true");
   const data = await api(`/api/tax?${params}`);
   $("tax-rules").textContent = `règles de ${data.rules_date}`;
   form.pfu.value = data.pfu_pct.replace(".", ",");
@@ -96,17 +98,7 @@ async function refreshTax() {
     ? "Versements = champ « Versements » du compte + opérations « Versement » + achats payés sans versement saisi (l'argent a forcément été versé). Pour le chiffre exact, reporte dans le compte le « montant des versements » affiché par ta banque."
     : "Versements = champ « Versements » du compte + opérations « Versement ». Survole un montant pour le détail.") + exitNote;
 
-  const avs = data.assurance_vie;
-  $("tax-av-kpis").replaceChildren(
-    kpi("Versements", formatDecimal(sumOf(avs, "deposits"), "EUR"), `${avs.length} contrat${avs.length > 1 ? "s" : ""}`),
-    kpi("Prochains 8 ans", nextMilestone(avs)),
-  );
-  fillSortable("tax-av-table", avs, (a) => rowOf(
-    cell(a.account),
-    openedCell(a),
-    depositsCell(a),
-    milestoneCell(a, AV_8),
-  ), "Aucun compte de type assurance-vie.");
+  renderLifeInsurance(data.assurance_vie, data.life_insurance);
 
   const per = data.per;
   const perKpis = [kpi(`Versés en ${per.year}`, formatDecimal(per.deposits_year, "EUR"), `${per.rows.length} PER`)];
@@ -231,6 +223,56 @@ function renderTaxModes() {
   ), "Aucun compte-titres.");
 }
 
+// Carte « Assurance-vie » (D-142) : gains, abattement de l'année, rachat sans impôt, rachats.
+function renderLifeInsurance(avs, life) {
+  const n = avs.length;
+  const warning = $("tax-av-warning");
+  const notes = [];
+  if (life.over_cap) notes.push(`Plus de 150 000 € de versements au ${frDate(life.encours_date)} (${formatDecimal(life.encours, "EUR")}) : après 8 ans, une partie des gains des versements faits depuis le 27/09/2017 passe de 7,5 % à 12,8 %.`);
+  if (avs.some((a) => a.estimated)) notes.push("≈ Valeur du contrat inconnue le jour d'un rachat (contrat hors euros) : tout ce rachat est compté en versements, les gains restants sont donc un peu surestimés.");
+  warning.hidden = !notes.length;
+  warning.textContent = notes.join(" ");
+  const gainPct = Number(life.remaining) > 0 ? `${formatDecimal(signed(((Number(life.gains) / Number(life.remaining)) * 100).toFixed(2)))} %` : "";
+  $("tax-av-kpis").replaceChildren(
+    kpi("Valeur", formatDecimal(life.value, "EUR"), `${n} contrat${n > 1 ? "s" : ""}, versements ${formatDecimal(life.remaining, "EUR")}`),
+    kpi("Gains", formatDecimal(signed(life.gains), "EUR"), gainPct, toneClass(life.gains)),
+    kpi(`Abattement restant ${life.today_year}`, formatDecimal(life.allowance_left, "EUR"),
+      life.allowance_used !== "0.00" ? `${formatDecimal(life.allowance_used, "EUR")} déjà utilisés sur ${formatDecimal(life.allowance, "EUR")}` : `sur ${formatDecimal(life.allowance, "EUR")} par an, après 8 ans`),
+    kpi("Impôt si rachat total", formatDecimal(life.exit_tax, "EUR"), `dont ${formatDecimal(life.exit_social, "EUR")} de prélèvements sociaux`),
+    kpi("Prochains 8 ans", nextMilestone(avs)),
+  );
+  fillSortable("tax-av-table", avs, (a) => {
+    const paid = cell(formatDecimal(a.remaining, "EUR"), "num");
+    paid.title = a.buybacks
+      ? `${formatDecimal(a.paid_in, "EUR")} versés, dont ${formatDecimal((Number(a.paid_in) - Number(a.remaining)).toFixed(2), "EUR")} déjà remboursés par des rachats`
+      : depositsCell(a).title;
+    const free = cell(a.tax_free === a.value ? "tout" : formatDecimal(a.tax_free, "EUR"), "num");
+    free.title = a.tax_free === a.value
+      ? "Contrat en perte ou sans gain : un rachat n'est pas imposé"
+      : a.milestone_reached ? "Part de gains dans l'abattement restant ; prélèvements sociaux dus sur les unités de compte" : "Pas d'abattement avant 8 ans";
+    const exit = cell(formatDecimal(a.exit_tax, "EUR"), "num");
+    exit.title = `${formatDecimal(a.exit_ir, "EUR")} d'impôt + ${formatDecimal(a.exit_social, "EUR")} de prélèvements sociaux`;
+    return rowOf(
+      cell(a.account),
+      openedCell(a),
+      paid,
+      cell(formatDecimal(a.value, "EUR"), "num"),
+      cell(`${a.estimated ? "≈ " : ""}${formatDecimal(signed(a.gains), "EUR")}`, signClass(a.gains)),
+      milestoneCell(a, AV_8),
+      free,
+      exit,
+    );
+  }, "Aucun compte de type assurance-vie.");
+  $("tax-av-buybacks-title").textContent = `Rachats de ${life.year}`;
+  fillSortable("tax-av-buybacks-table", life.buybacks, (b) => rowOf(
+    cell(frDate(b.date)),
+    cell(b.account),
+    cell(formatDecimal(b.amount, "EUR"), "num"),
+    cell(`${b.estimated ? "≈ " : ""}${formatDecimal(b.gain, "EUR")}`, "num"),
+    cell(b.eight_years ? "✓ plus de 8 ans" : "non, moins de 8 ans", b.eight_years ? "ok" : "muted"),
+  ), `Aucun rachat d'assurance-vie en ${life.year}.`);
+}
+
 // Carte « Crypto » (D-066) : ventes en euros de l'année au portefeuille global (formulaire 2086).
 function renderCryptoTax(k) {
   const limit = formatDecimal(k.exempt_limit, "EUR");
@@ -285,6 +327,7 @@ function saveTaxPref() {
     pfu_custom: pfu && pfu !== $("form-tax").pfu.dataset.default ? pfu : "",
     tmi: per.tmi.value,
     ceiling: cleanDecimal(per.ceiling.value) ?? "",
+    couple: $("form-av").couple.value,
   });
   refreshTax().catch((err) => showMessage(err.message, true));
 }
@@ -292,3 +335,5 @@ $("form-tax").pfu.addEventListener("change", saveTaxPref);
 $("form-per").tmi.addEventListener("change", saveTaxPref);
 $("form-per").ceiling.addEventListener("change", saveTaxPref);
 $("form-per").addEventListener("submit", (e) => e.preventDefault());
+$("form-av").couple.addEventListener("change", saveTaxPref);
+$("form-av").addEventListener("submit", (e) => e.preventDefault());

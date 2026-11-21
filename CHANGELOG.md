@@ -12,6 +12,10 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Fiscalité, carte Assurance-vie plus complète : gains de chaque contrat, abattement restant de
+  l'année (4 600 € ou 9 200 € en couple), plus grand rachat sans impôt sur le revenu, impôt si
+  tout était racheté (versements d'avant ou d'après le 27/09/2017, seuil de 150 000 €), rachats
+  de l'année avec leur part de gains, repère de transmission (D-142).
 - Profil Démo complet : sept ans d'opérations fictives sur toutes les enveloppes (PEA, compte-titres
   en dollars, assurance-vie, PER, livrets, immobilier, or, prêts), achats programmés à valider,
   dividendes, ventes, cibles, listes de suivi, cryptos sur une plateforme et un portefeuille,

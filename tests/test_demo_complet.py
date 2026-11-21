@@ -70,6 +70,10 @@ def test_fiscalite(client):
     tax = client.get("/api/tax").json()
     assert tax["pea"][0]["milestone_reached"] is True  # PEA de plus de 5 ans
     assert tax["assurance_vie"][0]["milestone_reached"] is True  # AV de plus de 8 ans
+    # Rachat partiel de 2025 : part de gains calculée, gains restants et rachat sans impôt (D-142).
+    av = client.get("/api/tax?year=2025").json()["life_insurance"]
+    assert av["buybacks"][0]["gain"] != "0.00" and not av["buybacks"][0]["estimated"]
+    assert tax["assurance_vie"][0]["tax_free"] != "0.00"
     assert tax["per"]["deposits_year"] != "0.00"
     assert tax["cto"]["sales"]  # plus-value réalisée cette année
 

@@ -234,6 +234,7 @@ const SORT_DEFAULTS = {
   "target-table": { key: "value", dir: "desc" },
   "tax-pea-table": { key: null, dir: "asc" },
   "tax-av-table": { key: null, dir: "asc" },
+  "tax-av-buybacks-table": { key: "date", dir: "asc" },
   "tax-per-table": { key: null, dir: "asc" },
   "tax-cto-table": { key: null, dir: "asc" },
   "tax-sales-table": { key: "date", dir: "asc" },
