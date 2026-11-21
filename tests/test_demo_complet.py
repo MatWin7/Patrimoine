@@ -5,6 +5,7 @@ Garde-fou : si une fonctionnalité de l'app n'a plus rien à montrer dans la dé
 """
 
 from datetime import date
+from decimal import Decimal as D
 
 import pytest
 from fastapi.testclient import TestClient
@@ -47,6 +48,8 @@ def test_vue_d_ensemble(client):
     assert len(data["positions"]) >= 14
     assert {g["label"] for g in data["groupings"]["devise"]["all"]} == {"EUR", "USD"}
     assert data["debts_eur"] != "0.00"  # prêt immobilier et prêt auto (D-107)
+    scopes = {k: D(v) for k, v in data["scopes"].items()}  # brut, net, financier (D-143)
+    assert scopes["financier"] < scopes["net"] < scopes["brut"]
     points = client.get("/api/history").json()["points"]
     assert points[0]["date"] < "2018-01-01"  # assurance-vie ouverte en 2017
 

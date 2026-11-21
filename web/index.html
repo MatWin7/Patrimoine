@@ -153,8 +153,16 @@
   <div class="page" data-page="apercu">
     <section id="total" class="card hero">
       <div class="hero-main">
-        <span class="label" id="total-label">Patrimoine total</span>
+        <div class="hero-head">
+          <h2 id="total-label">Patrimoine financier</h2>
+          <button type="button" class="tip" data-tip="Financier : bourse, crypto, assurance-vie et PER, sans l'immobilier, les SCPI, les livrets ni les espèces des comptes « Autre » (comptes bancaires). Brut : tout ce que tu possèdes. Net : brut moins le capital restant dû des dettes. Les tuiles suivent le même périmètre." aria-label="Plus d'infos">?</button>
+        </div>
         <div id="total-value" class="big">–</div>
+        <div class="segmented" id="total-scope" role="group" aria-label="Patrimoine affiché">
+          <button type="button" data-scope="financier">Financier</button>
+          <button type="button" data-scope="brut">Brut</button>
+          <button type="button" data-scope="net">Net</button>
+        </div>
         <div id="prices-status" class="muted small"></div>
       </div>
       <dl id="kpis" class="kpis"></dl>

@@ -1039,3 +1039,16 @@ Pour lancer Patrimoine sous Windows sans installer Python ni uv : un dossier `Pa
 **Pourquoi.** Sept couleurs ne suffisent plus avec trente lignes. SQLite ne sait pas modifier un `CHECK` : la table `asset` est recréée.
 
 Base existante : mise à jour au prochain lancement, copie `avant-migration` d'abord (D-120).
+
+## D-143 · 2026-11-21 · Patrimoine brut, net ou financier
+
+**Constat.** Vue d'ensemble n'affichait qu'un « Patrimoine total » (tout ce qui est détenu) et une tuile « Patrimoine net ». L'utilisateur veut choisir ce que montre le chiffre principal, comme dans les agrégateurs : brut, net ou financier.
+
+**Choix.** Sélecteur Financier / Brut / Net sous le chiffre principal, Financier par défaut, choix gardé dans le navigateur.
+- **Brut** : titres et espèces de tous les comptes, sans déduire les dettes.
+- **Net** : brut moins le capital restant dû (dettes de Gérer et emprunts Aave, D-107, D-108). Mêmes lignes que le brut : seul le chiffre principal change.
+- **Financier** (choix de l'utilisateur) : bourse, crypto, assurance-vie, PER. Sont écartés les comptes `immobilier` et `livret` en entier, les actifs de classe `immobilier` et `scpi` où qu'ils soient (une SCPI en assurance-vie compte comme de l'immobilier), et les espèces des comptes `autre`, qui tiennent lieu de comptes bancaires (leurs titres, de l'or par exemple, restent). Les espèces d'un PEA, d'un CTO ou d'une plateforme crypto restent : elles attendent d'être placées.
+
+`/api/portfolio?scope=brut|net|financier` (défaut `brut`, pour tous les autres appelants) : en financier, positions, totaux (investi, plus-value, variation du jour), répartition et carte du portefeuille ne gardent que ces lignes ; `scopes` donne toujours les trois chiffres en EUR (sur les lignes du filtre, D-069). Le net est calculé par le serveur en `Decimal`, et non plus dans la page. Une devise sans taux de change n'entre pas dans `scopes`, comme dans le total en EUR. Tuile en tête des chiffres clés : Patrimoine net (vue Brut, s'il y a des dettes), Dettes (vue Net), Patrimoine brut (vue Financier). Positions, Gérer, alertes et couleurs restent calculés sur tout le patrimoine.
+
+**Écartés.** Calculer le périmètre dans la page : sommes en nombres flottants et répartition à refaire en double. Un troisième filtre de lignes (D-069) : le périmètre est une vue, pas une sélection de lignes, et ne doit pas marquer « lignes cochées ». Suivre le périmètre dans Performance, Évolution et Projection : possible plus tard avec le même paramètre, pas demandé.

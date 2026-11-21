@@ -952,10 +952,12 @@ button.link, button.link-plain, button.icon, button.tip, .segmented button, th b
 /* Total à gauche, chiffres clés alignés sur sa ligne de base, état des cours dessous. */
 .hero { grid-template-columns: auto 1fr; align-items: end; gap: 0 var(--s-7); padding: var(--s-5); }
 .hero-main { display: contents; }
-.hero .label { grid-area: 1 / 1; }
+.hero .hero-head { grid-area: 1 / 1; display: flex; align-items: center; gap: var(--s-2); }
+.hero .hero-head h2 { font-size: var(--t-xl); }
 .hero .big { grid-area: 2 / 1; margin-bottom: 0; }
-.hero .kpis { grid-area: 1 / 2 / 3 / 3; }
-.hero-main > .muted { grid-area: 3 / 1 / 4 / 3; margin-top: var(--s-3); }
+.hero #total-scope { grid-area: 3 / 1; justify-self: start; margin-top: var(--s-3); }
+.hero .kpis { grid-area: 1 / 2 / 4 / 3; }
+.hero-main > .muted { grid-area: 4 / 1 / 5 / 3; margin-top: var(--s-3); }
 .label { font-size: var(--t-sm); }
 .big { font-size: var(--t-3xl); font-weight: 600; letter-spacing: -0.03em; margin: var(--s-1) 0; }
 .kpis, #perf-card .kpis { gap: var(--s-3); grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); }
@@ -978,6 +980,7 @@ td { padding: var(--s-2) var(--s-3); font-size: var(--t-sm); }
   .hero { display: block; padding: var(--s-4); }
   .hero-main { display: block; }
   .hero .kpis { margin-top: var(--s-4); }
+  .hero .hero-head { display: flex; }
   .segmented button { padding: var(--s-1) var(--s-2); }
   label.inline { flex-wrap: wrap; }
   .chart:has(#chart-allocation) { height: 400px; }
