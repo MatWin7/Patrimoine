@@ -37,7 +37,7 @@ def list_recurring() -> dict:
     """Achats programmés et échéances à valider. Prix proposé : clôture du jour de l'échéance
     (ou d'avant) si l'historique est en cache, sinon dernier cours connu ; sans appel réseau."""
     today = date.today()
-    with db.connect() as conn:
+    with db.connection() as conn:
         accounts = {a.id: a for a in repository.list_accounts(conn)}
         assets = {a.id: a for a in repository.list_assets(conn)}
         items = repository.list_recurring(conn)
@@ -48,7 +48,6 @@ def list_recurring() -> dict:
             for r in items
             for due in due_dates[r["id"]]
         }
-    conn.close()
     pending = []
     for r in items:
         asset = assets[r["asset_id"]]
@@ -76,7 +75,7 @@ def list_recurring() -> dict:
 
 
 def _save_recurring(body: RecurringIn, recurring_id: int | None = None) -> dict:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if recurring_id is not None and repository.get_recurring(conn, recurring_id) is None:
             raise HTTPException(status_code=404, detail="Achat programmé inconnu.")
         if repository.get_account(conn, body.account_id) is None:
@@ -112,7 +111,7 @@ def update_recurring(recurring_id: int, body: RecurringIn) -> dict:
 @router.delete("/api/recurring/{recurring_id}", status_code=204)
 def delete_recurring(recurring_id: int) -> None:
     """Supprime le modèle ; les achats déjà validés restent des opérations ordinaires."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not repository.delete_recurring(conn, recurring_id):
             raise HTTPException(status_code=404, detail="Achat programmé inconnu.")
 
@@ -137,7 +136,7 @@ def _oldest_due(conn, recurring_id: int, due_date: date) -> dict:
 def confirm_recurring(recurring_id: int, body: RecurringConfirmIn) -> dict:
     """Enregistre l'achat de l'échéance, avec le prix et la quantité réellement exécutés."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             r = _oldest_due(conn, recurring_id, body.due_date)
             asset = repository.get_asset(conn, r["asset_id"])
             op = repository.create_operation(
@@ -162,6 +161,6 @@ def confirm_recurring(recurring_id: int, body: RecurringConfirmIn) -> dict:
 @router.post("/api/recurring/{recurring_id}/skip", status_code=204)
 def skip_recurring(recurring_id: int, body: RecurringSkipIn) -> None:
     """Échéance ignorée (achat non passé cette fois-là, ou déjà saisi autrement)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         _oldest_due(conn, recurring_id, body.due_date)
         repository.mark_recurring_due(conn, recurring_id, body.due_date)

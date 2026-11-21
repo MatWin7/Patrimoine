@@ -22,7 +22,7 @@ router = APIRouter()
 
 @router.get("/api/accounts")
 def list_accounts() -> list[dict]:
-    with db.connect() as conn:
+    with db.connection() as conn:
         return [account_out(a) for a in repository.list_accounts(conn)]
 
 
@@ -58,7 +58,7 @@ def _set_custody(conn, account: Account, body: AccountIn, created: bool) -> None
 @router.post("/api/accounts", status_code=201)
 def create_account(body: AccountIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             account = repository.create_account(
                 conn, body.name, body.kind, body.institution, body.currency, body.cash
             )
@@ -73,7 +73,7 @@ def create_account(body: AccountIn) -> dict:
 @router.patch("/api/accounts/{account_id}")
 def update_account(account_id: int, body: AccountIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             if repository.get_account(conn, account_id) is None:
                 raise HTTPException(status_code=404, detail="Compte inconnu.")
             account = repository.update_account(
@@ -97,14 +97,13 @@ OpsChoice = Annotated[Literal["supprimer", "deplacer"] | None, Query()]
 def _remove(kind: str, item_id: int, operations: str | None, vers: int | None) -> None:
     noun = "Compte" if kind == "account" else "Actif"
     get = repository.get_account if kind == "account" else repository.get_asset
-    with db.connect() as conn:
+    with db.connection() as conn:
         item = get(conn, item_id)
         if item is None:
             raise HTTPException(status_code=404, detail=f"{noun} inconnu.")
         used = repository.count_operations(conn, **{f"{kind}_id": item_id})
-    conn.close()
     if not used:
-        with db.connect() as conn:
+        with db.connection() as conn:
             (repository.delete_account if kind == "account" else repository.delete_asset)(
                 conn, item_id
             )
@@ -117,9 +116,8 @@ def _remove(kind: str, item_id: int, operations: str | None, vers: int | None) -
         )
     target = None
     if operations == "deplacer":
-        with db.connect() as conn:
+        with db.connection() as conn:
             target = get(conn, vers) if vers is not None and vers != item_id else None
-        conn.close()
         if target is None:
             raise HTTPException(status_code=422, detail=f"{noun} d'arrivée manquant ou inconnu.")
         if target.currency != item.currency:
@@ -130,7 +128,7 @@ def _remove(kind: str, item_id: int, operations: str | None, vers: int | None) -
             )
     backup_before_delete()
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             repository.remove_with_operations(
                 conn, f"{kind}_id", item_id, target.id if target else None
             )
@@ -149,7 +147,7 @@ def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
 
     Chaque ligne cotée du compte est renvoyée, vérifiée si sa quantité est fournie ; une ligne à
     valeur saisie (D-056) n'a pas de quantité à comparer, ses « parts » sont internes à l'app."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         account = repository.get_account(conn, account_id)
         if account is None:
             raise HTTPException(status_code=404, detail="Compte inconnu.")
@@ -161,7 +159,6 @@ def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
             for o in with_transfers(repository.list_operations(conn))
             if o.account_id == account_id
         ]
-    conn.close()
     try:
         positions = compute_positions(ops)
     except PositionError as err:
@@ -212,7 +209,7 @@ def reconcile_account(account_id: int, body: ReconcileIn) -> dict:
 def list_assets() -> list[dict]:
     """Actifs dans l'ordre choisi. `sold_out` : des opérations, mais plus rien de détenu nulle
     part (revendu, transféré hors de l'app) ; « Gérer » les range à part (D-085)."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         operations = repository.list_operations(conn)
         try:
             held = {p.asset_id for p in compute_positions(operations)}
@@ -234,7 +231,7 @@ def reorder_assets(body: OrderIn) -> None:
 @router.post("/api/assets", status_code=201)
 def create_asset(body: AssetIn) -> dict:
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             asset = repository.create_asset(
                 conn,
                 body.name,
@@ -258,7 +255,7 @@ def update_asset(asset_id: int, body: AssetIn, client: HttpClient) -> dict:
     """Corrige un actif (nom, classe, ISIN, ticker...). Nouvelle devise de cotation alors que
     des opérations sont saisies : elles sont converties au taux BCE de leur jour (D-083)."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             asset = repository.get_asset(conn, asset_id)
             if asset is None:
                 raise HTTPException(status_code=404, detail="Actif inconnu.")
@@ -337,9 +334,8 @@ def _valuations_out(conn, asset) -> list[dict]:
 
 @router.get("/api/assets/{asset_id}/valuations")
 def list_asset_valuations(asset_id: int) -> list[dict]:
-    with db.connect() as conn:
+    with db.connection() as conn:
         out = _valuations_out(conn, _manual_asset(conn, asset_id))
-    conn.close()
     return out
 
 
@@ -347,18 +343,17 @@ def list_asset_valuations(asset_id: int) -> list[dict]:
 def save_asset_valuation(asset_id: int, body: ValuationIn) -> list[dict]:
     """Enregistre la valeur de la ligne ce jour-là (remplace celle du même jour)."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             asset = _manual_asset(conn, asset_id)
             valuations.save_valuation(conn, asset, body.value_date, body.value)
             out = _valuations_out(conn, asset)
     except ValueError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
-    conn.close()
     return out
 
 
 @router.delete("/api/assets/{asset_id}/valuations/{value_date}", status_code=204)
 def delete_asset_valuation(asset_id: int, value_date: date) -> None:
-    with db.connect() as conn:
+    with db.connection() as conn:
         if not valuations.delete_valuation(conn, _manual_asset(conn, asset_id), value_date):
             raise HTTPException(status_code=404, detail="Aucune valeur saisie ce jour-là.")

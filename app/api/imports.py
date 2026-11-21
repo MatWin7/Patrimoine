@@ -329,10 +329,9 @@ def _preview_data(body: ImportIn, client: httpx2.Client, progress: Progress = _n
     """Aperçu d'un import : profil reconnu ou correspondance des colonnes, parties du relevé et
     leur compte, lignes avec leur statut, plans d'investissement détectés. Rien n'est enregistré.
     Les lignes ignorées sont résumées par raison, sans leur contenu."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         imp = _read_import(conn, body, client, progress=progress)
         plans = _plan_rows(conn, imp)
-    conn.close()
     ignored = Counter(p.message for p in imp.prepared if p.status == "ignoree")
     return {
         "profile": {"id": imp.profile.ID, "label": imp.profile.LABEL} if imp.profile else None,
@@ -449,7 +448,7 @@ def import_operations(body: ImportIn, client: HttpClient) -> dict:
     """Enregistre les lignes « ok » de l'aperçu, toutes ou aucune (une seule transaction), et
     les plans d'investissement cochés."""
     try:
-        with db.connect() as conn:
+        with db.connection() as conn:
             imp = _read_import(conn, body, client, create=True)
             ready = [p for p in imp.prepared if p.status == "ok"]
             # Ordre chronologique (un export peut lister du plus récent au plus ancien) : les

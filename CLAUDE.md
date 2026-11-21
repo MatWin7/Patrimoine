@@ -51,7 +51,7 @@ app/window.py      fenêtre d'application pywebview (Windows, macOS), repli sur 
 app/console.py     Patrimoine.exe / .app sans console : journal.txt dans le dossier de données par défaut, erreur de démarrage en boîte de dialogue (D-126, D-137)
 app/config.py      lecture de .env (sans écraser l'environnement ; à côté de Patrimoine.exe une fois empaqueté, APP_DIR) ; PRICE_TTL_MINUTES, clé CoinGecko... lus par app/settings.py (.env, puis carte Réglages)
 app/datadir.py     dossier des données hors du code (D-119) : défaut par système, dossier choisi, copie vérifiée de l'ancien data/
-app/db.py          connexion SQLite (PRAGMA foreign_keys=ON à chaque connexion), base du profil de la requête (ContextVar), Decimal, migrations (user_version)
+app/db.py          connexion SQLite (PRAGMA foreign_keys=ON à chaque connexion ; `with db.connection() as conn` la ferme en sortant, jamais `with db.connect()`, D-141), base du profil de la requête (ContextVar), Decimal, migrations (user_version)
 app/profiles.py    profils (D-098) : data/profils.json, une base par profil, code en empreinte scrypt, jetons de session en mémoire
 app/schema.sql     schéma de référence (tables account, asset, operation, price, price_history, fx_rate, benchmark, recurring, target, category_target, watchlist, watchlist_item, defi_line, defi_rate, defi_check, debt, debt_balance, defi_borrow, defi_borrow_flow, defi_borrow_check, defi_reserve)
 app/migrations/    NNN_nom.sql : passage d'une version de schéma à la suivante (app/migrate.py : au lancement, copie vérifiée avant, refus d'une base plus récente, D-120)

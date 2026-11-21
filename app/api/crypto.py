@@ -24,17 +24,15 @@ def crypto_rewards() -> dict:
     airdrops...) par jeton, par type et par mois ; placements (compte, jeton) avec capital,
     taux et revenu estimé ; cryptos qui ne rapportent rien. Hors ligne : seuls les cours et
     taux déjà en base servent."""
-    with db.connect() as conn:
+    with db.connection() as conn:
         defi_sync.safe_sync(conn, date.today())  # intérêts Aave des mois clos (hors ligne)
-    conn.close()
     state = offline_state()
     today = date.today()
     accounts, assets, operations = state["accounts"], state["assets"], state["operations"]
     items = crypto.rewards(operations, accounts, assets, state["fx"])
     asset_ids = {r.asset_id for r in items}
-    with db.connect() as conn:
+    with db.connection() as conn:
         latest = {i: prices.latest_price(conn, i) for i in asset_ids}
-    conn.close()
     prices_eur = {}
     for asset_id, quote in latest.items():
         if quote is not None:
@@ -63,13 +61,12 @@ def crypto_rewards() -> dict:
             convert(p.value, p.currency, "EUR", state["rates"]),
         )
     rates_today = {}
-    with db.connect() as conn:
+    with db.connection() as conn:
         defi_lines = defi_sync.list_lines(conn)
         for line in defi_lines:
             rates = defi_sync.load_rates(conn, line)
             if rates:
                 rates_today[(line.account_id, line.asset_id)] = rates[max(rates)]
-    conn.close()
     found = crypto.placements(
         items, crypto.with_transfers(operations), positions, rates_today, today
     )
@@ -81,9 +78,8 @@ def crypto_rewards() -> dict:
     ]
     totals = crypto.overview(found, idle, items, today)
     lines = {(line.account_id, line.asset_id): line.id for line in defi_lines}
-    with db.connect() as conn:
+    with db.connection() as conn:
         borrowed = borrows_report(conn, today)  # emprunts Aave (D-108) : coût et santé
-    conn.close()
     health = [m["health_factor"] for m in borrowed["markets"] if m["health_factor"] is not None]
     return {
         "overview": {

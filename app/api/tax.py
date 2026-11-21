@@ -260,7 +260,7 @@ def _crypto_tax(state: dict, crypto_ids: set[int], year: int, pfu: Decimal) -> d
     for p in valued:
         current[p.asset_id] = eur(p.last_price, p.currency)
     value = sum((eur(p.value, p.currency) for p in valued), ZERO)
-    with db.connect() as conn:
+    with db.connection() as conn:
 
         def price_on(asset_id: int, day: date) -> Decimal | None:
             close = prices.close_on(conn, asset_id, day)
@@ -270,7 +270,6 @@ def _crypto_tax(state: dict, crypto_ids: set[int], year: int, pfu: Decimal) -> d
         sales, acquisition = tax.crypto_sales(
             ops, rates, price_on, current, state["fx"], internal=crypto_ids
         )
-    conn.close()
     est = tax.crypto_estimate(sales, year, pfu)
     out = tax.crypto_exit(value, acquisition, pfu)
     names = state["assets"]
