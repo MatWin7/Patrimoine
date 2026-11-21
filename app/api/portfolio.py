@@ -470,9 +470,9 @@ def history(client: HttpClient, keep: Filter, inflation_rate: Decimal = Decimal(
     """Valeur des titres et montant investi, en EUR, jour par jour depuis le premier achat.
 
     Les taux et le dernier cours viennent du cache rempli par /api/portfolio, sans autre appel.
-    `invested_eroded` : montant investi moins l'inflation. Indice Eurostat lissé par année
-    civile (D-110) pour les mois publiés, puis `inflation_rate` (% par an, saisi dans la
-    page) au-delà ou en cas de panne.
+    `invested_eroded` : montant investi moins l'inflation. Indice Eurostat suivi au
+    glissement sur 12 mois de chaque mois (D-145) pour les mois publiés, puis `inflation_rate`
+    (% par an, saisi dans la page) au-delà ou en cas de panne.
     """
     if not inflation_rate.is_finite() or not -10 <= inflation_rate <= 30:
         raise HTTPException(status_code=422, detail="Taux d'inflation invalide (-10 à 30 %).")
@@ -481,8 +481,8 @@ def history(client: HttpClient, keep: Filter, inflation_rate: Decimal = Decimal(
     series = value_series(client, keep, placed=True)
     points = series["points"]
     measured, error = prices.inflation_index(client) if points else ({}, None)
-    # Indice lissé (D-110) : la courbe ne remonte pas aux mois de soldes, seulement si les prix
-    # baissent sur une année entière ou si l'investi augmente.
+    # Indice au glissement sur 12 mois (D-145) : la courbe ne remonte pas aux mois de soldes,
+    # seulement si les prix baissent sur un an ou si l'investi augmente.
     smoothed = smooth_index(measured)
     index = extend_index(smoothed, inflation_rate, points[0][0], points[-1][0]) if points else {}
     eroded = eroded_invested([(day, invested) for day, _, invested in points], index, flows=True)
@@ -496,7 +496,7 @@ def history(client: HttpClient, keep: Filter, inflation_rate: Decimal = Decimal(
                 "invested_eroded": money_or_none(e),
                 "gain": money(value - invested),
                 "inflation_loss": None if e is None else money(e - invested),
-                # Taux annuel que suit la courbe ce jour-là, pour l'infobulle (D-112).
+                # Taux que suit la courbe ce jour-là : inflation sur 12 mois du mois (D-112, D-145).
                 "inflation_pct": plain(
                     yearly_inflation(index, day, inflation_rate).quantize(Decimal("0.1"))
                 ),

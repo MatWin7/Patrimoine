@@ -12,6 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Évolution : la courbe « Placé moins l'inflation » suit chaque mois l'inflation officielle sur 12 mois, et l'infobulle affiche ce taux, qui change donc d'un mois à l'autre (D-145).
 - Retouches de l'interface : nouvelle phrase d'accroche et cadenas sur les profils à code, anneau de répartition avec le total au centre, raccourcis de période en noir et blanc (6 mois ajouté), légendes gains/pertes, boutons d'action en bleu plein, type d'une liste de suivi choisi à sa création, « Ajouter des opérations » en deux parties comme Comptes, actions de la fenêtre déplacées dans Réglages > Général, douze couleurs au choix pour un actif (schéma v22).
 - Vue d'ensemble : le chiffre principal s'appelle « Patrimoine financier » et passe d'un clic à
   « Brut » (tout ce qui est détenu) ou « Net » (brut moins les dettes). Le financier laisse de
