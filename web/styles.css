@@ -951,7 +951,7 @@ button.link, button.link-plain, button.icon, button.tip, .segmented button, th b
 .hero-main { display: contents; }
 .hero .hero-head { grid-area: 1 / 1; display: flex; align-items: center; gap: var(--s-2); }
 .hero .hero-head h2 { font-size: var(--t-xl); }
-.hero .big { grid-area: 2 / 1; margin-bottom: 0; }
+.hero .big { grid-area: 2 / 1 / 4 / 2; align-self: center; margin-bottom: 0; }
 /* Sélecteur Financier / Brut / Net : en haut à droite de la carte, sur la ligne du titre. */
 .hero #total-scope { grid-area: 1 / 2; justify-self: end; align-self: start; margin-bottom: var(--s-3); }
 .hero .kpis { grid-area: 2 / 2 / 4 / 3; }

@@ -903,15 +903,14 @@
         </div>
       </form>
       <p id="settings-state" class="small" role="status" hidden></p>
-      <!-- Actions de l'ancienne barre de menu (D-127) : « Recharger » partout, les autres dans la
-           fenêtre de l'app seulement (ouverte avec « ?fenetre »). -->
-      <div id="window-actions" class="card-part">
-        <h3>Page et fenêtre</h3>
+      <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu, ouvert avec « ?fenetre ». -->
+      <div id="window-actions" class="card-part" hidden>
+        <h3>Fenêtre</h3>
         <div class="window-actions">
           <button type="button" data-window="reload">Recharger la page</button>
-          <button type="button" data-window="browser" hidden>Ouvrir dans le navigateur</button>
+          <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
           <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
-          <button type="button" data-window="folder" hidden>Dossier des données</button>
+          <button type="button" data-window="folder">Dossier des données</button>
         </div>
         <p id="window-error" class="ko small" role="alert" hidden></p>
       </div>

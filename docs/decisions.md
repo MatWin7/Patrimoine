@@ -1086,8 +1086,8 @@ Demande de l'utilisateur : un taux d'inflation qui change chaque mois dans l'inf
 
 **Pourquoi / limite** : rien d'autre ne montre alors, d'un coup d'œil, qu'un filtre agit. Le signal restant est l'icône en bleu d'accent sur fond teinté (`.filter-toggle.active`), déjà en place.
 
-## D-147 · 2026-11-21 · Sélecteur du patrimoine en haut à droite, actions « Page et fenêtre » toujours visibles
+## D-147 · 2026-11-21 · Sélecteur du patrimoine en haut à droite, montant principal centré
 
-**Décision.** Le sélecteur Financier / Brut / Net passe en haut à droite de la carte du total, sur la ligne du titre (sous le titre sur mobile). Les actions de l'ancien menu « … » sont dans Réglages > Général, partie « Page et fenêtre » : « Recharger la page » partout, « Ouvrir dans le navigateur », « Dossier des données » et « Zoom à 100 % » (Windows) seulement dans la fenêtre de l'app.
+**Décision.** Le sélecteur Financier / Brut / Net passe en haut à droite de la carte du total, sur la ligne du titre (sous le titre sur mobile), et le montant principal est centré en hauteur face aux tuiles.
 
-**Pourquoi.** Dans le navigateur, la partie réservée à la fenêtre restait entièrement cachée : l'utilisateur ne voyait aucune des actions déplacées.
+**Pourquoi.** Le titre reste en haut à gauche, le sélecteur ne se mélange pas aux tuiles et le gros chiffre s'aligne sur elles.

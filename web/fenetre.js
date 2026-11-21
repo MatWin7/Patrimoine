@@ -1,10 +1,10 @@
-// Actions « Page et fenêtre » de la carte Général de Réglages (D-127) : les actions de l'ancienne
-// barre de menu de la fenêtre (blanche en thème sombre). « Recharger la page » partout ; les autres
-// seulement dans la fenêtre de l'app, ouverte avec « ?fenetre » : le serveur confirme qu'une
-// fenêtre est bien ouverte. Chaque action est une
+// Actions « Fenêtre » de la carte Général de Réglages (D-127) : les actions de l'ancienne barre de menu de
+// la fenêtre (blanche en thème sombre). Seulement dans la fenêtre de l'app, ouverte avec
+// « ?fenetre » ; le serveur confirme qu'une fenêtre est bien ouverte. Chaque action est une
 // route fixe de l'API locale (aucun pont Python exposé à la page, aucun paramètre envoyé).
 // Indépendant de app.js : il reste utilisable sur l'écran de choix du profil ou si app.js plante.
 (() => {
+  if (!new URLSearchParams(location.search).has("fenetre")) return;
   const $ = (id) => document.getElementById(id);
   const panel = $("window-actions");
   const error = $("window-error");
@@ -35,16 +35,13 @@
     }
   }
 
-  panel.querySelector('[data-window="reload"]').addEventListener("click", () => run("reload"));
-  if (!new URLSearchParams(location.search).has("fenetre")) return;
-
   fetch("/api/window")
     .then((res) => (res.ok ? res.json() : {}))
     .then((info) => {
       if (!info.window) return;
-      for (const name of ["browser", "folder"]) panel.querySelector(`[data-window="${name}"]`).hidden = false;
       panel.querySelector('[data-window="zoom"]').hidden = !info.zoom;
-      panel.querySelectorAll("[data-window]:not([data-window=reload])").forEach((button) => {
+      panel.hidden = false;
+      panel.querySelectorAll("[data-window]").forEach((button) => {
         button.addEventListener("click", () => run(button.dataset.window));
       });
     })

@@ -12,7 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
-- Vue d'ensemble : le sélecteur Financier / Brut / Net est en haut à droite de la carte. Réglages > Général : « Recharger la page » est toujours affiché, les actions de la fenêtre (navigateur, dossier, zoom) seulement dans la fenêtre de l'app.
+- Vue d'ensemble : le sélecteur Financier / Brut / Net est en haut à droite de la carte, le montant principal est centré en hauteur (D-147).
 - Filtre des lignes : l'icône de la barre du haut n'a plus de pastille ; le détail reste dans son infobulle (D-146).
 - Évolution : la courbe « Placé moins l'inflation » suit chaque mois l'inflation officielle sur 12 mois, et l'infobulle affiche ce taux, qui change donc d'un mois à l'autre (D-145).
 - Retouches de l'interface : nouvelle phrase d'accroche et cadenas sur les profils à code, anneau de répartition avec le total au centre, raccourcis de période en noir et blanc (6 mois ajouté), légendes gains/pertes, boutons d'action en bleu plein, type d'une liste de suivi choisi à sa création, « Ajouter des opérations » en deux parties comme Comptes, actions de la fenêtre déplacées dans Réglages > Général, douze couleurs au choix pour un actif (schéma v22).
