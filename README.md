@@ -91,9 +91,11 @@ l'icône fonctionnent :
 Si macOS dit que l'app est **endommagée**, ne la lancez pas : le fichier a été abîmé ou modifié en
 route. Retéléchargez-le et vérifiez son empreinte.
 
-**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : glisser la nouvelle version dans
-Applications et accepter de remplacer l'ancienne ; vos données restent où elles sont. Quittez
-l'ancienne version avant (Cmd+Q). Si la nouvelle ne s'ouvre pas, voir l'icône qui rebondit plus haut.
+**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** :
+quitter l'ancienne version (Cmd+Q), la mettre à la corbeille et **vider la corbeille**, puis glisser
+la nouvelle dans Applications. Vos données ne sont pas dans l'app : elles restent où elles sont.
+Évitez « Remplacer » : macOS peut alors bloquer la nouvelle version, dont l'icône rebondit dans
+le Dock sans s'ouvrir (parade plus haut si c'est déjà arrivé).
 
 ## Où sont vos données
 
