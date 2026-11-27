@@ -61,6 +61,7 @@ jobs:
           version="$(uv run python -m app.version)"
           test "$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")" = "$version"
           test "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.matwin7.patrimoine
+          [[ "$(plutil -extract CFBundleVersion raw "$app/Contents/Info.plist")" =~ ^[0-9]{10}$ ]] # numéro de build unique (D-152)
           test "$(plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw "$app/Contents/Info.plist")" = true
           if plutil -extract NSAppTransportSecurity.NSAllowsArbitraryLoads raw "$app/Contents/Info.plist" 2>/dev/null; then
             echo "Chargements http arbitraires permis" >&2; exit 1
