@@ -15,6 +15,7 @@
 # (app/console.py). Fichier Python lu par PyInstaller, qui fournit Analysis, PYZ, EXE et COLLECT.
 import re
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent  # noqa: F821 : SPECPATH est fourni par PyInstaller
@@ -130,7 +131,10 @@ if MAC:
             "CFBundleName": "Patrimoine",
             "CFBundleDisplayName": "Patrimoine",
             "CFBundleShortVersionString": ".".join(VERSION.groups()),
-            "CFBundleVersion": ".".join(VERSION.groups()),
+            # Numéro de build propre à chaque construction (secondes depuis 1970, toujours
+            # croissant) : avec le même numéro, deux builds de la même version passent pour la même
+            # app aux yeux de macOS, et « Remplacer » bloque le lancement de la nouvelle (D-152).
+            "CFBundleVersion": str(time.time_ns() // 1_000_000_000),
             "CFBundleDevelopmentRegion": "fr",
             "LSApplicationCategoryType": "public.app-category.finance",
             "LSMinimumSystemVersion": "12.0",

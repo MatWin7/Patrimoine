@@ -78,11 +78,22 @@ fait la même chose (elle retire la marque « téléchargé d'Internet » de l'a
 xattr -dr com.apple.quarantine /Applications/Patrimoine.app
 ```
 
+Si l'icône rebondit dans le Dock sans qu'aucune fenêtre ne s'ouvre, l'app n'a pas démarré :
+macOS bloque son lancement (vu en remplaçant un ancien build de test, au même numéro de build).
+Forcez-la à quitter (clic droit sur l'icône du Dock, **Forcer à quitter**), puis lancez-la une
+fois depuis le Terminal ; les lancements suivants par l'icône fonctionnent :
+
+```bash
+/Applications/Patrimoine.app/Contents/MacOS/Patrimoine
+```
+
 Si macOS dit que l'app est **endommagée**, ne la lancez pas : le fichier a été abîmé ou modifié en
 route. Retéléchargez-le et vérifiez son empreinte.
 
-**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : glisser la nouvelle version dans
-Applications et accepter de remplacer l'ancienne ; vos données restent où elles sont.
+**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : quitter l'app (Cmd+Q), glisser la
+nouvelle version dans Applications et accepter de remplacer l'ancienne ; vos données restent où
+elles sont. N'utilisez pas un « désinstalleur » (CCleaner, AppCleaner...) : il effacerait aussi le
+dossier de vos données.
 
 ## Où sont vos données
 

@@ -12,6 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Mac : une nouvelle version remplace l'ancienne sans bloquer (l'icône rebondissait dans le Dock sans fenêtre) : chaque build porte son propre numéro ; parade dans le README pour les anciennes versions (D-152).
 - Retouches : messages d'erreur en français, qui disent quoi faire ; Entrée passe au champ suivant et valide le formulaire au dernier ; cadenas sur la ligne du profil protégé dans le menu du profil ; boutons de la fenêtre dans la carte Aide ; les douze couleurs dans la démo, sur ses douze plus grosses lignes (D-151) ; Mac : double flèche et croix plus grandes, sans contour bleu, listes de même hauteur que les champs (D-150).
 - Graphiques : au survol, le carré de couleur de chaque valeur est plein, sans contour, sur tous les graphiques ; un clic sur le graphique Plus/moins-values l'agrandit ; le titre du total indique « (filtre actif) » au lieu de « des lignes cochées » (D-149).
 - Corrections : le total au centre du camembert suit le choix Financier / Brut / Net ; les dates de Performance et de Comparaison se limitent à la période qui a des données, et une date impossible revient à la dernière valide ; un bouton bloqué ne montre plus le sablier (« Importer ») ; les champs d'un formulaire restent alignés et de même hauteur (D-148).

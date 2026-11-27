@@ -1132,3 +1132,14 @@ Série de retouches demandée par James (fil 3 sur 3 de la liste du 27/11, aprè
 
 **Pourquoi.** Ce sont les grosses parts du camembert qu'on voit : une démo qui les laissait en couleur automatique (grise pour le rang 8 et au-delà, D-051) montrait mal le choix de couleur.
 
+## D-152 · 2026-11-27 · Mac : un numéro de build par construction, pour que « Remplacer » ne bloque plus
+
+**Constat.** Sur le Mac de James (puce Apple), après avoir glissé un nouveau build de test sur l'ancien (« Remplacer ») et passé « Ouvrir quand même », l'icône rebondit dans le Dock sans fenêtre. `journal.txt` n'a aucune ligne pour ces essais et aucun processus ne reste (`pgrep` vide) : le programme n'a jamais démarré, ni le lanceur, ni le verrou d'instance, ni la page ne sont en cause. Le premier .dmg installé s'était ouvert sans souci ; la CI ne voit pas le cas (rien n'y est remplacé ni téléchargé). Débloquent : un lancement direct de `Contents/MacOS/Patrimoine` depuis le Terminal, ou une suppression complète par un désinstalleur (CCleaner) ; la corbeille vidée seule ne suffit pas.
+
+**Cause.** `CFBundleVersion` (Info.plist) valait `0.1.0` pour tous les builds : même identifiant, même numéro, même chemin, mais contenu et signature ad hoc différents, et macOS refuse de lancer la nouvelle copie. Vérifié par essai : deux builds de la branche à numéros différents, le second glissé avec « Remplacer » sur le premier déjà lancé, s'ouvre.
+
+**Choix.** `CFBundleVersion` = numéro de build propre à chaque construction (secondes depuis 1970, entier croissant, dans `packaging/patrimoine.spec`), contrôlé par `app-macos.yml` ; `CFBundleShortVersionString` reste la version affichée. README : « Remplacer » est la façon de mettre à jour ; parade du Terminal gardée pour les anciens builds ; les désinstalleurs sont déconseillés, car ils effacent aussi `~/Library/Application Support/Patrimoine` (données et sauvegardes, constaté avec CCleaner sur la démo).
+
+**Écartés.** Notarisation (99 $ par an, aucune dépense) ; certificat auto-signé stable (inutile ici, à revoir si le cas revient) ; mise à jour par la corbeille (ne suffisait pas).
+
+**Non vérifié.** Un seul essai de remplacement ; une vraie montée de version (0.1.0 vers 0.2.0) le confirmera. Idée notée, hors de cette décision : copie des sauvegardes dans un dossier visible par défaut sur Mac (BACKUP_COPY_DIR, D-114).
