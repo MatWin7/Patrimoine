@@ -79,7 +79,7 @@ xattr -dr com.apple.quarantine /Applications/Patrimoine.app
 ```
 
 Si l'icône rebondit dans le Dock sans qu'aucune fenêtre ne s'ouvre, l'app n'a pas démarré :
-macOS bloque son lancement (vu en remplaçant une version d'avant novembre 2026 par une autre).
+macOS bloque son lancement (vu en remplaçant un ancien build de test, au même numéro de build).
 Forcez-la à quitter (clic droit sur l'icône du Dock, **Forcer à quitter**), puis lancez-la une
 fois depuis le Terminal ; les lancements suivants par l'icône fonctionnent :
 
