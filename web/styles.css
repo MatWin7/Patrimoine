@@ -281,6 +281,12 @@ input, select, textarea {
   background: var(--field); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-2) var(--s-3);
   box-shadow: var(--shadow-xs);
 }
+/* Liste déroulante (D-150) : sur Mac (WebKit), le dessin natif d'une liste ignore la hauteur et le
+   remplissage, d'où des listes plus fines que les champs de saisie. « menulist-button » garde la
+   flèche du système mais laisse la hauteur au CSS ; les autres moteurs le traitent comme « auto ».
+   La hauteur minimale commune (--control, y compris les listes « inline » des barres d'outils) vient
+   de la règle « min-height » plus bas. */
+select { -webkit-appearance: menulist-button; appearance: menulist-button; box-sizing: border-box; }
 input:hover, select:hover, textarea:hover { border-color: var(--border-strong); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); box-shadow: none; }
@@ -471,6 +477,11 @@ label.inline select { padding: var(--s-2) var(--s-2); font: inherit; font-size: 
 /* Bouton icône (⤢ agrandir, ✕ fermer) dans l'en-tête d'une carte */
 button.icon { padding: var(--s-1) var(--s-2); font-size: var(--t-md); line-height: 1.4; color: var(--text-2); align-self: center; background: none; box-shadow: none; }
 button.icon:hover { color: var(--text); background: var(--hover); }
+/* Croix et double flèche dessinées en SVG (D-150) : le caractère « ⤢ » ou « ✕ » vient d'une police de
+   secours, minuscule sur Mac. Au clavier, le repère est un fond (comme au survol), pas un contour bleu. */
+button.icon { display: inline-flex; align-items: center; justify-content: center; }
+button.icon .ic { width: 22px; height: 22px; }
+button.icon:focus-visible { outline: none; color: var(--text); background: var(--hover); }
 
 /* Fenêtre « agrandir » (élément <dialog> natif) */
 dialog#zoom {
@@ -845,14 +856,19 @@ button.tip[hidden] { display: none; }
 .profile-toggle:hover { background: var(--control-hover); }
 .profile-toggle .avatar { width: 28px; height: 28px; }
 .profile-panel { width: min(360px, calc(100vw - 32px)); }
-/* Actions « Fenêtre » (D-127), dans la carte Général de Réglages. */
-.window-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-#window-actions > p { margin: var(--s-3) 0 0; }
+/* Actions « Fenêtre » (D-127), à la suite des boutons de la carte Aide (D-150). */
+.window-actions { display: contents; }
+.window-actions[hidden] { display: none; }
+#window-error { margin: var(--s-3) 0 0; }
 .profile-panel > button { width: 100%; }
 .profile-others-title { margin: 0 0 var(--s-2); font-size: var(--t-md); }
 .profile-others { display: flex; flex-direction: column; gap: var(--s-1); margin-bottom: var(--s-3); }
 .picker-profile-row { display: flex; align-items: center; gap: var(--s-3); width: 100%; text-align: left; }
 .picker-profile-row .muted { margin-left: auto; }
+/* Dans la liste du bouton de profil, le cadenas suit la ligne (à droite du nom) au lieu de se poser sur le coin du panneau. */
+.picker-profile-row .picker-lock { position: static; flex: none; margin-left: auto; }
+.profile-open label { display: flex; flex-direction: row; align-items: center; gap: var(--s-2); white-space: nowrap; }
+.profile-open label input { flex: 1; min-width: 0; }
 .profile-open { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .crop-dialog { width: min(320px, calc(100vw - 32px)); }
 .crop-dialog canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; margin: var(--s-3) 0; border-radius: var(--radius); background: var(--surface-2); cursor: grab; touch-action: none; }

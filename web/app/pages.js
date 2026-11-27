@@ -266,11 +266,11 @@ async function refresh(force = false) {
   // Après le portefeuille : la courbe finit au cours qui vient d'être mis en cache.
   refreshHistory()
     .catch((err) => {
-      $("history-status").textContent = `Évolution indisponible : ${err.message}`;
+      $("history-status").textContent = `Évolution indisponible : ${frenchError(err.message)}`;
     })
     .then(() => refreshPerformance()) // après l'historique : les clôtures sont déjà à jour
     .catch((err) => {
-      $("perf-status").textContent = `Performance indisponible : ${err.message}`;
+      $("perf-status").textContent = `Performance indisponible : ${frenchError(err.message)}`;
     })
     .then(loadPage); // page ouverte (calendrier, comparaison...) mise à jour elle aussi
 }

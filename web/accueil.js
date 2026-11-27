@@ -13,13 +13,13 @@
   let state = null;
 
   function showError(text) {
-    $("fond-error").textContent = text;
+    $("fond-error").textContent = text ? frenchError(text) : "";
     $("fond-error").hidden = !text;
   }
 
   function showState(text, ok = true) {
     const el = $("accueil-state");
-    el.textContent = text;
+    el.textContent = ok || !text ? text : frenchError(text);
     el.className = `small ${ok ? "ok" : "ko"}`;
     el.hidden = !text;
   }

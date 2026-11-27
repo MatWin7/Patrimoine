@@ -41,7 +41,7 @@ async function refreshBenchmark() {
   try {
     data = await api(`/api/benchmark?${params}`);
   } catch (err) {
-    $("bench-status").textContent = `Comparaison indisponible : ${err.message}`;
+    $("bench-status").textContent = `Comparaison indisponible : ${frenchError(err.message)}`;
     $("bench-kpis").replaceChildren();
     return;
   }

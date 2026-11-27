@@ -460,8 +460,12 @@ def reglages(b: Builder) -> None:
         ("Fonds retraite fictif", "Retraite"),
     ]:
         repository.set_asset_category(conn, lines[name].asset.id, category)
-    for name, color in [("ETF Monde fictif", 1), ("ETF S&P 500 fictif", 3), ("Banque Alpha", 5)]:
-        conn.execute("UPDATE asset SET color = ? WHERE id = ?", (color, lines[name].asset.id))
+    # Les douze couleurs de la palette (D-150) : les douze premières lignes une couleur chacune,
+    # les autres restent en couleur automatique (D-052).
+    for color, (asset_id,) in enumerate(
+        conn.execute("SELECT id FROM asset ORDER BY id LIMIT 12").fetchall(), start=1
+    ):
+        conn.execute("UPDATE asset SET color = ? WHERE id = ?", (color, asset_id))
     targets = {"ETF Monde fictif": "45", "ETF Émergents fictif": "10", "ETF S&P 500 fictif": "20"}
     repository.save_targets(conn, {lines[n].asset.id: D(p) for n, p in targets.items()})
     repository.save_category_targets(conn, {"Monde": D("50"), "États-Unis": D("20"),

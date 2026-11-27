@@ -11,13 +11,18 @@
   async function send(path, { method = "POST", body, raw, json = true } = {}) {
     const headers = raw ? { "Content-Type": "application/octet-stream" } : { ...JSON_HEADERS };
     if (window.patrimoineProfile) headers["X-Profile-Id"] = window.patrimoineProfile.id;
-    const res = await fetch(path, { method, headers, body: raw ?? (body === undefined ? undefined : JSON.stringify(body)) });
+    let res;
+    try {
+      res = await fetch(path, { method, headers, body: raw ?? (body === undefined ? undefined : JSON.stringify(body)) });
+    } catch {
+      throw new Error(SERVER_DOWN);
+    }
     if (res.ok) return res.status === 204 || !json ? res : res.json();
     let detail = "Action impossible pour l'instant.";
     try {
       const data = await res.json();
-      if (typeof data.detail === "string") detail = data.detail;
-      else if (Array.isArray(data.detail)) detail = data.detail.map((e) => e.msg).join(" ; ");
+      if (typeof data.detail === "string") detail = frenchError(data.detail);
+      else if (Array.isArray(data.detail)) detail = data.detail.map((e) => frenchError(e.msg)).join(" ; ");
     } catch {
       // réponse en texte (refus du serveur) : message générique
     }
@@ -27,7 +32,7 @@
   const call = (path, body) => send(path, { body: body ?? {} });
 
   function showError(el, text) {
-    el.textContent = text;
+    el.textContent = text ? frenchError(text) : "";
     el.hidden = !text;
   }
 

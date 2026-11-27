@@ -91,7 +91,8 @@ def test_saisie_et_reglages(client):
     assert len(client.get("/api/watchlists").json()) == 2
     assets = client.get("/api/assets").json()
     assert any(a.get("sold_out") for a in assets)  # ligne vendue entièrement
-    assert any(a.get("color") for a in assets)
+    colors = {a.get("color") for a in assets if a.get("color")}
+    assert colors == set(range(1, 13))  # les douze couleurs de la palette (D-150)
 
 
 def test_rien_ne_sort_pour_les_lignes_de_la_demo(db_file):

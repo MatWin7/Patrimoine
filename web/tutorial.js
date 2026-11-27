@@ -119,7 +119,7 @@
             store.set("sessionStorage", RESUME_KEY, "1");
             location.reload(); // la page repart sur le nouveau profil, puis reprend à l'étape 2
           } catch (err) {
-            error.textContent = err.message;
+            error.textContent = frenchError(err.message);
             error.hidden = false;
           }
         });
@@ -131,7 +131,7 @@
             await api(`/api/profiles/${encodeURIComponent(created.id)}/open`, { method: "POST", body: "{}" });
             location.reload();
           } catch (err) {
-            error.textContent = err.message;
+            error.textContent = frenchError(err.message);
             error.hidden = false;
           }
         });
