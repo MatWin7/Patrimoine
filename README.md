@@ -1,10 +1,12 @@
 # Patrimoine
 
-Un tableau de bord **local** pour suivre son patrimoine financier : actions et ETF, crypto,
-assurance-vie, PER, livrets, immobilier, et tout ce qui n'a pas de cours public (valeur saisie à
-la main). Sans compte, sans abonnement, sans cloud : vos données restent sur votre ordinateur,
-comme un coffre KeePass.
+**Patrimoine est un logiciel libre et gratuit de suivi de patrimoine financier, 100 % local et en
+lecture seule** : actions et ETF, crypto, assurance-vie, PER, livrets, immobilier, et tout ce qui
+n'a pas de cours public (valeur saisie à la main). Alternative privée aux agrégateurs en ligne :
+sans compte, sans abonnement, sans cloud, vos données restent sur votre ordinateur, comme un coffre
+KeePass. Pour Windows, macOS et Linux, en français.
 
+![Vue d'ensemble de Patrimoine sur le profil de démonstration (données fictives)](docs/images/apercu.png)
 - **Lecture seule** : Patrimoine ne passe aucun ordre et ne se connecte à aucune banque, aucun
   courtier, aucune plateforme. Vous saisissez ou importez (CSV) vos opérations.
 - **Local** : une base SQLite dans votre dossier utilisateur. Aucun montant, aucune quantité,

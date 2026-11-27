@@ -18,7 +18,7 @@ from decimal import ROUND_DOWN, Decimal
 
 from app import defi_sync, prices, repository, valuations
 from app.models import Account, Asset
-from app.portfolio import compute_positions
+from app.portfolio import compute_positions, convert
 from app.providers import Price
 
 D = Decimal
@@ -460,11 +460,23 @@ def reglages(b: Builder) -> None:
         ("Fonds retraite fictif", "Retraite"),
     ]:
         repository.set_asset_category(conn, lines[name].asset.id, category)
-    # Les douze couleurs de la palette (D-150) : les douze premières lignes une couleur chacune,
-    # les autres restent en couleur automatique (D-052).
-    for color, (asset_id,) in enumerate(
-        conn.execute("SELECT id FROM asset ORDER BY id LIMIT 12").fetchall(), start=1
-    ):
+    # Les douze couleurs de la palette (D-150, D-151) : une par ligne, aux douze plus grosses
+    # lignes d'abord (celles qui se voient sur le camembert) ; les autres restent en couleur
+    # automatique (D-052).
+    rates = {"EUR": D(1)}
+    for row in conn.execute(
+        "SELECT currency, rate FROM fx_rate ORDER BY rate_date"
+    ).fetchall():  # le dernier taux de chaque devise
+        rates[row["currency"]] = D(row["rate"])
+    value_by_asset: dict[int, Decimal] = {}
+    for p in compute_positions(repository.list_operations(conn)):
+        quote = prices.latest_price(conn, p.asset_id)
+        price, currency = (quote.price, quote.currency) if quote else (p.last_price, p.currency)
+        value = convert(p.quantity * price, currency, "EUR", rates)
+        if value is not None:
+            value_by_asset[p.asset_id] = value_by_asset.get(p.asset_id, D(0)) + value
+    biggest = sorted(value_by_asset, key=lambda i: value_by_asset[i], reverse=True)[:12]
+    for color, asset_id in enumerate(biggest, start=1):
         conn.execute("UPDATE asset SET color = ? WHERE id = ?", (color, asset_id))
     targets = {"ETF Monde fictif": "45", "ETF Émergents fictif": "10", "ETF S&P 500 fictif": "20"}
     repository.save_targets(conn, {lines[n].asset.id: D(p) for n, p in targets.items()})

@@ -1125,3 +1125,10 @@ Série de retouches demandée par James (fil 3 sur 3 de la liste du 27/11, aprè
 - **Touche Entrée** (`web/entree.js`) : dans un champ d'une ligne d'un formulaire, passe au champ suivant ; sur le dernier, envoie le formulaire (`requestSubmit`, donc les contrôles du navigateur jouent). Hors formulaire (seuil d'alerte, dates de Performance, recherche), elle valide en quittant le champ. Les zones de texte multilignes gardent le retour à la ligne ; `data-enter="native"` rend à un champ le comportement du navigateur.
 - **Mac.** (1) Le double flèche « ⤢ » et la croix « ✕ » étaient des caractères tirés d'une police de secours, minuscules sur Mac : ce sont maintenant des icônes SVG (Lucide, comme le reste, D-133) de 22 px. (2) Au clavier, le repère du bouton est un fond comme au survol, plus le contour bleu (la croix d'une fenêtre reçoit le focus à l'ouverture). (3) Listes déroulantes : `appearance: menulist-button`, qui garde la flèche du système mais laisse la hauteur (`--control`, `--field-h`) au CSS ; les listes « inline » des barres d'outils ont la même hauteur minimale que les champs en ligne.
 - **Non vérifié** : le rendu sous Mac (WebKit) n'a pas pu être essayé dans le conteneur ; seuls Chromium et la logique ont été vérifiés.
+
+## D-151 · 2026-11-27 · Démo : les couleurs vont aux douze plus grosses lignes
+
+**Décision.** `app/demo_complet.py` pose les douze couleurs de la palette (D-142, D-150) sur les douze lignes de plus grande valeur en EUR (cours du jour de la démo, lignes d'un même actif sur plusieurs comptes additionnées), la plus grosse en couleur 1. Avant, elles allaient aux douze premiers actifs créés. Les autres lignes restent en couleur automatique (D-052). `tests/test_demo_complet.py` vérifie que les douze plus grosses positions ont une couleur.
+
+**Pourquoi.** Ce sont les grosses parts du camembert qu'on voit : une démo qui les laissait en couleur automatique (grise pour le rang 8 et au-delà, D-051) montrait mal le choix de couleur.
+
