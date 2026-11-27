@@ -78,10 +78,11 @@ fait la même chose (elle retire la marque « téléchargé d'Internet » de l'a
 xattr -dr com.apple.quarantine /Applications/Patrimoine.app
 ```
 
-Si, après **Ouvrir quand même**, l'icône rebondit dans le Dock sans qu'aucune fenêtre ne
-s'ouvre, macOS est encore en train de vérifier l'app (elle n'a pas démarré). Quittez-la (clic
-droit sur l'icône du Dock, **Forcer à quitter**), puis lancez-la une fois depuis le Terminal ;
-les lancements suivants par l'icône fonctionnent :
+Si l'icône rebondit dans le Dock sans qu'aucune fenêtre ne s'ouvre (vu après le remplacement
+d'une version par une autre), l'app n'a pas démarré : macOS bloque son lancement. Attendez une
+minute ; si l'icône rebondit toujours, forcez-la à quitter (clic droit sur l'icône du Dock,
+**Forcer à quitter**), puis lancez-la une fois depuis le Terminal. Les lancements suivants par
+l'icône fonctionnent :
 
 ```bash
 /Applications/Patrimoine.app/Contents/MacOS/Patrimoine
@@ -91,7 +92,8 @@ Si macOS dit que l'app est **endommagée**, ne la lancez pas : le fichier a ét�
 route. Retéléchargez-le et vérifiez son empreinte.
 
 **Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : glisser la nouvelle version dans
-Applications et accepter de remplacer l'ancienne ; vos données restent où elles sont.
+Applications et accepter de remplacer l'ancienne ; vos données restent où elles sont. Quittez
+l'ancienne version avant (Cmd+Q). Si la nouvelle ne s'ouvre pas, voir l'icône qui rebondit plus haut.
 
 ## Où sont vos données
 
