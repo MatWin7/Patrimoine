@@ -133,3 +133,25 @@ def test_filtre_par_compte_et_par_ligne(db_file):
         first = client.get("/api/history", params={"exclude_account": pea}).json()["points"][0]
         assert first["invested"] == "100.00"
         assert client.get("/api/portfolio", params={"exclude_line": "1;2"}).status_code == 422
+
+
+def test_dates_hors_des_donnees(db_file):
+    """Une date sans données compte comme absente (D-148) : une date gardée pour un ancien
+    profil ne laisse plus la carte vide. Les bornes du calendrier sont renvoyées."""
+    with TestClient(app) as client:
+        deux_lignes(client)
+
+        def perf(**params):
+            return client.get("/api/performance", params={"period": "day", **params})
+
+        normal = perf().json()
+        today = normal["end"]
+        assert normal["bounds"] == {"min": "2025-06-02", "max": today}
+        assert normal["start"] == "2025-06-02"
+        for params in [{"start": "2099-01-01"}, {"start": "2001-01-01"}, {"end": "2001-01-01"}]:
+            data = perf(**params).json()
+            assert (data["start"], data["end"]) == ("2025-06-02", today), params
+        # Une période à l'envers reste refusée : c'est une erreur de saisie, pas une date périmée.
+        assert perf(start="2025-06-03", end="2025-06-02").status_code == 422
+        bench = client.get("/api/benchmark", params={"rate": "2", "start": "2099-01-01"}).json()
+        assert (bench["start"], bench["bounds"]["min"]) == ("2025-06-02", "2025-06-02")

@@ -59,11 +59,14 @@ function syncPerfControls(data) {
   for (const b of document.querySelectorAll("[data-period]")) b.classList.toggle("active", b.dataset.period === perf.period);
   for (const b of document.querySelectorAll("[data-preset]")) b.classList.toggle("active", b.dataset.preset === perf.preset);
   for (const b of document.querySelectorAll("[data-perf-chart]")) b.classList.toggle("active", b.dataset.perfChart === perf.chart);
+  if (data) boundDates($("perf-start"), $("perf-end"), data.bounds);
   $("perf-start").value = data?.start ?? perf.start ?? "";
   $("perf-end").value = data?.end ?? perf.end ?? "";
 }
 
 async function refreshPerformance() {
+  // Période gardée à l'envers (ancien réglage) : on repart de « Depuis le début ».
+  if (!perf.preset && perf.start && perf.end && perf.start > perf.end) Object.assign(perf, { preset: "all", start: null, end: null });
   const params = new URLSearchParams({ period: perf.period });
   const start = perf.preset ? presetStart(perf.preset) : perf.start;
   if (start) params.set("start", start);
@@ -71,6 +74,12 @@ async function refreshPerformance() {
   addExclude(params);
   $("perf-csv").href = `/api/performance.csv?${params}`; // même découpage, mêmes dates
   const data = await api(`/api/performance?${params}`);
+  // Dates choisies à la main : on garde celles que le serveur a retenues, ramenées dans la
+  // période qui a des données (D-148), pour ne pas redemander une date sans données.
+  if (!perf.preset && data.start && (data.start !== perf.start || data.end !== perf.end)) {
+    Object.assign(perf, { start: data.start, end: data.end });
+    savePerf();
+  }
   renderPerformance(data);
 }
 

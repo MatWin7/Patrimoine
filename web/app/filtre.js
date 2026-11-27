@@ -179,11 +179,7 @@ for (const b of document.querySelectorAll("[data-perf-chart]")) {
     if (lastPerformance) renderPerformance(lastPerformance);
   });
 }
-for (const id of ["perf-start", "perf-end"]) {
-  $(id).addEventListener("change", () =>
-    changePerf({ preset: null, start: $("perf-start").value || null, end: $("perf-end").value || null }),
-  );
-}
+watchDates($("perf-start"), $("perf-end"), () => lastPerformance, (dates) => changePerf({ preset: null, ...dates }));
 syncPerfControls(null);
 
 // --- Alerte de variation du jour ------------------------------------------------------

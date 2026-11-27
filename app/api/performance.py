@@ -40,13 +40,22 @@ Period = Literal["day", "week", "month", "year"]
 
 
 def _range(series: dict, start: date | None, end: date | None) -> tuple[date, date]:
-    """Bornes de l'analyse : du premier jour connu à aujourd'hui par défaut."""
-    first_day = series["points"][0][0]
-    start = max(start or first_day, first_day)
-    end = min(end or series["today"], series["today"])
+    """Bornes de l'analyse : du premier jour connu à aujourd'hui par défaut. Une date hors de
+    cette période compte comme absente (D-148) : une date gardée par le navigateur pour un
+    ancien profil, ou après aujourd'hui, ne réduit plus l'analyse à un jour sans données."""
+    first_day, today = series["points"][0][0], series["today"]
+    if start is None or not first_day <= start <= today:
+        start = first_day
+    if end is None or not first_day <= end <= today:
+        end = today
     if start > end:
         raise HTTPException(status_code=422, detail="La date de début est après la date de fin.")
     return start, end
+
+
+def _bounds(series: dict) -> dict:
+    """Jours qu'on peut choisir dans « Depuis le / Jusqu'au » : ceux qui ont des données."""
+    return {"min": series["points"][0][0].isoformat(), "max": series["today"].isoformat()}
 
 
 def _performance_data(client: httpx2.Client, period: str, start, end, keep=NO_FILTER) -> dict:
@@ -59,7 +68,7 @@ def _performance_data(client: httpx2.Client, period: str, start, end, keep=NO_FI
     flows, income = series_flows(series)
     results = performance(points, flows, period, start, end, income)
     daily = performance(points, flows, "day", start, end, income)
-    out |= {"start": start.isoformat(), "end": end.isoformat()}
+    out |= {"start": start.isoformat(), "end": end.isoformat(), "bounds": _bounds(series)}
     if not results:
         return out
     last = results[-1]
@@ -233,6 +242,7 @@ def benchmark(
         "currency": currency,
         "start": start.isoformat(),
         "end": end.isoformat(),
+        "bounds": _bounds(series),
         "points": [
             {"date": d.isoformat(), "portfolio": money(mine[d]), "benchmark": money(simulated[d])}
             for d in rows

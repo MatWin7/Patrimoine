@@ -20,6 +20,7 @@ function syncBenchControls() {
   $("bench-rate").value = bench.rate;
 }
 
+let lastBenchDates = null; // dates de la dernière comparaison affichée, donc valides (D-148)
 const benchCustom = () => ({ ticker: bench.custom, rate: bench.rate });
 
 async function refreshBenchmark() {
@@ -32,6 +33,7 @@ async function refreshBenchmark() {
   }
   const params = addExclude(new URLSearchParams(ref));
   renderFilterButton();
+  if (bench.start && bench.end && bench.start > bench.end) Object.assign(bench, { start: null, end: null }); // ancien réglage à l'envers
   if (bench.start) params.set("start", bench.start);
   if (bench.end) params.set("end", bench.end);
   $("bench-status").textContent = "Chargement…";
@@ -43,6 +45,14 @@ async function refreshBenchmark() {
     $("bench-kpis").replaceChildren();
     return;
   }
+  lastBenchDates = { start: data.start, end: data.end };
+  // Date choisie ramenée par le serveur dans la période qui a des données : on garde la sienne.
+  if (data.start && ((bench.start && bench.start !== data.start) || (bench.end && bench.end !== data.end))) {
+    if (bench.start) bench.start = data.start;
+    if (bench.end) bench.end = data.end;
+    savePref(BENCH_KEY, bench);
+  }
+  boundDates($("bench-start"), $("bench-end"), data.bounds);
   $("bench-start").value = data.start ?? "";
   $("bench-end").value = data.end ?? "";
   const s = data.summary;
@@ -115,8 +125,7 @@ function changeBench(update) {
 $("bench-select").addEventListener("change", (e) => changeBench({ choice: e.target.value }));
 $("bench-custom").addEventListener("change", (e) => changeBench({ custom: e.target.value }));
 $("bench-rate").addEventListener("change", (e) => changeBench({ rate: e.target.value }));
-$("bench-start").addEventListener("change", (e) => changeBench({ start: e.target.value || null }));
-$("bench-end").addEventListener("change", (e) => changeBench({ end: e.target.value || null }));
+watchDates($("bench-start"), $("bench-end"), () => lastBenchDates, changeBench);
 // « Ajouter à la liste » : le ticker ou le livret saisi rejoint la liste, puis y est choisi.
 $("bench-save").addEventListener("click", async () => {
   const livret = bench.choice === "livret";

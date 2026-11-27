@@ -637,6 +637,7 @@ $("import-cancel").addEventListener("click", () => $("dlg-import").close());
 $("import-go").addEventListener("click", async () => {
   const button = $("import-go");
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   setProgress(null, "Enregistrement");
   try {
     const result = await api("/api/import", { method: "POST", body: importBody() });
@@ -654,6 +655,7 @@ $("import-go").addEventListener("click", async () => {
     showMessage(err.message, true);
     button.disabled = false;
   } finally {
+    button.removeAttribute("aria-busy");
     hideProgress();
   }
 });

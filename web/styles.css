@@ -51,6 +51,7 @@
   /* Arrondis : un rayon de base (champs, boutons), décliné vers le petit et vers le grand. */
   --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --radius: 10px; --r-lg: 16px; --r-xl: 24px;
   --control: 36px;
+  --field-h: 40px; /* champ de formulaire sous son libellé : texte, date, liste (D-148) */
   /* Marge de page, et fond de la barre du haut : translucide, la page défile dessous, floutée. */
   --page-pad: clamp(16px, 2.5vw, 32px);
   --bar-bg: color-mix(in srgb, var(--bg) 55%, transparent);
@@ -268,6 +269,13 @@ tr.cash-row td { color: var(--text-2); }
 form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--s-4); }
 label { display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--t-sm); color: var(--text-2); }
 label.wide { grid-column: 1 / -1; }
+/* Champ sous son libellé (D-148) : collé au bas de sa case, et listes, dates et textes à la même
+   hauteur. Dans une rangée de champs (grille ou flex), un libellé qui passe sur deux lignes ne
+   décale plus son champ, et une liste n'est plus plus fine qu'un champ de saisie. */
+label:not(.check, .inline, .crop-zoom) > :is(input:not([type="checkbox"], [type="radio"]), select, textarea) { margin-top: auto; }
+label:not(.check, .inline, .crop-zoom) > :is(select, input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"])) {
+  box-sizing: border-box; height: var(--field-h);
+}
 input, select, textarea {
   font: inherit; font-size: var(--t-md); color: var(--text);
   background: var(--field); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s-2) var(--s-3);
@@ -288,7 +296,11 @@ button, a.button {
 button:hover, a.button:hover { background: var(--control-hover); }
 a.button { display: inline-flex; align-items: center; }
 button:active:not(:disabled, .link, .link-plain, .icon, .tip, .sort, .drag-handle) { scale: 0.97; }
-button:disabled { opacity: 0.6; cursor: progress; }
+/* Bouton bloqué : interdit ; « sablier » seulement pendant une demande en cours (aria-busy, ou
+   fenêtre d'import en lecture). Avant, tout bouton bloqué montrait le sablier, même quand il
+   attendait seulement une saisie (« Importer » vide) : la souris semblait charger sans fin. */
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+button[aria-busy="true"], .busy button:disabled { cursor: progress; }
 @media (prefers-reduced-motion: reduce) { button, a.button { transition: none; } button:active { scale: none !important; } }
 /* Champ non modifiable (réglage fixé par .env, D-130 ; « Vers » sans autre compte) : grisé. */
 input:disabled, select:disabled { background: var(--surface-2); color: var(--text-3); cursor: not-allowed; box-shadow: none; }
