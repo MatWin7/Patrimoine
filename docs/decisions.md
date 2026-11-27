@@ -1103,3 +1103,13 @@ Demande de l'utilisateur : un taux d'inflation qui change chaque mois dans l'inf
 **Pourquoi.** Une date gardée pour un ancien profil laissait la carte vide (erreur « début après la fin »). Le navigateur annonce un changement à chaque chiffre tapé de l'année (0002, 0020...) : refuser au changement aurait effacé la saisie en cours, d'où le refus à la sortie du champ. `button:disabled { cursor: progress }` donnait le sablier à tout bouton bloqué, dont « Importer » qui attend seulement des lignes : la souris semblait charger sans fin. Le greffon du total gardait le montant de son premier dessin, car `drawChart` remplace les données et options, pas les greffons.
 
 **Limite.** La saisie au clavier dans un champ date n'a pas pu être essayée à la main (navigateur sans écran) : vérifié par remplissage du champ, pas frappe par frappe sur Windows ni Mac.
+
+## D-149 · 2026-11-27 · Carrés pleins dans les infobulles des graphiques, clic pour agrandir Plus/moins-values
+
+- Infobulles : le carré de couleur à côté de chaque valeur est plein, de la couleur de la série, sans contour. Un seul réglage commun (`tooltipSwatch` dans `web/app/graphiques.js`, posé par `chartTheme()` sur `Chart.defaults.plugins.tooltip`), donc tous les graphiques en profitent : Évolution, camembert, Plus/moins-values, Projection, Comparaison, Performance, Revenus, Crypto, carte du portefeuille. Un nouveau graphique n'a rien à ajouter.
+- Plus/moins-values latentes : le bouton ⤢ et la fenêtre « agrandir » existaient déjà ; un clic sur le graphique ouvre la même fenêtre (`gainsConfig(lines, horizontal, onPick)`, curseur « main » au survol). Pas de clic dans la fenêtre agrandie.
+- Vue d'ensemble : « des lignes cochées » remplacé par « (filtre actif) » à côté du titre du total (une seule occurrence dans l'interface).
+
+**Pourquoi.** Chart.js dessine le carré avec le trait de la courbe (ou la bordure d'une part, ici la couleur du fond) en contour, un liseré blanc (`multiKeyBackground`) et le remplissage 1 px à l'intérieur : d'où un cadre. Pour un rendu plein, le liseré est transparent et le trait fait 3 px pour recouvrir l'interstice avec le remplissage. Pour une courbe, la couleur est celle du trait ; pour une barre ou une part, celle du remplissage.
+
+**Limite.** Rendu vérifié dans Chromium (clair/sombre non comparés au pixel près) ; WebView2 et WebKit (macOS) n'ont pas été essayés.

@@ -12,6 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Graphiques : au survol, le carré de couleur de chaque valeur est plein, sans contour, sur tous les graphiques ; un clic sur le graphique Plus/moins-values l'agrandit ; le titre du total indique « (filtre actif) » au lieu de « des lignes cochées » (D-149).
 - Corrections : le total au centre du camembert suit le choix Financier / Brut / Net ; les dates de Performance et de Comparaison se limitent à la période qui a des données, et une date impossible revient à la dernière valide ; un bouton bloqué ne montre plus le sablier (« Importer ») ; les champs d'un formulaire restent alignés et de même hauteur (D-148).
 - Vue d'ensemble : le sélecteur Financier / Brut / Net est en haut à droite de la carte, le montant principal est centré en hauteur (D-147).
 - Filtre des lignes : l'icône de la barre du haut n'a plus de pastille ; le détail reste dans son infobulle (D-146).
