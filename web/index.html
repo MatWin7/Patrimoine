@@ -18,6 +18,8 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></symbol>
+  <symbol id="i-maximize-2" viewBox="0 0 24 24"><path d="M15 3h6v6"/> <path d="m21 3-7 7"/> <path d="m3 21 7-7"/> <path d="M9 21H3v-6"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 5h16"/> <path d="M4 12h16"/> <path d="M4 19h16"/></symbol>
 </svg>
@@ -82,7 +84,7 @@
   <div id="filter-panel" class="filter-panel" popover aria-labelledby="filter-panel-title">
     <div class="card-head">
       <h2 id="filter-panel-title">Lignes prises en compte <button type="button" class="tip" data-tip="Un compte se retire en entier, espèces comprises ; une ligne, de ce compte seulement. Suivi par Vue d'ensemble, Performance, Visualisations et Projection ; Positions, Revenus, Allocation cible et Fiscalité restent complets." aria-label="Plus d'infos">?</button></h2>
-      <button type="button" class="icon" popovertarget="filter-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
+      <button type="button" class="icon" popovertarget="filter-panel" popovertargetaction="hide" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <p class="muted small">Clique sur un compte ou une ligne pour le retirer.</p>
     <div id="line-filter"></div>
@@ -91,7 +93,7 @@
   <div id="profile-panel" class="filter-panel profile-panel" popover aria-labelledby="profile-panel-title">
     <div class="card-head">
       <h2 id="profile-panel-title">Profil</h2>
-      <button type="button" class="icon" popovertarget="profile-panel" popovertargetaction="hide" aria-label="Fermer">✕</button>
+      <button type="button" class="icon" popovertarget="profile-panel" popovertargetaction="hide" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <div class="profile-photo">
       <span class="avatar" id="profile-photo-preview" aria-hidden="true"></span>
@@ -130,7 +132,7 @@
 
   <!-- Avis (D-133) : en bas à gauche de l'écran, par-dessus la page, sans la décaler. -->
   <div id="notices" class="notices">
-  <p id="demo-banner" class="notice" hidden>Profil Démo : données fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button> <button type="button" id="demo-banner-close" class="icon" aria-label="Masquer cet avis">✕</button></p>
+  <p id="demo-banner" class="notice" hidden>Profil Démo : données fictives. <button type="button" id="demo-leave" class="link-plain">Créer mon profil</button> <button type="button" id="demo-banner-close" class="icon" aria-label="Masquer cet avis"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></p>
   <!-- Avis de mise à jour (D-129) : question posée une fois, puis bandeau quand une version sort. -->
   <p id="update-ask" class="notice" hidden>Prévenir quand une nouvelle version de Patrimoine sort ? <button type="button" class="tip" data-tip="Une fois par jour au plus, l'app demande à GitHub le numéro de la dernière version publiée. Rien d'autre ne part : ni montant, ni compte, ni version ; GitHub voit l'adresse IP, comme pour toute page web. Rien n'est téléchargé ni installé : tu choisis de télécharger. Modifiable dans Réglages." aria-label="Plus d'infos">?</button> <button type="button" class="link-plain" data-updates="yes">Oui</button> <button type="button" class="link-plain" data-updates="no">Non</button></p>
   <p id="update-banner" class="notice" hidden>Patrimoine <span id="update-latest"></span> est disponible (version actuelle <span id="update-current"></span>). <a id="update-link" class="link-plain" target="_blank" rel="noopener noreferrer">Voir la version</a> <button type="button" id="update-later" class="link-plain">Plus tard</button></p>
@@ -142,11 +144,11 @@
   <div id="toasts" popover="manual">
   <div id="message" class="toast" role="status" hidden>
     <span data-text></span>
-    <button type="button" class="icon" data-close-toast aria-label="Fermer le message">✕</button>
+    <button type="button" class="icon" data-close-toast aria-label="Fermer le message"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   <div id="alert" class="toast warn" role="alert" hidden>
     <span data-text></span>
-    <button type="button" class="icon" data-close-toast aria-label="Fermer l'alerte jusqu'à demain">✕</button>
+    <button type="button" class="icon" data-close-toast aria-label="Fermer l'alerte jusqu'à demain"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   </div>
 
@@ -185,7 +187,7 @@
     <section class="card half" data-card="repartition">
       <div class="card-head">
         <h2>Répartition</h2>
-        <button type="button" class="icon" data-zoom="allocation" aria-label="Agrandir la répartition" title="Agrandir et voir le détail">⤢</button>
+        <button type="button" class="icon" data-zoom="allocation" aria-label="Agrandir la répartition" title="Agrandir et voir le détail"><svg class="ic" aria-hidden="true"><use href="#i-maximize-2"/></svg></button>
       </div>
       <div class="segmented group-by" id="group-by" role="group" aria-label="Regrouper par">
         <button type="button" data-group="ligne">Ligne</button>
@@ -200,7 +202,7 @@
     <section class="card half" data-card="plus-values-latentes">
       <div class="card-head">
         <h2>Plus/moins-values latentes</h2>
-        <button type="button" class="icon" data-zoom="gains" aria-label="Agrandir les plus et moins-values" title="Agrandir">⤢</button>
+        <button type="button" class="icon" data-zoom="gains" aria-label="Agrandir les plus et moins-values" title="Agrandir"><svg class="ic" aria-hidden="true"><use href="#i-maximize-2"/></svg></button>
       </div>
       <div class="chart"><canvas id="chart-gains" aria-label="Plus-value latente par position"></canvas></div>
       <p class="muted small" id="gains-note" hidden></p>
@@ -903,17 +905,6 @@
         </div>
       </form>
       <p id="settings-state" class="small" role="status" hidden></p>
-      <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu, ouvert avec « ?fenetre ». -->
-      <div id="window-actions" class="card-part" hidden>
-        <h3>Fenêtre</h3>
-        <div class="window-actions">
-          <button type="button" data-window="reload">Recharger la page</button>
-          <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
-          <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
-          <button type="button" data-window="folder">Dossier des données</button>
-        </div>
-        <p id="window-error" class="ko small" role="alert" hidden></p>
-      </div>
     </section>
     <section class="card half" data-card="alertes-et-mises-a-jour">
       <div class="card-head"><h2>Alertes et mises à jour</h2></div>
@@ -940,9 +931,17 @@
       <div id="how-blocks" class="how-grid"></div>
       <div class="help-actions" id="card-report">
         <button type="button" id="tutorial-open">Revoir le tutoriel</button>
+        <!-- Fenêtre de l'app seulement (D-127) : actions de l'ancienne barre de menu, ouvert avec « ?fenetre ». -->
+        <span id="window-actions" class="window-actions" hidden>
+          <button type="button" data-window="reload">Recharger la page</button>
+          <button type="button" data-window="browser">Ouvrir dans le navigateur</button>
+          <button type="button" data-window="zoom" hidden>Zoom à 100 %</button>
+          <button type="button" data-window="folder">Dossier des données</button>
+        </span>
         <button type="button" data-outbound-open>Ce qui sort de cet ordinateur</button>
         <span class="help-report"><button type="button" data-diagnostic-open>Copier le diagnostic</button><button type="button" class="tip" data-tip="Le diagnostic dit ce qui tourne sur cet ordinateur : version, système, état des bases et des sauvegardes, services joints, dernières erreurs. Jamais de montant, de nom, de ticker ni de chemin. Rien ne part tout seul : tu le relis, puis tu le colles toi-même dans ton signalement sur GitHub (compte GitHub gratuit nécessaire)." aria-label="Plus d'infos">?</button></span>
       </div>
+      <p id="window-error" class="ko small" role="alert" hidden></p>
     </section>
   </div>
 
@@ -986,7 +985,7 @@
   <dialog id="zoom" aria-labelledby="zoom-title">
     <div class="card-head">
       <h2 id="zoom-title"></h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <div class="presets" id="zoom-chips" role="group" aria-label="Détail affiché"></div>
     <div class="zoom-body"><div class="chart" id="zoom-chart"><canvas id="chart-zoom"></canvas></div></div>
@@ -996,7 +995,7 @@
   <dialog id="dlg-crop" class="form-dialog crop-dialog" aria-labelledby="crop-title">
     <div class="card-head">
       <h2 id="crop-title">Recadrer la photo</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <canvas id="crop-canvas" width="256" height="256" aria-label="Zone de la photo à garder : glisse pour la déplacer"></canvas>
     <label class="crop-zoom">Zoom <input id="crop-zoom" type="range" min="1" max="4" step="0.01" value="1"></label>
@@ -1009,7 +1008,7 @@
   <dialog id="dlg-ask" class="form-dialog ask-dialog" aria-labelledby="ask-title">
     <div class="card-head">
       <h2 id="ask-title"></h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-ask">
       <p id="ask-detail" class="muted small" hidden></p>
@@ -1025,7 +1024,7 @@
   <dialog id="dlg-import" class="form-dialog import-dialog" aria-labelledby="dlg-import-title">
     <div class="card-head">
       <h2 id="dlg-import-title">Importer</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <div id="import-progress" class="import-progress" role="status" hidden>
       <div class="import-progress-track"><div class="import-progress-bar"></div></div>
@@ -1082,7 +1081,7 @@
   <dialog id="dlg-list" class="form-dialog wide-dialog" aria-labelledby="dlg-list-title">
     <div class="card-head">
       <h2 id="dlg-list-title">Indices et livrets</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <p class="muted small">Liste commune à Performance et Visualisations. <button type="button" class="tip" data-tip="Un indice se compare grâce à son ticker Yahoo (vérifiable sur finance.yahoo.com/quote/TICKER) ; un livret grâce à son taux annuel, calculé sur ta machine." aria-label="Plus d'infos">?</button></p>
     <div class="table-scroll"><table><tbody id="list-rows"></tbody></table></div>
@@ -1107,7 +1106,7 @@
   <dialog id="dlg-operation" class="form-dialog" aria-labelledby="dlg-operation-title">
     <div class="card-head">
       <h2 id="dlg-operation-title">Modifier l'opération</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <div id="edit-operation"></div>
   </dialog>
@@ -1115,7 +1114,7 @@
   <dialog id="dlg-account" class="form-dialog" aria-labelledby="dlg-account-title">
     <div class="card-head">
       <h2 id="dlg-account-title">Compte</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-account">
       <label>Nom <input name="name" required placeholder="PEA"></label>
@@ -1163,7 +1162,7 @@
   <dialog id="dlg-tutorial" class="form-dialog tutorial" aria-labelledby="tutorial-title">
     <div class="card-head">
       <h2 id="tutorial-title">Tutoriel</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <p id="tutorial-step"></p>
     <p id="tutorial-text"></p>
@@ -1173,7 +1172,7 @@
   <dialog id="dlg-outbound" class="form-dialog wide-dialog outbound" aria-labelledby="outbound-title">
     <div class="card-head">
       <h2 id="outbound-title">Ce qui sort de cet ordinateur</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <p><span id="outbound-never"></span> <button type="button" class="tip" id="outbound-seen" aria-label="Plus d'infos">?</button></p>
     <div class="table-scroll"><table id="outbound-table">
@@ -1187,7 +1186,7 @@
   <dialog id="dlg-diagnostic" class="form-dialog wide-dialog diagnostic" aria-labelledby="diagnostic-title">
     <div class="card-head">
       <h2 id="diagnostic-title">Diagnostic</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <p>Ni montant, ni nom, ni chemin : relis-le avant de le partager. <button type="button" class="tip" data-tip="Tailles par tranche (« 10 à 99 opérations »), erreurs sans leur message (il peut citer un chemin ou une valeur), services joints sans les tickers demandés. Le texte reste ici tant que tu ne le colles pas ailleurs. Un signalement sur GitHub est public : pas de capture de tes vraies données, le profil Démo suffit." aria-label="Plus d'infos">?</button></p>
     <textarea id="diagnostic-text" readonly rows="14" spellcheck="false" aria-label="Texte du diagnostic"></textarea>
@@ -1201,7 +1200,7 @@
   <dialog id="dlg-debt" class="form-dialog" aria-labelledby="dlg-debt-title">
     <div class="card-head">
       <h2 id="dlg-debt-title">Dette</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-debt">
       <label>Nom <input name="name" required placeholder="Crédit résidence principale"></label>
@@ -1226,7 +1225,7 @@
   <dialog id="dlg-debt-balance" class="form-dialog" aria-labelledby="dlg-debt-balance-title">
     <div class="card-head">
       <h2 id="dlg-debt-balance-title">Capital restant dû</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-debt-balance">
       <label>Capital restant dû <input name="balance" inputmode="decimal" required placeholder="185000"></label>
@@ -1240,7 +1239,7 @@
   <dialog id="dlg-recurring" class="form-dialog" aria-labelledby="dlg-recurring-title">
     <div class="card-head">
       <h2 id="dlg-recurring-title">Achat programmé</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-recurring">
       <label>Compte <select name="account_id" required></select></label>
@@ -1276,7 +1275,7 @@
   <dialog id="dlg-asset" class="form-dialog" aria-labelledby="dlg-asset-title">
     <div class="card-head">
       <h2 id="dlg-asset-title">Actif</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-asset">
       <label>Classe
@@ -1335,7 +1334,7 @@
   <dialog id="dlg-delete" class="form-dialog" aria-labelledby="dlg-delete-title">
     <div class="card-head">
       <h2 id="dlg-delete-title">Supprimer</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-delete">
       <p class="wide delete-warning" id="delete-warning" role="alert"></p>
@@ -1355,7 +1354,7 @@
   <dialog id="dlg-reconcile" class="form-dialog wide-dialog" aria-labelledby="dlg-reconcile-title">
     <div class="card-head">
       <h2 id="dlg-reconcile-title">Vérifier</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-reconcile">
       <p class="muted small wide">Recopie ce qu'affiche ta banque : l'app compare à son calcul, rien n'est enregistré. Un champ vide n'est pas vérifié.</p>
@@ -1373,7 +1372,7 @@
   <dialog id="dlg-valuation" class="form-dialog" aria-labelledby="dlg-valuation-title">
     <div class="card-head">
       <h2 id="dlg-valuation-title">Valeur</h2>
-      <button type="button" class="icon" data-close aria-label="Fermer">✕</button>
+      <button type="button" class="icon" data-close aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <form id="form-valuation">
       <label>Date <input name="value_date" type="date" required></label>
@@ -1390,6 +1389,9 @@
   <script src="tips.js"></script>
   <!-- Tout de suite : relève les erreurs de la page dès le chargement (D-132), sans app.js. -->
   <script src="diagnostic.js"></script>
+  <!-- Avant profiles.js : traduction des messages d'erreur en français et touche Entrée dans les champs (D-150). -->
+  <script src="erreurs.js"></script>
+  <script src="entree.js"></script>
   <!-- Avant profiles.js et sans app.js : le bouton « Fenêtre » marche même si la page plante. -->
   <script src="fenetre.js"></script>
   <!-- Avant profiles.js : fond et mot d'accueil posés avant l'écran de choix du profil (D-134). -->

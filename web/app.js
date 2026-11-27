@@ -53,7 +53,7 @@ let messageTimer;
 
 function showMessage(text, isError = false) {
   const el = $("message");
-  el.querySelector("[data-text]").textContent = text;
+  el.querySelector("[data-text]").textContent = isError ? frenchError(text) : text;
   el.className = isError ? "toast ko" : "toast ok";
   el.hidden = false;
   syncToasts();
@@ -144,17 +144,26 @@ function checkProfile(res) {
 }
 
 async function api(path, options = {}) {
-  const res = await fetch(path, { headers: profileHeaders(), ...options });
+  let res;
+  try {
+    res = await fetch(path, { headers: profileHeaders(), ...options });
+  } catch {
+    throw new Error(SERVER_DOWN);
+  }
   checkProfile(res);
   if (res.status === 204) return null;
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
-    // FastAPI renvoie soit un texte, soit une liste d'erreurs de validation.
-    const detail = Array.isArray(data.detail)
-      ? data.detail.map((e) => `${e.loc.at(-1)} : ${e.msg}`).join(" ; ")
-      : data.detail;
-    throw new Error(detail);
+    // FastAPI renvoie soit un texte, soit une liste d'erreurs de validation (un message par champ).
+    const detail = Array.isArray(data?.detail)
+      ? data.detail.map((e) => {
+        const reason = frenchError(e.msg);
+        return e.loc?.length > 1 ? `${fieldLabel(e.loc.at(-1))} : ${reason}` : reason;
+      }).join(" ; ")
+      : data?.detail;
+    throw new Error(frenchError(detail || `Erreur du serveur (code ${res.status}).`));
   }
+  if (data === null) throw new Error(frenchError("Unexpected token"));
   return data;
 }
 

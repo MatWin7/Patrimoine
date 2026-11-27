@@ -1,4 +1,4 @@
-// Actions « Fenêtre » de la carte Général de Réglages (D-127) : les actions de l'ancienne barre de menu de
+// Actions « Fenêtre » de la carte Aide de Réglages (D-127) : les actions de l'ancienne barre de menu de
 // la fenêtre (blanche en thème sombre). Seulement dans la fenêtre de l'app, ouverte avec
 // « ?fenetre » ; le serveur confirme qu'une fenêtre est bien ouverte. Chaque action est une
 // route fixe de l'API locale (aucun pont Python exposé à la page, aucun paramètre envoyé).
