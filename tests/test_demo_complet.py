@@ -93,6 +93,13 @@ def test_saisie_et_reglages(client):
     assert any(a.get("sold_out") for a in assets)  # ligne vendue entièrement
     colors = {a.get("color") for a in assets if a.get("color")}
     assert colors == set(range(1, 13))  # les douze couleurs de la palette (D-150)
+    # Elles vont aux douze plus grosses lignes (D-151), pas aux douze premières créées.
+    value: dict[int, float] = {}
+    for p in client.get("/api/portfolio").json()["positions"]:
+        value[p["asset_id"]] = value.get(p["asset_id"], 0) + float(p["value_eur"] or 0)
+    biggest = sorted(value, key=value.get, reverse=True)[:12]
+    by_id = {a["id"]: a for a in assets}
+    assert all(by_id[i].get("color") for i in biggest)
 
 
 def test_rien_ne_sort_pour_les_lignes_de_la_demo(db_file):
