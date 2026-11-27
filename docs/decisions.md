@@ -1091,3 +1091,15 @@ Demande de l'utilisateur : un taux d'inflation qui change chaque mois dans l'inf
 **Décision.** Le sélecteur Financier / Brut / Net passe en haut à droite de la carte du total, sur la ligne du titre (sous le titre sur mobile), et le montant principal est centré en hauteur face aux tuiles.
 
 **Pourquoi.** Le titre reste en haut à gauche, le sélecteur ne se mélange pas aux tuiles et le gros chiffre s'aligne sur elles.
+
+## D-148 · 2026-11-27 · Dates de Performance bornées, champs de formulaire alignés, curseur des boutons bloqués
+
+**Décision.**
+- « Depuis le / Jusqu'au » (Performance et Comparaison) : le serveur renvoie `bounds` (premier jour qui a des données, aujourd'hui) et le calendrier s'y limite (`min`, `max`). Une date impossible (31 février, saisie incomplète), hors de ces bornes ou une période à l'envers est refusée à la sortie du champ : les deux champs reviennent aux dates de la dernière réponse, avec un message. Côté serveur, une date hors bornes compte comme absente (du début, ou jusqu'à aujourd'hui) au lieu de réduire l'analyse à un jour ; la date retenue remplace celle gardée dans le navigateur.
+- Champ de formulaire sous son libellé : collé au bas de sa case (`margin-top: auto`) et d'une hauteur commune `--field-h` (40 px) pour les listes, dates et textes. Un libellé sur deux lignes (« Actif (ISIN, ticker ou nom) » dans « Coller depuis un tableur ») ne décale plus le champ.
+- Bouton bloqué : curseur « interdit » ; le sablier seulement pendant une demande (`aria-busy="true"`, ou fenêtre d'import en lecture).
+- Camembert de Vue d'ensemble : le total du centre passe par les options du graphique (`plugins.centerTotal`), remplacées à chaque mise à jour ; en patrimoine net, le centre affiche « Net » et le même montant que le titre.
+
+**Pourquoi.** Une date gardée pour un ancien profil laissait la carte vide (erreur « début après la fin »). Le navigateur annonce un changement à chaque chiffre tapé de l'année (0002, 0020...) : refuser au changement aurait effacé la saisie en cours, d'où le refus à la sortie du champ. `button:disabled { cursor: progress }` donnait le sablier à tout bouton bloqué, dont « Importer » qui attend seulement des lignes : la souris semblait charger sans fin. Le greffon du total gardait le montant de son premier dessin, car `drawChart` remplace les données et options, pas les greffons.
+
+**Limite.** La saisie au clavier dans un champ date n'a pas pu être essayée à la main (navigateur sans écran) : vérifié par remplissage du champ, pas frappe par frappe sur Windows ni Mac.

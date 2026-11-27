@@ -62,12 +62,14 @@ $("update-later").addEventListener("click", () => {
 });
 $("updates-check").addEventListener("click", async (event) => {
   event.target.disabled = true;
+  event.target.setAttribute("aria-busy", "true");
   try {
     renderUpdates(await api("/api/updates/check", { method: "POST" }));
   } catch (err) {
     showMessage(err.message, true);
   } finally {
     event.target.disabled = false;
+    event.target.removeAttribute("aria-busy");
   }
 });
 

@@ -156,14 +156,18 @@ const lineLegend = {
 
 // Camembert : parts en EUR, pourcentage repris dans la légende (« ETF · 82,5 % »).
 // `colorOf` donne la couleur d'une part ; `onPick` (facultatif) reçoit le libellé cliqué.
-// Le total des parts s'écrit au centre de l'anneau (greffon propre à ce graphique).
-function doughnutConfig(parts, colorOf, onPick) {
+// Le total s'écrit au centre de l'anneau (greffon propre à ce graphique) : celui des parts,
+// ou `center` ({ label, value }) quand le chiffre à montrer est autre (patrimoine net).
+// Il passe par les options : drawChart remplace les options à chaque mise à jour, pas les
+// greffons, qui gardaient sinon le total du premier dessin.
+function doughnutConfig(parts, colorOf, onPick, center = null) {
   const total = parts.reduce((sum, p) => sum + Number(p.value), 0);
   const centerTotal = {
     id: "centerTotal",
     afterDraw(chart) {
       const { ctx, chartArea: a } = chart;
-      if (!a) return;
+      const shown = chart.options.plugins.centerTotal;
+      if (!a || !shown) return;
       const x = (a.left + a.right) / 2;
       const y = (a.top + a.bottom) / 2;
       const size = Math.max(11, Math.min(26, (a.right - a.left) / 9));
@@ -172,10 +176,10 @@ function doughnutConfig(parts, colorOf, onPick) {
       ctx.textBaseline = "middle";
       ctx.fillStyle = css("--text-3");
       ctx.font = `500 ${Math.round(size * 0.55)}px ${Chart.defaults.font.family}`;
-      ctx.fillText("Total", x, y - size * 0.7);
+      ctx.fillText(shown.label, x, y - size * 0.7);
       ctx.fillStyle = css("--text");
       ctx.font = `600 ${Math.round(size)}px ${Chart.defaults.font.family}`;
-      ctx.fillText(euros.format(total), x, y + size * 0.4);
+      ctx.fillText(euros.format(shown.value), x, y + size * 0.4);
       ctx.restore();
     },
   };
@@ -203,6 +207,7 @@ function doughnutConfig(parts, colorOf, onPick) {
         event.native.target.style.cursor = onPick && elements.length ? "pointer" : "default";
       },
       plugins: {
+        centerTotal: center ?? { label: "Total", value: total },
         legend: { position: isNarrow() ? "bottom" : "right", labels: { padding: 10, font: { size: 13 }, boxWidth: 10, boxHeight: 10 } },
         tooltip: {
           callbacks: {
@@ -304,7 +309,9 @@ function renderCharts(portfolio) {
   const by = groupPref.by;
   for (const b of $("group-by").querySelectorAll("button")) b.classList.toggle("active", b.dataset.group === by);
   const parts = groupedParts(portfolio, by);
-  drawChart("chart-allocation", doughnutConfig(parts, (p) => partColor(by, p.label), (label) => pickPart(by, label)));
+  // Patrimoine net : l'anneau montre ce que tu possèdes, le centre le même total que le titre.
+  const center = portfolio.scope === "net" && portfolio.scopes ? { label: "Net", value: Number(portfolio.scopes.net) } : null;
+  drawChart("chart-allocation", doughnutConfig(parts, (p) => partColor(by, p.label), (label) => pickPart(by, label), center));
   const others = portfolio.groupings?.[by]?.others ?? 0;
   $("allocation-note").textContent = others
     ? `Les ${others} plus petites ${GROUP_NAMES[by][1]} sont regroupées dans « Autres » : clique dessus pour tout voir.`

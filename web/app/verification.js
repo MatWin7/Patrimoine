@@ -402,6 +402,7 @@ $("asset-find-ticker").addEventListener("click", async (event) => {
   }
   const currency = form.currency.value.trim().toUpperCase() || "EUR";
   event.target.disabled = true;
+  event.target.setAttribute("aria-busy", "true");
   try {
     const data = await api(`/api/tickers?${new URLSearchParams({ isin, currency })}`);
     const label = document.createElement("span");
@@ -422,6 +423,7 @@ $("asset-find-ticker").addEventListener("click", async (event) => {
     showMessage(err.message, true);
   } finally {
     event.target.disabled = false;
+    event.target.removeAttribute("aria-busy");
   }
 });
 
@@ -445,11 +447,13 @@ for (const button of document.querySelectorAll("[data-test-quote]")) {
 $("refresh-prices").addEventListener("click", async () => {
   const button = $("refresh-prices"); // event.target peut être la flèche à l'intérieur
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   try {
     await refresh(true);
   } catch (err) {
     showMessage(err.message, true);
   } finally {
     button.disabled = false;
+    button.removeAttribute("aria-busy");
   }
 });

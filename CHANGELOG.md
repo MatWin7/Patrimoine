@@ -12,6 +12,7 @@ la page de la release sur GitHub.
 
 ### Application
 
+- Corrections : le total au centre du camembert suit le choix Financier / Brut / Net ; les dates de Performance et de Comparaison se limitent à la période qui a des données, et une date impossible revient à la dernière valide ; un bouton bloqué ne montre plus le sablier (« Importer ») ; les champs d'un formulaire restent alignés et de même hauteur (D-148).
 - Vue d'ensemble : le sélecteur Financier / Brut / Net est en haut à droite de la carte, le montant principal est centré en hauteur (D-147).
 - Filtre des lignes : l'icône de la barre du haut n'a plus de pastille ; le détail reste dans son infobulle (D-146).
 - Évolution : la courbe « Placé moins l'inflation » suit chaque mois l'inflation officielle sur 12 mois, et l'infobulle affiche ce taux, qui change donc d'un mois à l'autre (D-145).

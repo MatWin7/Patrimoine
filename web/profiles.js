@@ -537,6 +537,7 @@
       if (!file) return;
       const button = restore.querySelector("button[type=submit]");
       button.disabled = true;
+      button.setAttribute("aria-busy", "true");
       try {
         await send(`/api/profiles/restore?name=${encodeURIComponent(restore.name.value)}`, { raw: await file.arrayBuffer() });
         location.reload();
@@ -544,6 +545,7 @@
         showError($("profile-restore-error"), err.message);
       } finally {
         button.disabled = false;
+        button.removeAttribute("aria-busy");
       }
     });
   }

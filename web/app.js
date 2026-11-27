@@ -61,6 +61,48 @@ function showMessage(text, isError = false) {
   messageTimer = setTimeout(() => hideToast(el), isError ? MESSAGE_DELAY.error : MESSAGE_DELAY.ok);
 }
 
+// Champs « Depuis le / Jusqu'au » (Performance, Comparaison, D-148). `bounds` ({ min, max },
+// renvoyé par le serveur) borne le calendrier aux jours qui ont des données. Pendant la frappe,
+// le navigateur annonce un changement à chaque chiffre de l'année (0002, 0020, 0202...) : une
+// date impossible ou hors bornes n'est donc refusée qu'à la sortie du champ, où les deux champs
+// reviennent à `last()` (dates de la dernière réponse, donc valides). Une date valide part tout
+// de suite dans `apply({ start, end })` ; un champ vidé vaut « sans limite ».
+function boundDates(startInput, endInput, bounds) {
+  for (const input of [startInput, endInput]) {
+    input.min = bounds?.min ?? "";
+    input.max = bounds?.max ?? "";
+  }
+}
+
+function watchDates(startInput, endInput, last, apply) {
+  const bad = (input) => input.validity.badInput || input.validity.rangeUnderflow || input.validity.rangeOverflow;
+  const read = () => {
+    const start = startInput.value || null;
+    const end = endInput.value || null;
+    const ok = !bad(startInput) && !bad(endInput) && !(start && end && start > end);
+    return ok ? { start, end } : null;
+  };
+  const same = (a, b) => a && b && a.start === b.start && a.end === b.end;
+  for (const input of [startInput, endInput]) {
+    input.addEventListener("change", () => {
+      const dates = read();
+      if (dates && !same(dates, last())) apply(dates); // déjà affichées : rien à redemander
+    });
+    input.addEventListener("blur", () => {
+      if (read()) return;
+      const inverted = !bad(startInput) && !bad(endInput);
+      const previous = last();
+      startInput.value = previous?.start ?? "";
+      endInput.value = previous?.end ?? "";
+      const day = (iso) => iso.split("-").reverse().join("/");
+      const span = startInput.min && startInput.max ? ` : choisis entre le ${day(startInput.min)} et le ${day(startInput.max)}` : "";
+      showMessage(inverted
+        ? "La date de début est après la date de fin : dates précédentes remises."
+        : `Date impossible ou sans données${span}. Dates précédentes remises.`, true);
+    });
+  }
+}
+
 // Le cadre des messages est un « popover » : il s'affiche dans la couche du dessus, comme les
 // fenêtres. Le rouvrir le replace au-dessus d'une fenêtre ouverte entre-temps.
 function syncToasts() {
