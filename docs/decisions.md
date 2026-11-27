@@ -1132,3 +1132,8 @@ Série de retouches demandée par James (fil 3 sur 3 de la liste du 27/11, aprè
 
 **Pourquoi.** Ce sont les grosses parts du camembert qu'on voit : une démo qui les laissait en couleur automatique (grise pour le rang 8 et au-delà, D-051) montrait mal le choix de couleur.
 
+## D-152 · 2026-11-27 · Mac : icône qui rebondit sans fenêtre au premier lancement
+
+Constaté sur un Mac à puce Apple avec le .dmg construit sur main (PR #28) : après « Ouvrir quand même » et le mot de passe, l'icône rebondit dans le Dock, aucune fenêtre. Le journal (`journal.txt`) n'a aucune ligne pour ces essais : le programme n'a jamais démarré, donc ni le lanceur, ni le verrou d'instance, ni la page ne sont en cause (aucun processus restant, `pgrep` vide). Un lancement direct du binaire depuis le Terminal (`Contents/MacOS/Patrimoine`) a démarré l'app, et l'icône marche depuis. Cause probable, non prouvée : la vérification de macOS (quarantaine, Gatekeeper) d'une app signée ad hoc, qui compte des centaines de fichiers, bloquée au lancement par LaunchServices ; la CI n'y passe jamais (rien n'y est téléchargé, pas de quarantaine).
+
+Choix : pas de changement de code, une parade dans le README (Forcer à quitter, puis un lancement depuis le Terminal), à côté de `xattr -dr com.apple.quarantine`. Écartés : notarisation (99 $ par an, refusée par principe d'aucune dépense), relance automatique par l'app (le code ne tourne pas tant que macOS bloque). À revoir si le cas revient avec une ligne dans le journal.
