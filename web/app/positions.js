@@ -591,7 +591,7 @@ function renderPortfolio(portfolio, view = portfolio) {
   // Total converti en EUR ; une devise sans taux de change reste sur sa propre ligne.
   const totals = Object.entries(view.totals);
   const scope = view.scope ?? "brut";
-  $("total-label").textContent = SCOPE_LABELS[scope] + (view.filtered ? " des lignes cochées" : "");
+  $("total-label").textContent = SCOPE_LABELS[scope] + (view.filtered ? " (filtre actif)" : "");
   // Le total inclut les espèces des comptes (t.total) quand il y en a. Net : brut − dettes,
   // calculé par le serveur en EUR.
   // Une devise sans taux de change reste à part, comme dans le brut.

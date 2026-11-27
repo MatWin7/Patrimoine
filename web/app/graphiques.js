@@ -82,6 +82,20 @@ let lastPortfolio = null; // patrimoine complet : couleurs, positions, alertes
 let overviewPortfolio = null; // ce que montre Vue d'ensemble (filtré ou non)
 let lastHistory = null;
 
+// Carré de couleur des infobulles (D-149) : plein, de la couleur de la série, sans contour.
+// Chart.js met par défaut le trait de la courbe (ou la bordure d'une part) en contour : on
+// prend la couleur de remplissage, ou le trait pour une courbe, pour chaque survol. Chart.js
+// pose aussi un liseré (`multiKeyBackground`) entre contour et remplissage : transparent, et le trait de 3 px recouvre l'interstice.
+function tooltipSwatch(ctx) {
+  const pick = (c) => (Array.isArray(c) ? c[ctx.dataIndex] : c);
+  const line = ctx.chart.config.type === "line";
+  const candidates = line
+    ? [pick(ctx.dataset.borderColor), ctx.element?.options?.borderColor]
+    : [ctx.element?.options?.backgroundColor, pick(ctx.dataset.backgroundColor)];
+  const color = candidates.find((c) => typeof c === "string") ?? css("--text-3");
+  return { borderColor: color, backgroundColor: color, borderWidth: 3 };
+}
+
 function chartTheme() {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.font.size = 12;
@@ -91,6 +105,8 @@ function chartTheme() {
   Chart.defaults.plugins.legend.labels.boxWidth = 8;
   Chart.defaults.plugins.tooltip.padding = 10;
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
+  Chart.defaults.plugins.tooltip.multiKeyBackground = "transparent";
+  Chart.defaults.plugins.tooltip.callbacks.labelColor = tooltipSwatch;
 }
 
 // Passage clair/sombre (système ou carte Apparence, theme.js) : graphiques recréés avec les nouvelles couleurs.
@@ -236,7 +252,7 @@ function detailColor(classLabel) {
 const shadeColor = (base) => (p, i) => `color-mix(in srgb, ${css(base)} ${Math.max(30, 100 - i * 28)}%, ${css("--surface")})`;
 
 // Plus-values par ligne ; `horizontal` pour la vue agrandie, lisible même avec 30 lignes.
-function gainsConfig(lines, horizontal = false) {
+function gainsConfig(lines, horizontal = false, onPick = null) {
   const value = { border: { display: false }, ticks: { callback: (v) => euros.format(v) } };
   const names = { grid: { display: false } };
   return {
@@ -253,6 +269,9 @@ function gainsConfig(lines, horizontal = false) {
     options: {
       maintainAspectRatio: false,
       indexAxis: horizontal ? "y" : "x",
+      // Petit graphique : un clic n'importe où l'agrandit, comme le bouton de la carte (D-149).
+      onClick: onPick ? () => onPick() : undefined,
+      onHover: onPick ? (event) => { event.native.target.style.cursor = "pointer"; } : undefined,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -318,7 +337,7 @@ function renderCharts(portfolio) {
     : "Clique sur une part pour voir son détail.";
   const lines = gainLines(portfolio);
   const shown = biggestGains(lines);
-  drawChart("chart-gains", gainsConfig(shown));
+  drawChart("chart-gains", gainsConfig(shown, false, () => openZoom("gains")));
   $("gains-note").hidden = shown.length === lines.length;
   $("gains-note").textContent = `Les ${shown.length} plus gros écarts sur ${lines.length} lignes : agrandis pour tout voir.`;
   if ($("zoom").open) renderZoom(); // actualisation automatique : la fenêtre suit
