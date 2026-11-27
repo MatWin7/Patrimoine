@@ -78,11 +78,10 @@ fait la même chose (elle retire la marque « téléchargé d'Internet » de l'a
 xattr -dr com.apple.quarantine /Applications/Patrimoine.app
 ```
 
-Si l'icône rebondit dans le Dock sans qu'aucune fenêtre ne s'ouvre (vu après le remplacement
-d'une version par une autre), l'app n'a pas démarré : macOS bloque son lancement. Attendez une
-minute ; si l'icône rebondit toujours, forcez-la à quitter (clic droit sur l'icône du Dock,
-**Forcer à quitter**), puis lancez-la une fois depuis le Terminal. Les lancements suivants par
-l'icône fonctionnent :
+Si l'icône rebondit dans le Dock sans qu'aucune fenêtre ne s'ouvre, l'app n'a pas démarré :
+macOS bloque son lancement (vu en remplaçant une version d'avant novembre 2026 par une autre).
+Forcez-la à quitter (clic droit sur l'icône du Dock, **Forcer à quitter**), puis lancez-la une
+fois depuis le Terminal ; les lancements suivants par l'icône fonctionnent :
 
 ```bash
 /Applications/Patrimoine.app/Contents/MacOS/Patrimoine
@@ -91,11 +90,10 @@ l'icône fonctionnent :
 Si macOS dit que l'app est **endommagée**, ne la lancez pas : le fichier a été abîmé ou modifié en
 route. Retéléchargez-le et vérifiez son empreinte.
 
-**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** :
-quitter l'ancienne version (Cmd+Q), la mettre à la corbeille et **vider la corbeille**, puis glisser
-la nouvelle dans Applications. Vos données ne sont pas dans l'app : elles restent où elles sont.
-Évitez « Remplacer » : macOS peut alors bloquer la nouvelle version, dont l'icône rebondit dans
-le Dock sans s'ouvrir (parade plus haut si c'est déjà arrivé).
+**Quitter** : Cmd+Q, ou fermer la fenêtre. **Mettre à jour** : quitter l'app (Cmd+Q), glisser la
+nouvelle version dans Applications et accepter de remplacer l'ancienne ; vos données restent où
+elles sont. N'utilisez pas un « désinstalleur » (CCleaner, AppCleaner...) : il effacerait aussi le
+dossier de vos données.
 
 ## Où sont vos données
 
